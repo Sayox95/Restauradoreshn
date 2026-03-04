@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1f3a">
 <title>Inspección Restauradores SCADA</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -173,7 +174,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 /* PRINT */
 @media print{
-  .topbar,.prog-wrap,.sec-nav,.bnav,.toast,.tb-btn,.add-btn,.mat-rm,.firma-clear,#loadOverlay{display:none!important}
+  .topbar,.prog-wrap,.sec-nav,.bnav,.toast,.tb-btn,.add-btn,.mat-rm,.firma-clear,#loadOverlay,#saveOverlay{display:none!important}
   .section-block{display:block!important}
   .sw{padding:0!important}
   .card{box-shadow:none!important;margin:8px 0!important;page-break-inside:avoid}
@@ -211,9 +212,192 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .lo-msg.err{color:#fca5a5;}
 .lo-bar-wrap{width:220px;height:3px;background:rgba(255,255,255,.1);border-radius:99px;overflow:hidden;}
 .lo-bar{height:100%;width:0%;background:var(--accent);border-radius:99px;transition:width .6s ease;}
+
+/* ── SAVE OVERLAY ── */
+#saveOverlay{
+  position:fixed;inset:0;
+  background:rgba(11,31,58,.92);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:9998;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:24px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .3s ease, visibility .3s ease;
+}
+#saveOverlay.show{opacity:1;visibility:visible;pointer-events:all;}
+
+/* Ícono central que cambia de estado */
+.so-icon{
+  width:72px;height:72px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:32px;
+  transition:all .4s ease;
+}
+.so-icon.saving{background:rgba(245,158,11,.15);border:2px solid rgba(245,158,11,.3);}
+.so-icon.success{background:rgba(22,163,74,.2); border:2px solid rgba(22,163,74,.5);}
+.so-icon.error  {background:rgba(220,38,38,.2);  border:2px solid rgba(220,38,38,.4);}
+
+/* Spinner dentro del ícono (estado guardando) */
+.so-ring{
+  width:48px;height:48px;border-radius:50%;
+  border:3px solid rgba(245,158,11,.2);
+  border-top-color:var(--accent);
+  animation:soSpin .8s linear infinite;
+}
+@keyframes soSpin{to{transform:rotate(360deg)}}
+
+.so-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:24px;letter-spacing:.5px;
+  color:#fff;text-align:center;
+  transition:all .3s;
+}
+.so-sub{
+  font-size:13px;color:rgba(255,255,255,.5);
+  text-align:center;padding:0 32px;
+  min-height:18px;line-height:1.5;
+  transition:all .3s;
+}
+.so-sub.ok {color:#86efac;}
+.so-sub.err{color:#fca5a5;}
+
+/* Botón que aparece en el estado de éxito */
+.so-btn{
+  display:none;
+  padding:14px 32px;
+  background:var(--ok);border:none;border-radius:12px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:17px;letter-spacing:.5px;
+  color:#fff;cursor:pointer;
+  box-shadow:0 4px 16px rgba(22,163,74,.4);
+  transition:transform .15s, box-shadow .15s;
+}
+.so-btn:active{transform:scale(.97);}
+.so-btn.err-btn{background:var(--nok);box-shadow:0 4px 16px rgba(220,38,38,.3);}
+
+/* ── PDF DOWNLOAD MODAL ── */
+#pdfModal{
+  position:fixed;inset:0;
+  background:rgba(11,31,58,.96);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+  z-index:10000;
+  display:flex;align-items:center;justify-content:center;
+  padding:20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .35s ease, visibility .35s ease;
+}
+#pdfModal.show{opacity:1;visibility:visible;pointer-events:all;}
+
+.pdf-card{
+  background:var(--card);
+  border-radius:20px;
+  padding:32px 28px 28px;
+  max-width:400px;width:100%;
+  box-shadow:0 24px 64px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  animation:pdfSlideUp .35s ease;
+}
+@keyframes pdfSlideUp{from{transform:translateY(24px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.pdf-check{
+  width:72px;height:72px;border-radius:50%;
+  background:linear-gradient(135deg,#16a34a,#22c55e);
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;
+  box-shadow:0 8px 24px rgba(22,163,74,.35);
+  margin-bottom:18px;
+}
+.pdf-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:22px;
+  color:var(--text);text-align:center;
+  margin-bottom:6px;
+}
+.pdf-meta{
+  font-size:12px;color:var(--muted);
+  text-align:center;margin-bottom:4px;
+}
+.pdf-num{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:700;font-size:15px;
+  color:var(--blue);text-align:center;
+  margin-bottom:24px;
+}
+.pdf-divider{
+  width:100%;height:1px;
+  background:var(--border);
+  margin-bottom:20px;
+}
+.pdf-preview{
+  width:100%;background:var(--bg);
+  border-radius:10px;padding:12px 14px;
+  margin-bottom:20px;
+  border:1px solid var(--border);
+}
+.pdf-preview-row{
+  display:flex;justify-content:space-between;
+  font-size:11px;color:var(--muted);
+  padding:3px 0;
+  border-bottom:1px solid var(--border);
+}
+.pdf-preview-row:last-child{border-bottom:none;}
+.pdf-preview-row strong{color:var(--text);font-weight:600;}
+
+.pdf-dl-btn{
+  width:100%;height:52px;
+  background:linear-gradient(135deg,var(--blue),var(--navy-l));
+  border:none;border-radius:12px;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:18px;letter-spacing:.5px;
+  color:#fff;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:10px;
+  box-shadow:0 4px 16px rgba(21,101,192,.35);
+  transition:transform .15s, box-shadow .15s;
+  margin-bottom:10px;
+}
+.pdf-dl-btn:active{transform:scale(.98);box-shadow:0 2px 8px rgba(21,101,192,.25);}
+.pdf-skip-btn{
+  width:100%;height:40px;
+  background:transparent;border:none;
+  font-size:13px;color:var(--muted);cursor:pointer;
+  transition:color .15s;
+}
+.pdf-skip-btn:hover{color:var(--text);}
 </style>
 </head>
 <body>
+
+
+<!-- ═══ SAVE OVERLAY ═══ -->
+<div id="saveOverlay">
+  <div class="so-icon saving" id="soIcon">
+    <div class="so-ring" id="soRing"></div>
+  </div>
+  <div class="so-title" id="soTitle">Guardando visita...</div>
+  <div class="so-sub"   id="soSub">Enviando información a Google Sheets</div>
+  <button class="so-btn" id="soBtn" onclick="cerrarSaveOverlay()">✔ Nueva Inspección</button>
+</div>
+
+
+<!-- ═══ PDF DOWNLOAD MODAL ═══ -->
+<div id="pdfModal">
+  <div class="pdf-card">
+    <div class="pdf-check">✅</div>
+    <div class="pdf-title">¡Visita Registrada!</div>
+    <div class="pdf-meta">Información guardada en Google Sheets</div>
+    <div class="pdf-num" id="pdfModalNum">HV-000000</div>
+    <div class="pdf-divider"></div>
+    <div class="pdf-preview" id="pdfPreview"></div>
+    <button class="pdf-dl-btn" id="pdfDlBtn" onclick="descargarFichaPDF()">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Descargar Ficha PDF
+    </button>
+    <button class="pdf-skip-btn" onclick="omitirPDF()">Omitir y continuar sin descargar</button>
+  </div>
+</div>
 
 <!-- ═══ LOADING OVERLAY ═══ -->
 <div id="loadOverlay">
@@ -1142,22 +1326,109 @@ function getData() {
   };
 }
 
+/* ── Datos de la última visita guardada (para generar PDF) ── */
+let _lastData = null;
+
+/* ── HELPERS SAVE OVERLAY ── */
+function mostrarSaveOverlay() {
+  const ov = document.getElementById('saveOverlay');
+  const icon = document.getElementById('soIcon');
+  const ring = document.getElementById('soRing');
+  const title = document.getElementById('soTitle');
+  const sub   = document.getElementById('soSub');
+  const btn   = document.getElementById('soBtn');
+  // Estado inicial: guardando
+  icon.className  = 'so-icon saving';
+  icon.innerHTML  = '<div class="so-ring" id="soRing"></div>';
+  title.textContent = 'Guardando visita...';
+  sub.textContent   = 'Enviando información a Google Sheets';
+  sub.className     = 'so-sub';
+  btn.style.display = 'none';
+  btn.className     = 'so-btn';
+  ov.classList.add('show');
+}
+
+function saveOverlayExito(visitaNum, fila) {
+  // Cerrar save overlay y abrir modal de PDF
+  setTimeout(() => {
+    cerrarSaveOverlay();
+    abrirModalPDF(visitaNum, fila);
+  }, 900);
+}
+
+function saveOverlayError(msg) {
+  const icon  = document.getElementById('soIcon');
+  const title = document.getElementById('soTitle');
+  const sub   = document.getElementById('soSub');
+  const btn   = document.getElementById('soBtn');
+  icon.className    = 'so-icon error';
+  icon.innerHTML    = '⚠️';
+  title.textContent = 'Error al guardar';
+  sub.textContent   = msg;
+  sub.className     = 'so-sub err';
+  btn.style.display = 'block';
+  btn.className     = 'so-btn err-btn';
+  btn.textContent   = '✕ Cerrar';
+}
+
+function cerrarSaveOverlay() {
+  document.getElementById('saveOverlay').classList.remove('show');
+}
+
+function limpiarFormulario() {
+  // Limpiar inputs y selects
+  document.querySelectorAll('.sw input:not([type="date"]), .sw textarea').forEach(el => {
+    el.value = '';
+    el.classList.remove('af');
+  });
+  document.querySelectorAll('.sw select').forEach(el => el.selectedIndex = 0);
+
+  // Resetear todos los toggles
+  document.querySelectorAll('.tg-btn').forEach(b => b.classList.remove(...TGA));
+  Object.keys(SS).forEach(k => SS[k] = null);
+
+  // Resetear chips de estado
+  Object.keys(CM).forEach(x => document.getElementById('ch-' + x) && (document.getElementById('ch-' + x).className = 'chip'));
+  sch = null;
+  if(document.getElementById('estadoGeneral')) document.getElementById('estadoGeneral').value = '';
+
+  // Limpiar materiales y personal
+  document.getElementById('matContainer').innerHTML = '';
+  mc = 0;
+  document.getElementById('personalContainer').innerHTML = '';
+  pc = 0;
+  agregarPers();  // Crear tarjeta inicial de técnico de nuevo
+
+  // Resetear firma
+  limpFirma();
+
+  // Nuevo número de visita con fecha actual
+  const n = new Date();
+  document.getElementById('visitaNum').value =
+    `HV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;
+  document.getElementById('fechaVisita').valueAsDate = n;
+
+  // Volver a sección 1 y resetear progreso
+  jumpSec(0);
+  updP();
+}
+
 /* ── GUARDAR: local + Google Sheets ── */
 async function guardar() {
   const d = getData();
 
-  // Siempre guardar local como respaldo
+  // Respaldo local siempre
   try { localStorage.setItem('vis_' + Date.now(), JSON.stringify(d)); } catch(e) {}
 
+  // Sin URL configurada
   if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
-    showToast('✅ Visita guardada localmente · ' + new Date().toLocaleTimeString());
+    mostrarSaveOverlay();
+    saveOverlayError('URL de Apps Script no configurada — visita guardada solo localmente');
     return;
   }
 
-  // Deshabilitar botón mientras envía
-  const btns = document.querySelectorAll('button[onclick*="guardar"]');
-  btns.forEach(b => { b.disabled = true; b.textContent = '⏳ Guardando...'; });
-  showToast('📡 Enviando a Google Sheets...');
+  // Mostrar overlay bloqueante
+  mostrarSaveOverlay();
 
   try {
     const resp = await fetch(WEBAPP_URL, {
@@ -1168,15 +1439,14 @@ async function guardar() {
     const json = await resp.json();
 
     if (json.status === 'ok') {
-      showToast('✅ Guardado en Sheets · Fila ' + json.fila +
-                ' · Visita ' + (json.visitaNum || d.visitaNum));
+      // saveOverlayExito abre el modal PDF; el formulario se limpia después de descargar
+      _lastData = d; // guardar referencia para el PDF
+      saveOverlayExito(json.visitaNum || d.visitaNum, json.fila);
     } else {
-      showToast('⚠️ Error Sheets: ' + json.message + ' — guardado localmente');
+      saveOverlayError('Error en Sheets: ' + json.message + ' — visita guardada localmente');
     }
   } catch (err) {
-    showToast('⚠️ Sin conexión a Sheets — guardado solo localmente');
-  } finally {
-    btns.forEach(b => { b.disabled = false; b.textContent = '✔ GUARDAR VISITA COMPLETA'; });
+    saveOverlayError('Sin conexión a Google Sheets — visita guardada localmente');
   }
 }
 
@@ -1190,6 +1460,512 @@ function exportarJSON() {
                (d.codigoCircuito || 'x') + '.json';
   a.click();
   showToast('📥 JSON exportado · ' + (d.visitaNum || ''));
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   PDF MODAL + GENERADOR DE FICHA TÉCNICA
+   Usa jsPDF (cargado desde CDN) — genera el PDF en el navegador
+══════════════════════════════════════════════════════════════ */
+
+function abrirModalPDF(visitaNum, fila) {
+  const d = _lastData || {};
+  document.getElementById('pdfModalNum').textContent =
+    visitaNum + ' · ' + (d.codigoCircuito || '—') + ' · Fila ' + fila;
+
+  // Preview de datos clave
+  const rows = [
+    ['Ubicación',    d.nombreUbicacion  || '—'],
+    ['Circuito',     d.codigoCircuito   || '—'],
+    ['Zona / Sector',d.zona ? d.zona + ' / ' + (d.sector||'') : '—'],
+    ['Tipo Equipo',  d.modeloRecon      || '—'],
+    ['Estado',       d.estadoGeneral    || '—'],
+    ['Fecha Visita', d.fechaVisita      || '—'],
+  ];
+  document.getElementById('pdfPreview').innerHTML = rows.map(r =>
+    `<div class="pdf-preview-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`
+  ).join('');
+
+  document.getElementById('pdfModal').classList.add('show');
+}
+
+function omitirPDF() {
+  document.getElementById('pdfModal').classList.remove('show');
+  limpiarFormulario();
+}
+
+/* ── GENERADOR DE PDF COMPLETO ─────────────────────────────── */
+async function descargarFichaPDF() {
+  const btn = document.getElementById('pdfDlBtn');
+  btn.textContent = '⏳ Generando PDF...';
+  btn.disabled = true;
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const d = _lastData || {};
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const PW = 215.9, PH = 279.4;
+    const ML = 12, MR = 12, MT = 12;
+    let y = MT;
+
+    // ── Paleta de colores ──
+    const NAVY   = [11, 31, 58];
+    const BLUE   = [21, 101, 192];
+    const ACCENT = [245, 158, 11];
+    const OK     = [22, 163, 74];
+    const NOK    = [220, 38, 38];
+    const WARN   = [234, 179, 8];
+    const MUTED  = [100, 116, 139];
+    const BGROW  = [241, 245, 249];
+    const WHITE  = [255, 255, 255];
+    const BORDER = [209, 217, 230];
+    const CW     = PW - ML - MR; // content width
+
+    // ── helpers ──
+    const setFont = (size, style='normal', color=null) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      if(color) doc.setTextColor(...color); else doc.setTextColor(30,41,59);
+    };
+    const rect = (x,yy,w,h,fill,stroke=null,r=0) => {
+      if(fill){ doc.setFillColor(...fill); }
+      if(stroke){ doc.setDrawColor(...stroke); doc.setLineWidth(.3); }
+      else { doc.setDrawColor(255,255,255); doc.setLineWidth(0); }
+      if(r>0) doc.roundedRect(x,yy,w,h,r,r,fill&&stroke?'FD':fill?'F':'D');
+      else    doc.rect(x,yy,w,h,fill&&stroke?'FD':fill?'F':'D');
+    };
+    const line = (x1,yy1,x2,yy2,color=BORDER,lw=.3) => {
+      doc.setDrawColor(...color); doc.setLineWidth(lw);
+      doc.line(x1,yy1,x2,yy2);
+    };
+    const txt = (t,x,yy,opts={}) => {
+      doc.text(String(t||'—'), x, yy, opts);
+    };
+    const checkPage = (needed=10) => {
+      if(y + needed > PH - 14) {
+        doc.addPage();
+        y = MT;
+        drawPageFooter();
+      }
+    };
+    const sectionHeader = (label, color=NAVY) => {
+      checkPage(10);
+      rect(ML, y, CW, 7, color);
+      setFont(8.5, 'bold', WHITE);
+      txt(label, ML+3, y+5);
+      y += 9;
+    };
+    const fieldRow = (label, value, x, yy, w, shade=false) => {
+      if(shade) rect(x, yy, w, 7, BGROW);
+      setFont(7, 'normal', MUTED); txt(label, x+2, yy+3);
+      setFont(8.5, 'bold');        txt(String(value||'—').slice(0,48), x+2, yy+6.5);
+    };
+    const twoCol = (items) => {
+      // items: [{label, value}] rendered in 2 columns
+      const half = Math.ceil(items.length/2);
+      const colW = CW/2;
+      for(let i=0;i<half;i++){
+        checkPage(8);
+        const shade = i%2===0;
+        fieldRow(items[i].label, items[i].value, ML, y, colW, shade);
+        if(items[i+half]) fieldRow(items[i+half].label, items[i+half].value, ML+colW, y, colW, shade);
+        y += 8;
+      }
+    };
+    const statusColor = (estado) => {
+      const e = (estado||'').toLowerCase();
+      if(e.includes('sin novedad'))  return OK;
+      if(e.includes('observaci'))    return WARN;
+      if(e.includes('manten'))       return [234,88,12];
+      if(e.includes('fuera'))        return NOK;
+      return MUTED;
+    };
+    const toggleBadge = (val, x, yy) => {
+      const v = (val||'').toUpperCase();
+      const isPos = ['SI','ON','OK','LTE','3G','EXTERNA'].includes(v);
+      const isNeg = ['NO','OFF','NOK'].includes(v);
+      const bg = isPos ? OK : isNeg ? NOK : BLUE;
+      rect(x, yy-3.5, 14, 5, bg, null, 2);
+      setFont(6.5,'bold',WHITE); txt(v||'—', x+7, yy, {align:'center'});
+    };
+
+    // ══════════════════════════════════════════════════════
+    //  ENCABEZADO
+    // ══════════════════════════════════════════════════════
+    // Franja superior navy
+    rect(0, 0, PW, 22, NAVY);
+    // Acento izquierdo
+    rect(0, 0, 4, 22, ACCENT);
+    // Rayo SVG simplificado como triángulos
+    doc.setFillColor(...ACCENT);
+    doc.triangle(16,3, 13,11, 17,11, 'F');
+    doc.triangle(17,11, 14,19, 19,11, 'F');
+
+    setFont(14,'bold',WHITE);
+    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 24, 9);
+    setFont(8,'normal',[245,158,11]);
+    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 24, 15);
+
+    // Chip de N° visita
+    rect(PW-MR-52, 3, 52, 7, [255,255,255,10]);
+    setFont(7,'normal',[200,210,230]); txt('N° VISITA', PW-MR-50, 7);
+    setFont(9,'bold',WHITE); txt(d.visitaNum||'—', PW-MR-50, 13);
+
+    y = 26;
+
+    // Banda de datos rápidos
+    rect(ML, y, CW, 9, BGROW, BORDER);
+    const quickItems = [
+      ['FECHA', d.fechaVisita||'—'],
+      ['TIPO',  d.tipoVisita||'—'],
+      ['LLEGADA', d.horaLlegada||'—'],
+      ['SALIDA', d.horaSalida||'—'],
+      ['ENERGIS', d.codigoEnergis||'—'],
+    ];
+    const qw = CW / quickItems.length;
+    quickItems.forEach((q,i) => {
+      if(i>0) line(ML+qw*i, y, ML+qw*i, y+9, BORDER);
+      setFont(6,'normal',MUTED); txt(q[0], ML+qw*i+qw/2, y+3.5, {align:'center'});
+      setFont(8,'bold');         txt(q[1], ML+qw*i+qw/2, y+8,   {align:'center'});
+    });
+    y += 13;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 1: DATOS GENERALES + RECONECTADOR (2 cols)
+    // ══════════════════════════════════════════════════════
+    sectionHeader('1 · IDENTIFICACIÓN DEL RESTAURADOR');
+    const colA = ML, colB = ML + CW/2, colW2 = CW/2;
+    const genItems = [
+      {label:'Circuito',    value:d.codigoCircuito},
+      {label:'Ubicación',   value:d.nombreUbicacion},
+      {label:'N° Inventario',value:d.noInventario},
+      {label:'Subestación', value:d.subestacion},
+      {label:'Zona',        value:d.zona},
+      {label:'Sector',      value:d.sector},
+      {label:'Latitud',     value:d.latitud},
+      {label:'Longitud',    value:d.longitud},
+    ];
+    const reconItems = [
+      {label:'Tipo Reconectador', value:d.tipoRecon},
+      {label:'Marca',             value:d.marcaReconectador},
+      {label:'Modelo',            value:d.modeloRecon},
+      {label:'Serie Reconectador',value:d.serieRecon},
+      {label:'Tipo Control',      value:d.tipoControl},
+      {label:'Serie Control',     value:d.serieControl},
+      {label:'Firmware/Proview',  value:d.proviewControl},
+      {label:'Medio Extinción',   value:d.medioExtincion},
+    ];
+    const maxRows = Math.max(genItems.length, reconItems.length);
+    for(let i=0;i<maxRows;i++){
+      checkPage(8);
+      const shade = i%2===0;
+      if(genItems[i])   fieldRow(genItems[i].label,   genItems[i].value,   colA, y, colW2, shade);
+      if(reconItems[i]) fieldRow(reconItems[i].label, reconItems[i].value, colB, y, colW2, shade);
+      y += 8;
+    }
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 2: MÓDEMS
+    // ══════════════════════════════════════════════════════
+    if(d.modeloModem1 || d.modeloModem2) {
+      checkPage(12);
+      sectionHeader('2 · MÓDEMS DE COMUNICACIÓN');
+      twoCol([
+        {label:'Modelo Módem 1',  value:d.modeloModem1},
+        {label:'Serie Módem 1',   value:d.serieModem1},
+        {label:'Antena Módem 1',  value:d.antenaModem1},
+        {label:'Tecnología 1',    value:d.tecModem1},
+        {label:'Modelo Módem 2',  value:d.modeloModem2},
+        {label:'Serie Módem 2',   value:d.serieModem2},
+      ]);
+      y += 3;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 3: TABLERO + ALARMAS + MEDICIONES
+    // ══════════════════════════════════════════════════════
+    checkPage(14);
+    sectionHeader('3 · TABLERO · ALARMAS · MEDICIONES');
+
+    // Tablero F5/F6 y SEL en tabla de toggles
+    const toggleItems = [
+      ['Ground Trip Blocked', d.groundTripBlocked],
+      ['Non Reclosing',       d.nonReclosing],
+      ['Supervisory OFF',     d.supervisoryOff],
+      ['Hot Line Tag F5/F6',  d.hotLineTagF5],
+      ['Ground Enabled (SEL)',d.groundEnabled],
+      ['Reclose Enabled',     d.recloseEnabled],
+      ['Remote Enabled',      d.remoteEnabled],
+      ['Hot Line Tag SEL',    d.hotLineTagSEL],
+      ['Alarma Presente',     d.alarmaPresente],
+      ['Reset Alarma',        d.resetAlarma],
+      ['Battery Test',        d.batteryTest],
+      ['Cambio Baterías',     d.cambioBaterias],
+    ];
+    const tcols = 4;
+    const tw = CW / tcols;
+    for(let i=0;i<toggleItems.length;i+=tcols){
+      checkPage(9);
+      const shade = (i/tcols)%2===0;
+      for(let j=0;j<tcols;j++){
+        const item = toggleItems[i+j];
+        if(!item) continue;
+        const x = ML + tw*j;
+        if(shade) rect(x,y,tw,9,BGROW);
+        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
+        toggleBadge(item[1], x+tw-17, y+5.5);
+      }
+      y += 9;
+    }
+    // Mediciones AC y bat
+    checkPage(9);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    setFont(7,'normal',MUTED);
+    txt('MEDICIÓN AC (V)', ML+4, y+3.5);
+    setFont(10,'bold',BLUE); txt(d.medicionAC||'—', ML+4, y+8.5);
+    line(ML+CW/3,y,ML+CW/3,y+9,BORDER);
+    setFont(7,'normal',MUTED); txt('MEDICIÓN BATERÍAS (V)', ML+CW/3+4, y+3.5);
+    setFont(10,'bold',BLUE);   txt(d.medicionBat||'—', ML+CW/3+4, y+8.5);
+    line(ML+CW*2/3,y,ML+CW*2/3,y+9,BORDER);
+    setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML+CW*2/3+4, y+3.5);
+    setFont(7.5,'bold');        txt((d.descAlarma||'Sin alarma').slice(0,40), ML+CW*2/3+4, y+8.5);
+    y += 13;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 4: CORRIENTES Y ATERRIZAJE
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('4 · CORRIENTES · AJUSTES · ATERRIZAJE');
+    // Corrientes en tabla horizontal
+    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Apertura Fase','C. Apertura Neutro'];
+    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN, d.ajusteActivo, d.cApertFase, d.cApertNeutro];
+    const cw7 = CW / corrHeaders.length;
+    // Cabecera
+    rect(ML, y, CW, 7, NAVY);
+    corrHeaders.forEach((h,i) => {
+      setFont(6.5,'bold',WHITE);
+      txt(h, ML+cw7*i+cw7/2, y+5, {align:'center'});
+    });
+    y += 7;
+    rect(ML, y, CW, 8, BGROW, BORDER);
+    corrVals.forEach((v2,i) => {
+      setFont(9,'bold',BLUE);
+      txt(v2||'—', ML+cw7*i+cw7/2, y+6, {align:'center'});
+    });
+    y += 11;
+    // Aterrizaje
+    twoCol([
+      {label:'Aterrizaje Control (Ω)',      value:d.aterControl},
+      {label:'Aterrizaje Restaurador (Ω)',  value:d.aterRestaurador},
+      {label:'Aterrizaje Otros (Ω)',        value:d.aterOtros},
+    ]);
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 5: ESTADO FÍSICO
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('5 · ESTADO FÍSICO DEL EQUIPO');
+    const fisItems = [
+      ['Gabinete',          d.gabinete],
+      ['Iluminación',       d.iluminacion],
+      ['Borneras',          d.borneras],
+      ['Estado Baterías',   d.estadoBaterias],
+      ['Ater. Restaurador', d.aterRestState],
+      ['Ater. Control',     d.aterCtrlState],
+      ['Ater. Potencial',   d.aterPotState],
+      ['Cable de Tierra',   d.cableTierra],
+      ['N° Varillas',       d.numVarillas],
+      ['Tipo Cuchilla',     d.tipoCuchilla],
+      ['Estado Cuchillas',  d.estadoCuchillas],
+      ['N° Cuchillas',      d.numCuchillas],
+      ['Pararrayos',        d.pararrayos],
+      ['N° Pararrayos',     d.numPararrayos],
+    ];
+    const fcols = 4, fw = CW/fcols;
+    for(let i=0;i<fisItems.length;i+=fcols){
+      checkPage(9);
+      const shade = (i/fcols)%2===0;
+      for(let j=0;j<fcols;j++){
+        const item = fisItems[i+j];
+        if(!item) continue;
+        const x = ML + fw*j;
+        if(shade) rect(x,y,fw,9,BGROW);
+        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
+        const isToggle = ['OK','NOK','SI','NO'].includes((item[1]||'').toUpperCase());
+        if(isToggle) toggleBadge(item[1], x+fw-17, y+5.5);
+        else { setFont(8,'bold'); txt(String(item[1]||'—').slice(0,14), x+2, y+8); }
+      }
+      y += 9;
+    }
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 6: MATERIALES
+    // ══════════════════════════════════════════════════════
+    const mats = d.materialesUtilizados || [];
+    if(mats.length > 0) {
+      checkPage(14);
+      sectionHeader('6 · MATERIALES UTILIZADOS');
+      // Cabecera tabla
+      rect(ML, y, CW, 7, BLUE);
+      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.46},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.20}];
+      let mx = ML;
+      matCols.forEach(mc => {
+        setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
+        mx += CW*mc.w;
+      });
+      y += 7;
+      mats.forEach((m,idx) => {
+        checkPage(8);
+        if(idx%2===0) rect(ML,y,CW,8,BGROW);
+        mx = ML;
+        const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
+        matCols.forEach((mc,ci) => {
+          const maxLen = ci===1 ? 52 : 18;
+          setFont(7.5, ci===0?'bold':'normal');
+          if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
+          txt(String(vals[ci]||'').slice(0,maxLen), mx+2, y+5.5);
+          mx += CW*mc.w;
+        });
+        y += 8;
+      });
+      y += 3;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 7: ESTADO GENERAL Y OBSERVACIONES
+    // ══════════════════════════════════════════════════════
+    checkPage(30);
+    sectionHeader('7 · ESTADO GENERAL · OBSERVACIONES');
+
+    // Chip de estado grande
+    const stColor = statusColor(d.estadoGeneral);
+    doc.setFillColor(stColor[0],stColor[1],stColor[2]); doc.setGState(doc.GState({opacity:0.12})); rect(ML,y,CW,10,stColor,stColor,3); doc.setGState(doc.GState({opacity:1}));
+    doc.setFillColor(...stColor);
+    doc.circle(ML+8, y+5, 3, 'F');
+    setFont(10,'bold',stColor); txt(d.estadoGeneral||'—', ML+14, y+7);
+    const prioColor = (d.prioridad||'').includes('Alta') ? NOK :
+                      (d.prioridad||'').includes('Media')? WARN : OK;
+    doc.setGState(doc.GState({opacity:0.12})); rect(PW-MR-50,y+1,48,8,prioColor,prioColor,2); doc.setGState(doc.GState({opacity:1}));
+    setFont(8,'bold',prioColor); txt('PRIORIDAD: '+(d.prioridad||'—').replace(/[🔴🟡🟢]/g,'').trim(), PW-MR-48, y+6.5);
+    y += 14;
+
+    // Observaciones y acciones
+    const obsItems = [
+      {label:'OBSERVACIONES GENERALES', value:d.obsGenerales||'—'},
+      {label:'ACCIONES PENDIENTES',     value:d.accionesPend||'—'},
+    ];
+    obsItems.forEach(obs => {
+      checkPage(14);
+      setFont(7,'bold',MUTED); txt(obs.label, ML, y+4);
+      y += 5;
+      const lines2 = doc.splitTextToSize(obs.value, CW-4);
+      const boxH = Math.max(10, lines2.length*4.5+4);
+      rect(ML, y, CW, boxH, BGROW, BORDER);
+      setFont(8.5,'normal'); doc.setTextColor(30,41,59);
+      doc.text(lines2, ML+3, y+5);
+      y += boxH + 4;
+    });
+
+    // Fecha próxima visita
+    checkPage(10);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    setFont(7,'normal',MUTED); txt('FECHA PRÓXIMA VISITA', ML+3, y+3.5);
+    setFont(9,'bold',BLUE);    txt(d.fechaProxVisita||'—', ML+3, y+8);
+    y += 13;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 8: PERSONAL + FIRMA
+    // ══════════════════════════════════════════════════════
+    checkPage(36);
+    sectionHeader('8 · PERSONAL DE VISITA Y FIRMA');
+
+    const personal = d.personal || [];
+    const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
+
+    // Personal (izquierda)
+    if(personal.length > 0) {
+      rect(ML, y, persW, 7, BLUE);
+      setFont(7,'bold',WHITE); txt('NOMBRE', ML+2, y+5);
+      setFont(7,'bold',WHITE); txt('CARGO', ML+persW*.55, y+5);
+      setFont(7,'bold',WHITE); txt('ID', ML+persW*.82, y+5);
+      y += 7;
+      personal.forEach((p,i) => {
+        checkPage(8);
+        if(i%2===0) rect(ML,y,persW,8,BGROW);
+        setFont(8,'bold');   txt((p.nombre||'—').slice(0,28), ML+2, y+5.5);
+        setFont(7.5,'normal',MUTED); txt((p.cargo||'—').slice(0,20), ML+persW*.55, y+5.5);
+        setFont(7.5,'normal');        txt(p.id||'—', ML+persW*.82, y+5.5);
+        y += 8;
+      });
+    }
+
+    // Firma (derecha) — alineada con la tabla de personal
+    const firmaStartY = y - (personal.length * 8) - 7;
+    const firmaX = ML + persW + gap;
+    const firmaBoxH = personal.length * 8 + 7;
+    rect(firmaX, firmaStartY, firmaW, firmaBoxH, BGROW, BORDER);
+    setFont(7,'normal',MUTED); txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
+
+    if(d.firmaImg && d.firmaImg.startsWith('data:image')) {
+      try {
+        const fImgH = Math.min(firmaBoxH-14, 25);
+        const fImgW = firmaW - 8;
+        doc.addImage(d.firmaImg, 'PNG', firmaX+4, firmaStartY+8, fImgW, fImgH);
+      } catch(e){}
+    } else {
+      setFont(8,'normal',MUTED);
+      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2, {align:'center'});
+    }
+    setFont(8,'bold'); doc.setTextColor(30,41,59);
+    txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
+
+    y += 8;
+
+    // ── Obs. del responsable ──
+    if(d.obsResponsable) {
+      checkPage(12);
+      const oLines = doc.splitTextToSize('Nota del responsable: ' + d.obsResponsable, CW-4);
+      const oH = Math.max(10, oLines.length*4.5+4);
+      rect(ML, y, CW, oH, [255,251,235], [245,158,11]);
+      setFont(7.5,'normal',[146,64,14]); doc.text(oLines, ML+3, y+5);
+      y += oH + 4;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
+    // ══════════════════════════════════════════════════════
+    function drawPageFooter() {
+      const pages = doc.internal.getNumberOfPages();
+      for(let i=1;i<=pages;i++){
+        doc.setPage(i);
+        rect(0, PH-10, PW, 10, NAVY);
+        setFont(6.5,'normal',[150,170,200]);
+        txt('SCADA Distribución — Hoja de Visita · ' + (d.visitaNum||'') + ' · ' + (d.fechaVisita||''), ML, PH-4);
+        txt('Pág. '+i+' / '+pages, PW-MR, PH-4, {align:'right'});
+        txt('Generado: '+new Date().toLocaleString('es-HN'), PW/2, PH-4, {align:'center'});
+      }
+    }
+    drawPageFooter();
+
+    // ── Guardar ──
+    const filename = 'Ficha_' + (d.visitaNum||'visita') + '_' +
+                     (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
+    doc.save(filename);
+
+    // Cerrar modal y limpiar formulario
+    document.getElementById('pdfModal').classList.remove('show');
+    setTimeout(limpiarFormulario, 300);
+
+  } catch(err) {
+    console.error('Error generando PDF:', err);
+    alert('Error al generar PDF: ' + err.message);
+  } finally {
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Ficha PDF';
+    btn.disabled = false;
+  }
 }
 
 /* ── INIT ── */
