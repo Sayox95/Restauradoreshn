@@ -398,6 +398,253 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   align-items: flex-start;
 }
 #sec1-val-banner.show { display: flex; }
+
+/* ── HAMBURGER BUTTON ── */
+.hbg-btn{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.1);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;flex-direction:column;gap:5px;padding:10px;}
+.hbg-btn:active{background:rgba(255,255,255,.25)}
+.hbg-line{width:20px;height:2px;background:#fff;border-radius:2px;transition:all .25s;}
+
+/* ── MENÚ LATERAL DE NAVEGACIÓN (solo nav, angosto) ── */
+#adminNav{
+  position:fixed;top:0;left:0;bottom:0;width:220px;
+  background:var(--navy);
+  z-index:8001;
+  display:flex;flex-direction:column;
+  transform:translateX(-100%);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+  box-shadow:4px 0 24px rgba(0,0,0,.3);
+}
+#adminNav.show{transform:translateX(0);}
+#adminOverlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:8000;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .3s,visibility .3s;}
+#adminOverlay.show{opacity:1;visibility:visible;pointer-events:all;}
+
+.adm-nav-head{
+  padding:18px 16px 14px;
+  border-bottom:1px solid rgba(255,255,255,.08);
+  flex-shrink:0;
+}
+.adm-nav-logo{display:flex;align-items:center;gap:10px;}
+.adm-nav-logo svg{width:28px;height:28px;color:var(--accent);flex-shrink:0;}
+.adm-nav-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:16px;color:#fff;letter-spacing:.5px;line-height:1.2;}
+.adm-nav-sub{font-size:10px;color:rgba(255,255,255,.4);margin-top:2px;}
+
+.adm-nav-section{padding:10px 12px 4px;font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3);text-transform:uppercase;}
+
+.adm-nav-item{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;margin:2px 8px;
+  border-radius:10px;
+  border:none;background:transparent;
+  color:rgba(255,255,255,.6);
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:15px;letter-spacing:.3px;
+  cursor:pointer;width:calc(100% - 16px);text-align:left;
+  transition:all .2s;
+}
+.adm-nav-item:hover{background:rgba(255,255,255,.08);color:#fff;}
+.adm-nav-item.active{background:rgba(245,158,11,.15);color:var(--accent);}
+.adm-nav-item .nav-icon{font-size:18px;width:22px;text-align:center;flex-shrink:0;}
+.adm-nav-item .nav-badge{margin-left:auto;background:rgba(255,255,255,.1);color:rgba(255,255,255,.5);font-size:10px;padding:1px 7px;border-radius:10px;}
+.adm-nav-item.active .nav-badge{background:rgba(245,158,11,.2);color:var(--accent);}
+
+.adm-nav-footer{margin-top:auto;padding:12px 16px;border-top:1px solid rgba(255,255,255,.08);}
+.adm-nav-close{width:100%;height:38px;border-radius:8px;background:rgba(255,255,255,.06);border:none;color:rgba(255,255,255,.5);font-size:13px;cursor:pointer;font-family:'Barlow',sans-serif;}
+.adm-nav-close:hover{background:rgba(255,255,255,.12);color:#fff;}
+
+/* ── PÁGINA FULLSCREEN DE ADMIN ── */
+#adminPage{
+  position:fixed;inset:0;
+  background:var(--bg);
+  z-index:7500;
+  display:flex;flex-direction:column;
+  transform:translateX(100%);
+  transition:transform .32s cubic-bezier(.4,0,.2,1);
+}
+#adminPage.show{transform:translateX(0);}
+
+.adm-page-head{
+  background:var(--navy);
+  padding:0 16px;
+  height:var(--tbh);
+  display:flex;align-items:center;gap:12px;
+  flex-shrink:0;
+  border-bottom:3px solid var(--accent);
+}
+.adm-page-back{
+  width:36px;height:36px;border-radius:8px;
+  background:rgba(255,255,255,.1);border:none;
+  color:#fff;font-size:18px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.adm-page-back:active{background:rgba(255,255,255,.25);}
+.adm-page-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:18px;color:#fff;letter-spacing:.5px;flex:1;
+}
+.adm-page-title small{display:block;font-size:10px;font-weight:400;color:rgba(255,255,255,.45);letter-spacing:.3px;}
+.adm-page-add{
+  height:36px;padding:0 16px;
+  background:var(--accent);border:none;border-radius:8px;
+  color:var(--navy);font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:14px;letter-spacing:.3px;
+  cursor:pointer;display:flex;align-items:center;gap:6px;
+  flex-shrink:0;
+}
+.adm-page-add:active{opacity:.85;}
+
+.adm-page-toolbar{
+  padding:12px 16px 8px;
+  background:var(--card);
+  border-bottom:1px solid var(--border);
+  display:flex;gap:8px;align-items:center;
+  flex-shrink:0;
+}
+.adm-search{
+  flex:1;height:40px;
+  border:1.5px solid var(--border);border-radius:10px;
+  padding:0 12px;font-size:14px;background:var(--inp);
+}
+.adm-search:focus{outline:none;border-color:var(--blue);}
+.adm-rec-count{font-size:12px;color:var(--muted);white-space:nowrap;}
+
+.adm-page-body{
+  flex:1;overflow-y:auto;
+  padding:0;
+}
+
+/* Tabla de datos */
+.adm-table-wrap{overflow-x:auto;}
+.adm-table{width:100%;border-collapse:collapse;font-size:13px;}
+.adm-table thead tr{background:var(--navy-mid);position:sticky;top:0;z-index:2;}
+.adm-table th{
+  padding:10px 12px;text-align:left;
+  font-family:'Barlow Condensed',sans-serif;font-weight:700;
+  font-size:12px;letter-spacing:.4px;color:rgba(255,255,255,.9);
+  white-space:nowrap;
+}
+.adm-table td{
+  padding:10px 12px;
+  border-bottom:1px solid var(--border);
+  vertical-align:middle;
+  max-width:240px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.adm-table tbody tr:hover td{background:var(--sec-bg);}
+.adm-table tbody tr:last-child td{border-bottom:none;}
+.adm-act{display:flex;gap:6px;}
+.adm-edit-btn,.adm-del-btn{
+  height:32px;padding:0 12px;border-radius:6px;border:none;
+  font-size:12px;font-weight:600;cursor:pointer;
+  display:flex;align-items:center;gap:4px;white-space:nowrap;
+}
+.adm-edit-btn{background:var(--sec-bg);color:var(--blue);}
+.adm-edit-btn:hover{background:#dbeafe;}
+.adm-del-btn{background:#fee2e2;color:var(--nok);}
+.adm-del-btn:hover{background:#fecaca;}
+.adm-empty{text-align:center;padding:48px 16px;color:var(--muted);font-size:14px;}
+.adm-loading{text-align:center;padding:48px;color:var(--muted);font-size:14px;}
+.adm-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;}
+.adm-badge.ok{background:var(--ok-l);color:var(--ok);}
+.adm-badge.nok{background:var(--nok-l);color:var(--nok);}
+
+
+/* ── ADMIN OPERATION OVERLAY ── */
+#admOpOverlay{
+  position:fixed;inset:0;z-index:9800;
+  background:rgba(11,31,58,.88);
+  backdrop-filter:blur(3px);
+  -webkit-backdrop-filter:blur(3px);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .2s ease, visibility .2s ease;
+}
+#admOpOverlay.show{opacity:1;visibility:visible;pointer-events:all;}
+
+.adm-op-icon{
+  width:64px;height:64px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:28px;
+  transition:all .3s;
+}
+.adm-op-icon.saving {background:rgba(21,101,192,.25); border:2px solid rgba(21,101,192,.4);}
+.adm-op-icon.deleting{background:rgba(220,38,38,.2);  border:2px solid rgba(220,38,38,.4);}
+.adm-op-icon.loading {background:rgba(245,158,11,.15); border:2px solid rgba(245,158,11,.3);}
+.adm-op-icon.success {background:rgba(22,163,74,.2);  border:2px solid rgba(22,163,74,.5);}
+
+.adm-op-spinner{
+  width:40px;height:40px;border-radius:50%;
+  border:3px solid rgba(255,255,255,.15);
+  animation:admSpin .75s linear infinite;
+}
+.adm-op-icon.saving  .adm-op-spinner{border-top-color:#60a5fa;}
+.adm-op-icon.deleting .adm-op-spinner{border-top-color:#f87171;}
+.adm-op-icon.loading  .adm-op-spinner{border-top-color:var(--accent);}
+@keyframes admSpin{to{transform:rotate(360deg)}}
+
+.adm-op-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:20px;letter-spacing:.5px;
+  color:#fff;text-align:center;
+}
+.adm-op-sub{
+  font-size:12px;color:rgba(255,255,255,.45);
+  text-align:center;padding:0 32px;
+}
+
+/* Bloquear campos del form mientras overlay activo */
+#admFormModal.op-blocking .adm-form-body{pointer-events:none;opacity:.5;}
+#admFormModal.op-blocking .adm-form-footer{pointer-events:none;opacity:.5;}
+/* ── MODAL EDICIÓN/CREACIÓN ── */
+#admFormModal{
+  position:fixed;inset:0;z-index:9500;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .25s,visibility .25s;
+}
+@media(min-width:600px){#admFormModal{align-items:center;}}
+#admFormModal.show{opacity:1;visibility:visible;pointer-events:all;}
+.adm-form-card{
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  width:100%;max-width:520px;
+  box-shadow:0 -8px 40px rgba(0,0,0,.2);
+  display:flex;flex-direction:column;
+  max-height:90vh;overflow:hidden;
+  animation:slideUp .25s ease;
+}
+@media(min-width:600px){.adm-form-card{border-radius:20px;animation:pdfSlideUp .25s ease;}}
+@keyframes slideUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
+.adm-form-head{
+  background:var(--navy);padding:16px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:3px solid var(--accent);flex-shrink:0;
+}
+.adm-form-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;color:#fff;}
+.adm-close{width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.1);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.adm-close:active{background:rgba(255,255,255,.25);}
+.adm-form-body{padding:16px 18px;overflow-y:auto;display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:420px){.adm-form-body{grid-template-columns:1fr;}}
+.adm-form-field{display:flex;flex-direction:column;gap:4px;}
+.adm-form-field.full{grid-column:1/-1;}
+.adm-form-field label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;}
+.adm-form-field input,.adm-form-field select,.adm-form-field textarea{
+  width:100%;height:42px;
+  border:1.5px solid var(--border);border-radius:10px;
+  padding:0 12px;font-size:14px;background:var(--inp);
+}
+.adm-form-field textarea{height:80px;padding:10px 12px;resize:vertical;}
+.adm-form-field input:focus,.adm-form-field select:focus,.adm-form-field textarea:focus{outline:none;border-color:var(--blue);}
+.adm-form-footer{padding:14px 18px;border-top:1px solid var(--border);display:flex;gap:8px;flex-shrink:0;}
+.adm-form-save{flex:1;height:46px;background:var(--blue);border:none;border-radius:12px;color:#fff;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:17px;cursor:pointer;}
+.adm-form-save:active{opacity:.85;}
+.adm-form-cancel{height:46px;padding:0 18px;background:var(--bg);border:1.5px solid var(--border);border-radius:12px;color:var(--muted);font-size:14px;cursor:pointer;}
+
+/* toast de admin */
+#admToast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9600;opacity:0;transition:all .3s;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);}
+#admToast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 </style>
 </head>
 <body>
@@ -451,9 +698,16 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 
 <header class="topbar">
-  <div class="tb-brand">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-    <div>SCADA Distribución<small>Control de Restauradores</small></div>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <button class="hbg-btn" onclick="toggleAdmin()" title="Menú Admin" id="hbgBtn">
+      <div class="hbg-line"></div>
+      <div class="hbg-line"></div>
+      <div class="hbg-line"></div>
+    </button>
+    <div class="tb-brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <div>SCADA Distribución<small>Control de Restauradores</small></div>
+    </div>
   </div>
   <div class="tb-actions">
     <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosSheets()" title="Toca para recargar desde Sheets">⏳ Cargando...</span>
@@ -462,6 +716,92 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <button class="tb-btn" onclick="guardar()" title="Guardar">💾</button>
   </div>
 </header>
+
+<!-- ═══ ADMIN NAV OVERLAY ═══ -->
+<div id="adminOverlay" onclick="cerrarAdmin()"></div>
+
+<!-- ═══ MENÚ LATERAL DE NAVEGACIÓN ═══ -->
+<nav id="adminNav">
+  <div class="adm-nav-head">
+    <div class="adm-nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <div>
+        <div class="adm-nav-title">Admin</div>
+        <div class="adm-nav-sub">SCADA Distribución</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="adm-nav-section">Catálogos</div>
+
+  <button class="adm-nav-item" onclick="admAbrirPagina('restauradores',this)">
+    <span class="nav-icon">🔌</span> Restauradores
+  </button>
+  <button class="adm-nav-item" onclick="admAbrirPagina('marcas',this)">
+    <span class="nav-icon">🏷️</span> Marcas
+  </button>
+  <button class="adm-nav-item" onclick="admAbrirPagina('tipos',this)">
+    <span class="nav-icon">📋</span> Tipos
+  </button>
+  <button class="adm-nav-item" onclick="admAbrirPagina('materiales',this)">
+    <span class="nav-icon">🔧</span> Materiales
+  </button>
+  <button class="adm-nav-item" onclick="admAbrirPagina('personal',this)">
+    <span class="nav-icon">👤</span> Personal
+  </button>
+
+  <div class="adm-nav-footer">
+    <button class="adm-nav-close" onclick="cerrarAdmin()">✕ Cerrar menú</button>
+  </div>
+</nav>
+
+<!-- ═══ PÁGINA FULLSCREEN DE ADMIN ═══ -->
+<div id="adminPage">
+  <div class="adm-page-head">
+    <button class="adm-page-back" onclick="cerrarAdminPage()" title="Volver">←</button>
+    <div class="adm-page-title">
+      <span id="admPageTitle">Catálogo</span>
+      <small id="admPageSub"></small>
+    </div>
+    <button class="adm-page-add" onclick="admAbrirForm(null)">＋ Nuevo</button>
+  </div>
+  <div class="adm-page-toolbar">
+    <input class="adm-search" id="admSearchInput" placeholder="🔍 Buscar en cualquier campo..." oninput="admFiltrar(this.value)">
+    <span class="adm-rec-count" id="admRecCount"></span>
+  </div>
+  <div class="adm-page-body">
+    <div class="adm-table-wrap" id="admTableWrap">
+      <div class="adm-loading">⏳ Cargando datos...</div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══ ADMIN OPERATION OVERLAY ═══ -->
+<div id="admOpOverlay">
+  <div class="adm-op-icon loading" id="admOpIcon">
+    <div class="adm-op-spinner"></div>
+  </div>
+  <div class="adm-op-title" id="admOpTitle">Procesando...</div>
+  <div class="adm-op-sub"  id="admOpSub"></div>
+</div>
+
+<!-- ═══ ADMIN FORM MODAL ═══ -->
+<div id="admFormModal">
+  <div class="adm-form-card">
+    <div class="adm-form-head">
+      <div class="adm-form-title" id="admFormTitle">Nuevo registro</div>
+      <button class="adm-close" onclick="cerrarAdmForm()">✕</button>
+    </div>
+    <div class="adm-form-body" id="admFormBody"></div>
+    <div class="adm-form-footer">
+      <button class="adm-form-cancel" onclick="cerrarAdmForm()">Cancelar</button>
+      <button class="adm-form-save" id="admFormSave" onclick="guardarAdmForm()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div id="admToast"></div>
 
 <div class="prog-wrap"><div class="prog-fill" id="pf" style="width:0%"></div></div>
 
@@ -524,7 +864,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
       <div class="g2">
         <div class="field"><label>Circuito</label><input type="text" id="codigoCircuito" class="af" readonly placeholder="Autorrelleno"></div>
-        <div class="field"><label>No. Inventario</label><input type="text" id="noInventario" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Ubicación</label><input type="text" id="nombreUbicacion" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Subestación</label><input type="text" id="subestacion" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Zona</label><input type="text" id="zona" class="af" readonly placeholder="Autorrelleno"></div>
@@ -929,7 +1268,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwBzTOZtnJiCRGHG18bvNRcRxrYoHtly5u8YszbRhn0FUFekS2QpvpnRftwieD_P358IQ/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyiBr262uYzVdlmPrx6UhGjxeQt24mhhFsQy_ctC2jT2xrF76S1Ee5dpaj-zmZL9h-RVg/exec';
 
 /* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
@@ -1166,7 +1505,7 @@ function acSel(idx,type){
   const fv=(id,v)=>{const el=document.getElementById(id);if(el)el.value=v||'';};
   fv('codigoEnergis',r.energis);fv('codigoCircuito',r.circuito);fv('nombreUbicacion',r.ubicacion);
   fv('zona',r.zona);fv('sector',r.sector);fv('subestacion',r.subestacion);
-  fv('noInventario',r.no);fv('latitud',r.latitud);fv('longitud',r.longitud);
+  fv('latitud',r.latitud);fv('longitud',r.longitud);
   fv('genDistribuida',r.gen_distribuida||'—');fv('tipoControl',r.control);
   const t=r.tipo||'';
   for(const[k,v]of Object.entries({NOVA:'NOVA',NOJA:'NOJA',COOPER:'COOPER','G&W':'G&W'}))if(t.includes(k)){document.getElementById('marcaReconectador').value=v;break;}
@@ -1472,7 +1811,6 @@ function getData() {
 
     // Restaurador
     codigoEnergis     : v('codigoEnergis'),
-    noInventario      : v('noInventario'),
     codigoCircuito    : v('codigoCircuito'),
     nombreUbicacion   : v('nombreUbicacion'),
     zona              : v('zona'),
@@ -1902,8 +2240,7 @@ async function descargarFichaPDF() {
     const genItems = [
       {label:'Circuito',    value:d.codigoCircuito},
       {label:'Ubicación',   value:d.nombreUbicacion},
-      {label:'N° Inventario',value:d.noInventario},
-      {label:'Subestación', value:d.subestacion},
+        {label:'Subestación', value:d.subestacion},
       {label:'Zona',        value:d.zona},
       {label:'Sector',      value:d.sector},
       {label:'Latitud',     value:d.latitud},
@@ -2244,6 +2581,374 @@ async function descargarFichaPDF() {
     btn.disabled = false;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════
+   PANEL DE ADMINISTRACIÓN — CRUD completo via Apps Script
+   Diseño: menú lateral de navegación + página fullscreen
+══════════════════════════════════════════════════════════════ */
+
+let admCurrentTab  = null;
+let admCurrentData = [];
+let admEditIdx     = null;
+let admEditRowNum  = null;
+let admFiltroActual = '';
+
+const ADM_META = {
+  restauradores: { label:'Restauradores', icon:'🔌', sub:'Inventario de reconectadores en red' },
+  marcas:        { label:'Marcas',        icon:'🏷️', sub:'Marcas, modelos y controles' },
+  tipos:         { label:'Tipos',         icon:'📋', sub:'Tipos de reconectadores' },
+  materiales:    { label:'Materiales',    icon:'🔧', sub:'Catálogo de materiales con stock' },
+  personal:      { label:'Personal',      icon:'👤', sub:'Técnicos de visita' },
+};
+
+const ADM_COLS = {
+  restauradores: [
+    {key:'Energis',     label:'Energis',    type:'text',   full:false, unique:true},
+    {key:'Zona',        label:'Zona',        type:'text',   full:false},
+    {key:'Sector',      label:'Sector',      type:'text',   full:false},
+    {key:'Subestacion', label:'Subestación', type:'text',   full:false},
+    {key:'Ubicación',   label:'Ubicación',   type:'text',   full:true},
+    {key:'Circuito',    label:'Circuito',    type:'text',   full:false},
+    {key:'Latitud',     label:'Latitud',     type:'text',   full:false},
+    {key:'Longitud',    label:'Longitud',    type:'text',   full:false},
+    {key:'Estado',      label:'Estado',      type:'select', full:false, opts:['ACTIVO','INACTIVO']},
+  ],
+  marcas: [
+    {key:'ELEMENTO',     label:'Elemento',     type:'select', opts:['RESTAURADOR','MODEM'], full:false},
+    {key:'MARCA',        label:'Marca',        type:'text', full:false},
+    {key:'MODELO',       label:'Modelo',       type:'text', full:false},
+    {key:'TIPO CONTROL', label:'Tipo Control', type:'text', full:false},
+  ],
+  tipos: [
+    {key:'ELEMENTO', label:'Elemento', type:'text', full:false},
+    {key:'TIPO',     label:'Tipo',     type:'text', full:false},
+  ],
+  materiales: [
+    {key:'CODIGO MATERIAL', label:'Código',   type:'text',   full:false},
+    {key:'NOMBRE MATERIAL', label:'Nombre',   type:'text',   full:true},
+    {key:'CODIGO UNIDAD',   label:'Unidad',   type:'text',   full:false},
+    {key:'CANTIDAD ACTUAL', label:'Stock',    type:'number', full:false},
+  ],
+  personal: [
+    {key:'Nombre',      label:'Nombre',  type:'text',   full:false},
+    {key:'Cargo',       label:'Cargo',   type:'text',   full:false},
+    {key:'ID Empleado', label:'ID',      type:'text',   full:false},
+    {key:'Activo',      label:'Activo',  type:'select', opts:['TRUE','FALSE'], full:false},
+  ]
+};
+
+// Columnas a mostrar en la tabla (las demás solo en el form)
+const ADM_VISIBLE = {
+  restauradores: ['Energis','Circuito','Ubicación','Zona','Estado'],
+  marcas:        ['ELEMENTO','MARCA','MODELO','TIPO CONTROL'],
+  tipos:         ['ELEMENTO','TIPO'],
+  materiales:    ['CODIGO MATERIAL','NOMBRE MATERIAL','CODIGO UNIDAD','CANTIDAD ACTUAL'],
+  personal:      ['Nombre','Cargo','ID Empleado','Activo'],
+};
+
+/* ── Abrir / cerrar menú lateral ── */
+function toggleAdmin() {
+  const nav     = document.getElementById('adminNav');
+  const overlay = document.getElementById('adminOverlay');
+  const isOpen  = nav.classList.contains('show');
+  if (isOpen) { cerrarAdmin(); }
+  else { nav.classList.add('show'); overlay.classList.add('show'); }
+}
+function cerrarAdmin() {
+  document.getElementById('adminNav').classList.remove('show');
+  document.getElementById('adminOverlay').classList.remove('show');
+}
+
+/* ── Abrir página fullscreen de una sección ── */
+function admAbrirPagina(seccion, btn) {
+  // Marcar activo en nav
+  document.querySelectorAll('.adm-nav-item').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // Cerrar menú lateral
+  cerrarAdmin();
+
+  admCurrentTab    = seccion;
+  admCurrentData   = [];
+  admFiltroActual  = '';
+
+  const meta = ADM_META[seccion] || {};
+  document.getElementById('admPageTitle').textContent = meta.icon + ' ' + meta.label;
+  document.getElementById('admPageSub').textContent   = meta.sub || '';
+  document.getElementById('admSearchInput').value     = '';
+  document.getElementById('admRecCount').textContent  = '';
+  document.getElementById('admTableWrap').innerHTML   = '<div class="adm-loading">⏳ Cargando datos...</div>';
+
+  // Mostrar página
+  document.getElementById('adminPage').classList.add('show');
+
+  admCargarTabla(seccion);
+}
+
+function cerrarAdminPage() {
+  document.getElementById('adminPage').classList.remove('show');
+  document.querySelectorAll('.adm-nav-item').forEach(b => b.classList.remove('active'));
+  admCurrentTab = null;
+}
+
+/* ── Cargar datos desde Sheets ── */
+async function admCargarTabla(seccion) {
+  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
+    document.getElementById('admTableWrap').innerHTML =
+      '<div class="adm-empty">⚙️ Configura WEBAPP_URL para usar el admin</div>';
+    return;
+  }
+  try {
+    const resp = await fetch(WEBAPP_URL + '?action=' + seccion + '&raw=1', { cache:'no-cache' });
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.message);
+    admCurrentData = json.rows || [];
+    admRenderTabla(seccion, admCurrentData, '');   // admOpHide() se llama dentro
+  } catch(err) {
+    document.getElementById('admTableWrap').innerHTML =
+      '<div class="adm-empty">❌ ' + err.message + '</div>';
+    admOpHide();
+  }
+}
+
+/* ── Renderizar tabla ── */
+function admRenderTabla(seccion, rows, filtro) {
+  const cols    = ADM_COLS[seccion]    || [];
+  const visible = ADM_VISIBLE[seccion] || cols.map(c=>c.key);
+  const visCols = cols.filter(c => visible.includes(c.key));
+
+  const filtered = filtro
+    ? rows.filter(r => Object.values(r).some(v =>
+        String(v||'').toLowerCase().includes(filtro.toLowerCase())))
+    : rows;
+
+  document.getElementById('admRecCount').textContent =
+    filtered.length + ' de ' + rows.length + ' registros';
+
+  const html = `
+    <table class="adm-table">
+      <thead><tr>
+        <th style="width:40px">#</th>
+        ${visCols.map(col=>`<th>${col.label}</th>`).join('')}
+        <th style="width:120px;text-align:center">Acciones</th>
+      </tr></thead>
+      <tbody>
+        ${filtered.length === 0
+          ? `<tr><td colspan="${visCols.length+2}" class="adm-empty">Sin registros que mostrar</td></tr>`
+          : filtered.map((row, i) => {
+              const realIdx = rows.indexOf(row);
+              return `<tr>
+                <td style="color:var(--muted);font-size:11px">${i+1}</td>
+                ${visCols.map(col => {
+                  const v = String(row[col.key]||'');
+                  if (col.key==='Activo') {
+                    const isActive = v.toUpperCase()==='TRUE'; return `<td><span class="adm-badge ${isActive?'ok':'nok'}">${isActive?'✓ Activo':'✗ Inactivo'}</span></td>`;
+                  }
+                  if (col.key==='Estado') {
+                    const isActive = v.toUpperCase()==='ACTIVO'; return `<td><span class="adm-badge ${isActive?'ok':'nok'}">${isActive?'✓ Activo':'✗ Inactivo'}</span></td>`;
+                  }
+                  return `<td title="${v}">${v.slice(0,50)}</td>`;
+                }).join('')}
+                <td style="text-align:center">
+                  <div class="adm-act" style="justify-content:center">
+                    <button class="adm-edit-btn" onclick="admAbrirForm(${realIdx})">✏️ Editar</button>
+                    <button class="adm-del-btn" onclick="admEliminar(${realIdx})">🗑️</button>
+                  </div>
+                </td>
+              </tr>`;
+            }).join('')}
+      </tbody>
+    </table>`;
+
+  document.getElementById('admTableWrap').innerHTML = html;
+  // Ocultar overlay AQUÍ: tabla ya renderizada en el DOM
+  admOpHide();
+}
+
+function admFiltrar(val) {
+  admFiltroActual = val;
+  admRenderTabla(admCurrentTab, admCurrentData, val);
+}
+
+/* ── Abrir formulario modal ── */
+function admAbrirForm(idx) {
+  admEditIdx = idx;
+  const seccion = admCurrentTab;
+  const cols    = ADM_COLS[seccion] || [];
+  const isEdit  = idx !== null;
+  const row     = isEdit ? admCurrentData[idx] : {};
+  admEditRowNum = isEdit ? (row._rowNum || null) : null;
+
+  const meta = ADM_META[seccion] || {};
+  document.getElementById('admFormTitle').textContent =
+    (isEdit ? '✏️ Editar' : '＋ Nuevo') + ' · ' + meta.label;
+
+  document.getElementById('admFormBody').innerHTML = cols.map(col => {
+    const val  = isEdit ? (row[col.key]||'') : '';
+    const full = col.full ? ' full' : '';
+    let input  = '';
+    if (col.type === 'select') {
+      input = `<select id="adf_${col.key.replace(/\s/g,'_')}">
+        ${col.opts.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}
+      </select>`;
+    } else if (col.type === 'number') {
+      input = `<input type="number" id="adf_${col.key.replace(/\s/g,'_')}" value="${val}" step="0.01">`;
+    } else {
+      input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${val.replace(/"/g,'&quot;')}" placeholder="${col.label}">`;
+    }
+    return `<div class="adm-form-field${full}"><label>${col.label}</label>${input}</div>`;
+  }).join('');
+
+  document.getElementById('admFormModal').classList.add('show');
+}
+
+function cerrarAdmForm() {
+  document.getElementById('admFormModal').classList.remove('show');
+  admEditIdx = null;
+  admEditRowNum = null;
+}
+
+/* ── Guardar (crear o editar) ── */
+async function guardarAdmForm() {
+  const seccion = admCurrentTab;
+  const cols    = ADM_COLS[seccion] || [];
+  const rowData = {};
+  cols.forEach(col => {
+    const el = document.getElementById('adf_' + col.key.replace(/\s/g,'_'));
+    if (el) rowData[col.key] = el.value.trim();
+  });
+
+  // Validar campos únicos (ej: Energis en restauradores) solo al insertar nuevo
+  if (admEditIdx === null) {
+    const uniqueCols = cols.filter(c => c.unique);
+    for (const col of uniqueCols) {
+      const val = (rowData[col.key] || '').toLowerCase().trim();
+      if (!val) { admToast('⚠️ El campo ' + col.label + ' es obligatorio'); return; }
+      const exists = admCurrentData.some(row =>
+        String(row[col.key] || '').toLowerCase().trim() === val
+      );
+      if (exists) {
+        admToast('❌ Ya existe un registro con ' + col.label + ' = ' + rowData[col.key]);
+        // Marcar el campo en rojo
+        const el = document.getElementById('adf_' + col.key.replace(/\s/g,'_'));
+        if (el) { el.style.borderColor = 'var(--nok)'; el.focus(); }
+        return;
+      }
+    }
+  }
+
+  const esEdicion = admEditIdx !== null;
+  const opLabel   = esEdicion ? 'Actualizando registro...' : 'Guardando nuevo registro...';
+  admOpShow('saving', opLabel, seccion.charAt(0).toUpperCase() + seccion.slice(1));
+
+  try {
+    const payload = {
+      action : esEdicion ? 'update' : 'insert',
+      sheet  : seccion,
+      rowNum : admEditRowNum,
+      data   : rowData
+    };
+    const resp = await fetch(WEBAPP_URL, {
+      method:'POST', body:JSON.stringify(payload),
+      headers:{'Content-Type':'text/plain'}
+    });
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.message);
+
+    admOpSuccess(
+      esEdicion ? '✓ Registro actualizado' : '✓ Registro guardado',
+      'Los cambios se aplicaron en Google Sheets'
+    );
+    // Breve pausa para mostrar el éxito, luego cerrar form y recargar tabla
+    // admOpHide() lo llamará admRenderTabla cuando la tabla esté lista
+    setTimeout(() => {
+      cerrarAdmForm();
+      admCargarTabla(seccion);
+      cargarDatosSheets();
+    }, 1000);
+
+  } catch(err) {
+    admOpHide();
+    admToast('❌ Error: ' + err.message);
+  }
+}
+
+/* ── Eliminar ── */
+async function admEliminar(idx) {
+  const row = admCurrentData[idx];
+  const preview = Object.entries(row)
+    .filter(([k]) => k !== '_rowNum')
+    .slice(0,3).map(([,v])=>v).filter(Boolean).join(' · ');
+  if (!confirm('¿Eliminar este registro? ' + preview)) return;
+
+  admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en Google Sheets');
+
+  try {
+    const payload = { action:'delete', sheet:admCurrentTab, rowNum:row._rowNum };
+    const resp = await fetch(WEBAPP_URL, {
+      method:'POST', body:JSON.stringify(payload),
+      headers:{'Content-Type':'text/plain'}
+    });
+    const json = await resp.json();
+    if (json.status !== 'ok') throw new Error(json.message);
+
+    admOpSuccess('✓ Registro eliminado', 'El registro fue removido del Sheet');
+    // admOpHide() lo llamará admRenderTabla al terminar de renderizar
+    setTimeout(() => {
+      admCargarTabla(admCurrentTab);
+      cargarDatosSheets();
+    }, 900);
+
+  } catch(err) {
+    admOpHide();
+    admToast('❌ Error: ' + err.message);
+  }
+}
+
+/* ── Toast ── */
+
+/* ── ADMIN OPERATION OVERLAY ── */
+function admOpShow(tipo, titulo, sub) {
+  // tipo: 'saving' | 'deleting' | 'loading'
+  const ov    = document.getElementById('admOpOverlay');
+  const icon  = document.getElementById('admOpIcon');
+  const title = document.getElementById('admOpTitle');
+  const subEl = document.getElementById('admOpSub');
+  icon.className  = 'adm-op-icon ' + tipo;
+  icon.innerHTML  = '<div class="adm-op-spinner"></div>';
+  title.textContent = titulo;
+  subEl.textContent = sub || '';
+  ov.classList.add('show');
+  // Bloquear form si está abierto
+  document.getElementById('admFormModal').classList.add('op-blocking');
+}
+
+function admOpSuccess(titulo, sub) {
+  const icon  = document.getElementById('admOpIcon');
+  const title = document.getElementById('admOpTitle');
+  const subEl = document.getElementById('admOpSub');
+  icon.className    = 'adm-op-icon success';
+  icon.innerHTML    = '✅';
+  title.textContent = titulo;
+  subEl.textContent = sub || '';
+}
+
+function admOpHide() {
+  document.getElementById('admOpOverlay').classList.remove('show');
+  document.getElementById('admFormModal').classList.remove('op-blocking');
+}
+let admToastTimer;
+function admToast(msg) {
+  clearTimeout(admToastTimer);
+  const t = document.getElementById('admToast');
+  t.textContent = msg;
+  t.classList.add('show');
+  admToastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// Alias para compatibilidad (tab anterior ya no existe)
+function admTab(sec, btn) { admAbrirPagina(sec, btn); }
 
 /* ── INIT ── */
 window.addEventListener('DOMContentLoaded',()=>{
