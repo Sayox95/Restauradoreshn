@@ -366,6 +366,38 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   transition:color .15s;
 }
 .pdf-skip-btn:hover{color:var(--text);}
+
+/* ── VALIDACIÓN CAMPOS OBLIGATORIOS ── */
+.field-err input, .field-err select, .field-err textarea {
+  border-color: var(--nok) !important;
+  background: #fff5f5 !important;
+}
+.field-err .tg { outline: 2px solid var(--nok); border-radius: var(--rs); }
+.field-err-msg {
+  display: none;
+  font-size: 11px;
+  color: var(--nok);
+  font-weight: 600;
+  margin-top: 4px;
+  padding: 3px 6px;
+  background: #fee2e2;
+  border-radius: 4px;
+}
+.field-err .field-err-msg { display: block; }
+#sec1-val-banner {
+  display: none;
+  background: #fee2e2;
+  border: 1.5px solid var(--nok);
+  border-radius: var(--rs);
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--nok);
+  gap: 8px;
+  align-items: flex-start;
+}
+#sec1-val-banner.show { display: flex; }
 </style>
 </head>
 <body>
@@ -457,15 +489,25 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>1 · Datos Generales</h2>
     </div>
     <div class="card-body">
+      <!-- Banner de validación -->
+      <div id="sec1-val-banner">
+        <span>⚠️</span>
+        <span id="sec1-val-txt">Completa los campos obligatorios antes de continuar.</span>
+      </div>
+
       <div class="g2">
-        <div class="field"><label>Fecha de Visita <span class="req">*</span></label><input type="date" id="fechaVisita" required onchange="updP()"></div>
-        <div class="field"><label>Tipo de Visita <span class="req">*</span></label>
-          <select id="tipoVisita" onchange="updP()">
+        <div class="field" id="f-fechaVisita">
+          <label>Fecha de Visita <span class="req">*</span></label>
+          <input type="date" id="fechaVisita" required onchange="updP();clearErr('f-fechaVisita')">
+          <div class="field-err-msg">Campo obligatorio</div>
+        </div>
+        <div class="field" id="f-tipoVisita">
+          <label>Tipo de Visita <span class="req">*</span></label>
+          <select id="tipoVisita" onchange="updP();clearErr('f-tipoVisita')">
             <option value="">— Tipo —</option>
-            <option>Mtto. Preventivo</option><option>Mtto. Correctivo</option>
-            <option>Inspección Rutinaria</option><option>Emergencia</option>
-            <option>Puesta en Servicio</option><option>Retiro de Equipo</option>
+            <option>Visita 1</option><option>Visita 2</option><option>Visita 3</option>
           </select>
+          <div class="field-err-msg">Campo obligatorio</div>
         </div>
         <div class="field"><label>Hora Llegada</label><input type="time" id="horaLlegada"></div>
         <div class="field"><label>Hora Salida</label><input type="time" id="horaSalida"></div>
@@ -473,10 +515,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
       <div class="sdiv">Identificación del Restaurador</div>
 
-      <div class="field ac-wrap">
+      <div class="field ac-wrap" id="f-codigoEnergis">
         <label>Código Energis / Circuito / Ubicación <span class="req">*</span></label>
-        <input type="text" id="codigoEnergis" placeholder="🔍 Buscar por Energis, circuito o ubicación..." autocomplete="off" inputmode="search" oninput="acSearch(this,'energis')" onkeydown="acKeydown(event,'energis')" onchange="updP()">
+        <input type="text" id="codigoEnergis" placeholder="🔍 Buscar por Energis, circuito o ubicación..." autocomplete="off" inputmode="search" oninput="acSearch(this,'energis')" onkeydown="acKeydown(event,'energis')" onchange="updP();clearErr('f-codigoEnergis')">
         <div class="ac-list" id="ac-energis"></div>
+        <div class="field-err-msg">Selecciona un restaurador del listado</div>
       </div>
 
       <div class="g2">
@@ -489,7 +532,15 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="field"><label>Latitud</label><input type="text" id="latitud" inputmode="decimal" placeholder="—"></div>
         <div class="field"><label>Longitud</label><input type="text" id="longitud" inputmode="decimal" placeholder="—"></div>
       </div>
-      <div class="field"><label>Generación Distribuida</label><input type="text" id="genDistribuida" class="af" readonly placeholder="—"></div>
+      <div class="field" id="f-genDistribuida">
+        <label>Generación Distribuida <span class="req">*</span></label>
+        <div class="tg" id="tg-genDist">
+          <button class="tg-btn" onclick="tg(this,'tg-genDist','a-si');clearErr('f-genDistribuida')">SI</button>
+          <button class="tg-btn" onclick="tg(this,'tg-genDist','a-no');clearErr('f-genDistribuida')">NO</button>
+        </div>
+        <div class="field-err-msg">Selecciona una opción</div>
+        <input type="hidden" id="genDistribuida">
+      </div>
     </div>
   </div>
 </div>
@@ -502,21 +553,28 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>2 · Datos del Reconectador</h2>
     </div>
     <div class="card-body">
-      <div class="field"><label>Tipo Reconectador</label>
-        <div class="tg">
-          <button class="tg-btn" onclick="tgS('tipoRecon','mono',this)">1ø Monofásico</button>
-          <button class="tg-btn" onclick="tgS('tipoRecon','tri',this)">3ø Trifásico</button>
-        </div>
-      </div>
       <div class="g2">
-        <div class="field"><label>Marca</label>
-          <select id="marcaReconectador" onchange="updModelos()">
-            <option value="">— Marca —</option>
-            <option>NOVA</option><option>NOJA</option><option>COOPER</option>
-            <option>G&amp;W</option><option>SIEMENS</option><option>ABB</option><option>SCHNEIDER</option>
+        <div class="field" id="f-tipoRecon">
+          <label>Tipo Reconectador <span class="req">*</span></label>
+          <select id="tipoRecon" onchange="clearErr('f-tipoRecon');updP()">
+            <option value="">— Tipo —</option>
           </select>
+          <div class="field-err-msg">Campo obligatorio</div>
         </div>
-        <div class="field"><label>Modelo</label><input type="text" id="modeloRecon" placeholder="Según marca"></div>
+        <div class="field" id="f-marcaReconectador">
+          <label>Marca <span class="req">*</span></label>
+          <select id="marcaReconectador" onchange="updMarcaModelos();updMarcaControles();clearErr('f-marcaReconectador');updP()">
+            <option value="">— Marca —</option>
+          </select>
+          <div class="field-err-msg">Campo obligatorio</div>
+        </div>
+        <div class="field" id="f-modeloRecon">
+          <label>Modelo <span class="req">*</span></label>
+          <select id="modeloRecon" onchange="clearErr('f-modeloRecon');updP()">
+            <option value="">— Selecciona marca primero —</option>
+          </select>
+          <div class="field-err-msg">Campo obligatorio</div>
+        </div>
         <div class="field"><label>Serie Reconectador</label><input type="text" id="serieRecon" placeholder="N° serie"></div>
         <div class="field"><label>Medio Extinción</label>
           <select id="medioExtincion">
@@ -524,15 +582,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
             <option>Vacío</option><option>Aceite (VWE)</option><option>SF6</option><option>Aire</option>
           </select>
         </div>
-        <div class="field"><label>Tipo Control</label><input type="text" id="tipoControl" class="af" readonly placeholder="Autorrelleno"></div>
+        <div class="field" id="f-tipoControl">
+          <label>Tipo Control <span class="req">*</span></label>
+          <select id="tipoControl" onchange="clearErr('f-tipoControl');updP()">
+            <option value="">— Selecciona marca primero —</option>
+          </select>
+          <div class="field-err-msg">Campo obligatorio</div>
+        </div>
         <div class="field"><label>Serie Control</label><input type="text" id="serieControl" placeholder="N° serie"></div>
       </div>
       <div class="field"><label>Firmware / Proview</label><input type="text" id="proviewControl" placeholder="Ej: 4.0.1, 5.1, RC10"></div>
 
       <div class="sdiv">Conectividad</div>
-      <div class="field"><label>Control tiene Tarjeta de Red</label>
-        <div class="tg" id="tg-tarjetaRed"><button class="tg-btn" onclick="tg(this,'tg-tarjetaRed','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-tarjetaRed','a-no')">NO</button></div>
-      </div>
       <div class="g2">
         <div class="field"><label>Terminal p/Sensores V</label>
           <div class="tg" id="tg-termSensV"><button class="tg-btn" onclick="tg(this,'tg-termSensV','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-termSensV','a-no')">NO</button></div>
@@ -559,32 +620,98 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>3 · Módems y Comunicaciones</h2>
     </div>
     <div class="card-body">
+      <!-- ── MÓDEM 1 ── -->
       <div class="sdiv">Módem 1</div>
-      <div class="g2">
-        <div class="field"><label>Modelo</label>
-          <select id="modeloModem1"><option value="">— Modelo —</option><option>INHAND GSM/GPRS</option><option>GTS TELEMETR SMS</option><option>SIERRA RV50</option><option>CINTERION MC75</option><option>ROBUSTEL R2000</option><option>Otro</option></select>
+      <div class="field">
+        <label>¿Tiene Módem 1?</label>
+        <div class="tg" id="tg-hasModem1">
+          <button class="tg-btn" onclick="tg(this,'tg-hasModem1','a-si');toggleModem(1,true)">SI</button>
+          <button class="tg-btn" onclick="tg(this,'tg-hasModem1','a-no');toggleModem(1,false)">NO</button>
         </div>
-        <div class="field"><label>Serie</label><input type="text" id="serieModem1" placeholder="N° serie"></div>
       </div>
-      <div class="field"><label>Antena</label>
-        <div class="tg" id="tg-ant1"><button class="tg-btn" onclick="tg(this,'tg-ant1','a-int')">INTERNA</button><button class="tg-btn" onclick="tg(this,'tg-ant1','a-ext')">EXTERNA</button></div>
-      </div>
-      <div class="field"><label>Tecnología</label>
-        <div class="tg" id="tg-tec1"><button class="tg-btn" onclick="tgS('tec1','2g',this)">2G</button><button class="tg-btn" onclick="tgS('tec1','3g',this)">3G</button><button class="tg-btn" onclick="tgS('tec1','lte',this)">LTE</button></div>
+      <div id="modem1-detail" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label>Marca</label>
+            <select id="marcaModem1" onchange="updModelosModem(1)">
+              <option value="">— Marca —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Modelo</label>
+            <select id="modeloModem1">
+              <option value="">— Selecciona marca —</option>
+            </select>
+          </div>
+          <div class="field"><label>Serie</label><input type="text" id="serieModem1" placeholder="N° serie"></div>
+        </div>
+        <div class="field"><label>Antena</label>
+          <div class="tg" id="tg-ant1">
+            <button class="tg-btn" onclick="tg(this,'tg-ant1','a-int');toggleAntenaExt(1,false)">INTERNA</button>
+            <button class="tg-btn" onclick="tg(this,'tg-ant1','a-ext');toggleAntenaExt(1,true)">EXTERNA</button>
+          </div>
+        </div>
+        <div id="antena1-tipo" style="display:none" class="field">
+          <label>Tipo de Antena Externa</label>
+          <select id="tipoAntena1">
+            <option value="">— Tipo —</option>
+            <option>Cónica</option><option>Imantada</option><option>Yagi</option>
+          </select>
+        </div>
+        <div class="field"><label>Tecnología</label>
+          <div class="tg" id="tg-tec1">
+            <button class="tg-btn" onclick="tgS('tec1','2g',this)">2G</button>
+            <button class="tg-btn" onclick="tgS('tec1','3g',this)">3G</button>
+            <button class="tg-btn" onclick="tgS('tec1','lte',this)">LTE</button>
+          </div>
+        </div>
       </div>
 
-      <div class="sdiv">Módem 2 (si aplica)</div>
-      <div class="g2">
-        <div class="field"><label>Modelo</label>
-          <select id="modeloModem2"><option value="">— No aplica —</option><option>INHAND GSM/GPRS</option><option>GTS TELEMETR SMS</option><option>SIERRA RV50</option><option>CINTERION MC75</option><option>ROBUSTEL R2000</option><option>Otro</option></select>
+      <!-- ── MÓDEM 2 ── -->
+      <div class="sdiv">Módem 2</div>
+      <div class="field">
+        <label>¿Tiene Módem 2?</label>
+        <div class="tg" id="tg-hasModem2">
+          <button class="tg-btn" onclick="tg(this,'tg-hasModem2','a-si');toggleModem(2,true)">SI</button>
+          <button class="tg-btn" onclick="tg(this,'tg-hasModem2','a-no');toggleModem(2,false)">NO</button>
         </div>
-        <div class="field"><label>Serie</label><input type="text" id="serieModem2" placeholder="N° serie"></div>
       </div>
-      <div class="field"><label>Antena</label>
-        <div class="tg" id="tg-ant2"><button class="tg-btn" onclick="tg(this,'tg-ant2','a-int')">INTERNA</button><button class="tg-btn" onclick="tg(this,'tg-ant2','a-ext')">EXTERNA</button></div>
-      </div>
-      <div class="field"><label>Tecnología</label>
-        <div class="tg" id="tg-tec2"><button class="tg-btn" onclick="tgS('tec2','2g',this)">2G</button><button class="tg-btn" onclick="tgS('tec2','3g',this)">3G</button><button class="tg-btn" onclick="tgS('tec2','lte',this)">LTE</button></div>
+      <div id="modem2-detail" style="display:none">
+        <div class="g2">
+          <div class="field">
+            <label>Marca</label>
+            <select id="marcaModem2" onchange="updModelosModem(2)">
+              <option value="">— Marca —</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Modelo</label>
+            <select id="modeloModem2">
+              <option value="">— Selecciona marca —</option>
+            </select>
+          </div>
+          <div class="field"><label>Serie</label><input type="text" id="serieModem2" placeholder="N° serie"></div>
+        </div>
+        <div class="field"><label>Antena</label>
+          <div class="tg" id="tg-ant2">
+            <button class="tg-btn" onclick="tg(this,'tg-ant2','a-int');toggleAntenaExt(2,false)">INTERNA</button>
+            <button class="tg-btn" onclick="tg(this,'tg-ant2','a-ext');toggleAntenaExt(2,true)">EXTERNA</button>
+          </div>
+        </div>
+        <div id="antena2-tipo" style="display:none" class="field">
+          <label>Tipo de Antena Externa</label>
+          <select id="tipoAntena2">
+            <option value="">— Tipo —</option>
+            <option>Cónica</option><option>Imantada</option><option>Yagi</option>
+          </select>
+        </div>
+        <div class="field"><label>Tecnología</label>
+          <div class="tg" id="tg-tec2">
+            <button class="tg-btn" onclick="tgS('tec2','2g',this)">2G</button>
+            <button class="tg-btn" onclick="tgS('tec2','3g',this)">3G</button>
+            <button class="tg-btn" onclick="tgS('tec2','lte',this)">LTE</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -802,7 +929,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbzeokT3i_ReYGM8q7HfDtNxzvYIU2_vUkEZ85vOaCDDcS5dYvvr3OMwqpn1CN5oJk18tw/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwBzTOZtnJiCRGHG18bvNRcRxrYoHtly5u8YszbRhn0FUFekS2QpvpnRftwieD_P358IQ/exec';
 
 /* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
@@ -811,7 +938,10 @@ let PERS_LIST = [];
 
 
 
-const MODELOS={NOVA:["NOVA 15","NOVA 38","NOVA MONOFASICO"],NOJA:["NOJA OSM15 (VACIO)","NOJA OSM38 (VACIO)"],COOPER:["COOPER (ACEITE: VWE)","COOPER VWE38"],"G&W":["G&W (VACIO)","G&W VLF15"],SIEMENS:["SIEMENS 3AD1"],ABB:["ABB PCD"],SCHNEIDER:["SCHNEIDER NULEC"]};
+// Datos desde Sheets (hojas Tipos y Marcas)
+let TIPOS_LIST  = [];   // [{tipo:'NOVA 15'}, ...]
+let MARCAS_LIST = [];   // [{marca:'NOVA', modelos:['NOVA 15','NOVA 38'], controles:['F-6','F-6 4.0.1']}]
+let MODEMS_LIST = [];   // [{marca:'INHAND', modelos:['GSM/GPRS','IR915']}, ...]
 
 /* ── INDICADOR DE FUENTE DE DATOS ── */
 let dataSource = 'fallback'; // 'sheets' | 'fallback' | 'loading'
@@ -853,7 +983,7 @@ async function cargarDatosSheets() {
 
   try {
     loBar(30);
-    loMsg('Leyendo inventario de restauradores...', '');
+    loMsg('Leyendo catálogos y restauradores...', '');
 
     const resp = await fetch(WEBAPP_URL + '?action=all', {
       method: 'GET',
@@ -868,18 +998,15 @@ async function cargarDatosSheets() {
     if (json.status !== 'ok') throw new Error(json.message || 'Error desconocido');
 
     // Poblar arrays globales
-    RESTS = (json.restauradores && json.restauradores.length > 0)
-      ? json.restauradores : [];
+    RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
+    MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
+    if (json.personal   && json.personal.length   > 0) PERS_LIST  = json.personal;
+    if (json.tipos      && json.tipos.length      > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
+    if (json.marcas     && json.marcas.length     > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
+    if (json.modems     && json.modems.length     > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
 
     loBar(80);
     loMsg('Cargando materiales y personal...', '');
-
-    MATS = (json.materiales && json.materiales.length > 0)
-      ? json.materiales : [];
-
-    if (json.personal && json.personal.length > 0) {
-      PERS_LIST = json.personal;
-    }
 
     loBar(100);
     loMsg('✓ ' + RESTS.length + ' restauradores · ' +
@@ -973,7 +1100,13 @@ let cur=0;
 function buildNav(){
   document.getElementById('sni').innerHTML=SECS.map((s,i)=>`<button class="sec-tab${i===0?' active':''}" id="nt${i}" onclick="jumpSec(${i})"><span class="tn">${i+1}</span>${s.label}</button>`).join('');
 }
-function goSec(d){const n=cur+d;if(n<0||n>=SECS.length)return;jumpSec(n);}
+function goSec(d){
+  // Validar sección 1 antes de avanzar
+  if(d>0 && cur===0 && !validarSec1()) return;
+  const n=cur+d;
+  if(n<0||n>=SECS.length)return;
+  jumpSec(n);
+}
 function jumpSec(idx){
   document.getElementById(SECS[cur].id).classList.remove('active');
   document.getElementById('nt'+cur).classList.remove('active');
@@ -1043,13 +1176,136 @@ function acSel(idx,type){
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
-/* ── MODELOS ── */
-function updModelos(){
-  const m=document.getElementById('marcaReconectador').value;
-  const ms=MODELOS[m]||[];
-  const inp=document.getElementById('modeloRecon');
-  if(ms.length){inp.value=ms[0];inp.classList.add('af');}else inp.classList.remove('af');
+/* ══════════════════════════════════════════════════
+   LISTAS DINÁMICAS DESDE SHEETS
+══════════════════════════════════════════════════ */
+
+// Poblar dropdown de Tipos de Reconectador
+function poblarTipos() {
+  const sel = document.getElementById('tipoRecon');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Tipo —</option>' +
+    TIPOS_LIST.map(t => `<option value="${t}">${t}</option>`).join('');
+  if (cur) sel.value = cur;
 }
+
+// Poblar dropdown de Marcas de Reconectador
+function poblarMarcas() {
+  const sel = document.getElementById('marcaReconectador');
+  if (!sel) return;
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">— Marca —</option>' +
+    MARCAS_LIST.map(m => `<option value="${m.marca}">${m.marca}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+// Al cambiar marca → actualizar modelos y controles
+function updMarcaModelos() {
+  const marca = document.getElementById('marcaReconectador').value;
+  const selMod = document.getElementById('modeloRecon');
+  const selCtrl = document.getElementById('tipoControl');
+  const found = MARCAS_LIST.find(m => m.marca === marca);
+
+  selMod.innerHTML = '<option value="">— Modelo —</option>' +
+    (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
+
+  selCtrl.innerHTML = '<option value="">— Control —</option>' +
+    (found ? found.controles.map(ct => `<option value="${ct}">${ct}</option>`).join('') : '');
+}
+function updMarcaControles() { /* incluido en updMarcaModelos */ }
+
+// Poblar marcas de módems
+function poblarMarcasModems() {
+  [1,2].forEach(n => {
+    const sel = document.getElementById('marcaModem' + n);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">— Marca —</option>' +
+      MODEMS_LIST.map(m => `<option value="${m.marca}">${m.marca}</option>`).join('');
+  });
+}
+
+// Al cambiar marca de módem → actualizar modelos
+function updModelosModem(n) {
+  const marca = document.getElementById('marcaModem' + n).value;
+  const sel = document.getElementById('modeloModem' + n);
+  const found = MODEMS_LIST.find(m => m.marca === marca);
+  sel.innerHTML = '<option value="">— Modelo —</option>' +
+    (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
+}
+
+// Toggle mostrar/ocultar detalle de módem
+function toggleModem(n, show) {
+  const el = document.getElementById('modem' + n + '-detail');
+  if (el) el.style.display = show ? 'block' : 'none';
+  // Si se oculta, limpiar campos
+  if (!show) {
+    ['marcaModem','modeloModem','serieModem'].forEach(f => {
+      const el2 = document.getElementById(f + n);
+      if (el2) { el2.value = ''; }
+    });
+    const ant = document.getElementById('tg-ant' + n);
+    if (ant) ant.querySelectorAll('.tg-btn').forEach(b => b.classList.remove(...TGA));
+    toggleAntenaExt(n, false);
+  }
+}
+
+// Toggle mostrar tipo de antena externa
+function toggleAntenaExt(n, show) {
+  const el = document.getElementById('antena' + n + '-tipo');
+  if (el) el.style.display = show ? 'block' : 'none';
+  if (!show) {
+    const s = document.getElementById('tipoAntena' + n);
+    if (s) s.value = '';
+  }
+}
+
+/* ── VALIDACIÓN SEC1 ── */
+function clearErr(fieldId) {
+  const el = document.getElementById(fieldId);
+  if (el) el.classList.remove('field-err');
+}
+
+function validarSec1() {
+  // Definición de campos obligatorios: {fieldWrap, inputId, label}
+  const campos = [
+    { wrap:'f-fechaVisita',       id:'fechaVisita',        label:'Fecha de Visita'   },
+    { wrap:'f-tipoVisita',        id:'tipoVisita',         label:'Tipo de Visita'    },
+    { wrap:'f-codigoEnergis',     id:'codigoEnergis',      label:'Código Energis'    },
+    { wrap:'f-genDistribuida',    id:'tg-genDist',         label:'Generación Distribuida', isTg:true },
+  ];
+  const pendientes = [];
+  campos.forEach(campo => {
+    let val = '';
+    if (campo.isTg) {
+      const activo = document.getElementById(campo.id)?.querySelector('.tg-btn.a-si,.tg-btn.a-no');
+      val = activo ? activo.textContent : '';
+    } else {
+      val = (document.getElementById(campo.id)?.value || '').trim();
+    }
+    const wrap = document.getElementById(campo.wrap);
+    if (!val) {
+      if (wrap) wrap.classList.add('field-err');
+      pendientes.push(campo.label);
+    } else {
+      if (wrap) wrap.classList.remove('field-err');
+    }
+  });
+  const banner = document.getElementById('sec1-val-banner');
+  if (pendientes.length > 0) {
+    banner.classList.add('show');
+    document.getElementById('sec1-val-txt').textContent =
+      '⚠️ Completa los siguientes campos: ' + pendientes.join(', ');
+    // Scroll al banner
+    banner.scrollIntoView({ behavior:'smooth', block:'center' });
+    return false;
+  }
+  banner.classList.remove('show');
+  return true;
+}
+
+/* Sobrescribir goSec para interceptar avance desde sec1 */
+const _goSecOrig = goSec;
 
 /* ── MATERIALES ── */
 let mc=0;
@@ -1118,7 +1374,7 @@ function limpFirma(){ctx.clearRect(0,0,canvas.width,canvas.height);hasFirma=fals
 
 /* ── PROGRESS ── */
 function updP(){
-  const fs=[document.getElementById('fechaVisita').value,document.getElementById('tipoVisita').value,document.getElementById('codigoEnergis').value,document.getElementById('codigoCircuito').value,document.getElementById('tipoControl').value,document.getElementById('marcaReconectador').value];
+  const fs=[document.getElementById('fechaVisita').value,document.getElementById('tipoVisita').value,document.getElementById('codigoEnergis').value,document.getElementById('codigoCircuito').value,document.getElementById('tipoControl').value,document.getElementById('marcaReconectador').value,document.getElementById('tipoRecon').value,document.getElementById('modeloRecon').value];
   const n=fs.filter(v=>v&&v.trim()).length;
   const p=Math.round(n/fs.length*100);
   document.getElementById('pf').style.width=p+'%';
@@ -1224,7 +1480,7 @@ function getData() {
     subestacion       : v('subestacion'),
     latitud           : v('latitud'),
     longitud          : v('longitud'),
-    genDistribuida    : v('genDistribuida'),
+    genDistribuida    : (()=>{ const a=document.getElementById('tg-genDist')?.querySelector('.tg-btn.a-si,.tg-btn.a-no'); return a?a.textContent.trim():''; })(),
 
     // Reconectador
     tipoRecon         : tipoRecon,
@@ -1238,13 +1494,19 @@ function getData() {
     tarjetaRed        : tg('tg-tarjetaRed'),
 
     // Módems
+    hasModem1         : (()=>{ const a=document.getElementById('tg-hasModem1')?.querySelector('.tg-btn.a-si'); return !!a; })(),
+    marcaModem1       : v('marcaModem1'),
     modeloModem1      : v('modeloModem1'),
     serieModem1       : v('serieModem1'),
     antenaModem1      : tg('tg-ant1'),
+    tipoAntena1       : v('tipoAntena1'),
     tecModem1         : tecModem1,
+    hasModem2         : (()=>{ const a=document.getElementById('tg-hasModem2')?.querySelector('.tg-btn.a-si'); return !!a; })(),
+    marcaModem2       : v('marcaModem2'),
     modeloModem2      : v('modeloModem2'),
     serieModem2       : v('serieModem2'),
     antenaModem2      : tg('tg-ant2'),
+    tipoAntena2       : v('tipoAntena2'),
     tecModem2         : tecModem2,
 
     // Tablero F5/F6
@@ -1385,6 +1647,8 @@ function limpiarFormulario() {
 
   // Resetear todos los toggles
   document.querySelectorAll('.tg-btn').forEach(b => b.classList.remove(...TGA));
+  // Ocultar detalles de módems
+  [1,2].forEach(n => { toggleModem(n,false); toggleAntenaExt(n,false); });
   Object.keys(SS).forEach(k => SS[k] = null);
 
   // Resetear chips de estado
@@ -1903,22 +2167,35 @@ async function descargarFichaPDF() {
     }
 
     // Firma (derecha) — alineada con la tabla de personal
-    const firmaStartY = y - (personal.length * 8) - 7;
-    const firmaX = ML + persW + gap;
-    const firmaBoxH = personal.length * 8 + 7;
+    // Alto de firma: mínimo 45mm (suficiente para imagen legible) o lo que ocupe el personal
+    const persTableH = personal.length * 8 + 7;  // alto real de la tabla de personal
+    const FIRMA_MIN_H = 45;                        // alto mínimo garantizado para la firma
+    const firmaBoxH   = Math.max(FIRMA_MIN_H, persTableH);
+    const firmaStartY = y - persTableH;            // alineado con la parte inferior de la tabla
+    const firmaX      = ML + persW + gap;
+
     rect(firmaX, firmaStartY, firmaW, firmaBoxH, BGROW, BORDER);
-    setFont(7,'normal',MUTED); txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
+
+    // Etiqueta superior
+    setFont(7,'normal',MUTED);
+    txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
+    line(firmaX+4, firmaStartY+7, firmaX+firmaW-4, firmaStartY+7, BORDER, .2);
 
     if(d.firmaImg && d.firmaImg.startsWith('data:image')) {
       try {
-        const fImgH = Math.min(firmaBoxH-14, 25);
+        // Imagen ocupa el espacio central dejando margen arriba (etiqueta) y abajo (nombre)
+        const fImgY = firmaStartY + 9;
+        const fImgH = firmaBoxH - 18;   // resta etiqueta (9) + nombre (9)
         const fImgW = firmaW - 8;
-        doc.addImage(d.firmaImg, 'PNG', firmaX+4, firmaStartY+8, fImgW, fImgH);
+        doc.addImage(d.firmaImg, 'PNG', firmaX+4, fImgY, fImgW, fImgH, '', 'FAST');
       } catch(e){}
     } else {
       setFont(8,'normal',MUTED);
-      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2, {align:'center'});
+      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2 - 2, {align:'center'});
     }
+
+    // Nombre del responsable al fondo
+    line(firmaX+4, firmaStartY+firmaBoxH-9, firmaX+firmaW-4, firmaStartY+firmaBoxH-9, BORDER, .2);
     setFont(8,'bold'); doc.setTextColor(30,41,59);
     txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
 
