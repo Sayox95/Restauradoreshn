@@ -645,6 +645,76 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* toast de admin */
 #admToast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--navy);color:#fff;padding:12px 20px;border-radius:12px;font-size:13px;font-weight:600;z-index:9600;opacity:0;transition:all .3s;white-space:nowrap;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,.25);}
 #admToast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── MODAL ESPECIAL TABLEROS ── */
+#admTableroModal{
+  position:fixed;inset:0;z-index:9500;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .25s,visibility .25s;
+}
+@media(min-width:600px){#admTableroModal{align-items:center;}}
+#admTableroModal.show{opacity:1;visibility:visible;pointer-events:all;}
+.adm-tablero-card{
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  width:100%;max-width:540px;
+  max-height:90vh;
+  display:flex;flex-direction:column;
+  box-shadow:0 -8px 40px rgba(0,0,0,.2);
+  animation:slideUp .25s ease;
+}
+@media(min-width:600px){.adm-tablero-card{border-radius:20px;animation:pdfSlideUp .25s ease;}}
+.adm-tablero-head{
+  background:var(--navy);padding:16px 18px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:3px solid var(--accent);flex-shrink:0;
+}
+.adm-tablero-body{
+  padding:16px 18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:14px;
+}
+.adm-tablero-top{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  padding-bottom:14px;border-bottom:1px solid var(--border);
+}
+.adm-campos-header{
+  display:flex;align-items:center;justify-content:space-between;
+}
+.adm-campos-label{
+  font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.4px;
+}
+.adm-add-campo-btn{
+  height:32px;padding:0 12px;
+  background:var(--sec-bg);border:1.5px solid var(--border);
+  border-radius:8px;color:var(--blue);
+  font-size:13px;font-weight:700;cursor:pointer;
+  display:flex;align-items:center;gap:5px;
+}
+.adm-add-campo-btn:active{opacity:.8;}
+.adm-campos-list{display:flex;flex-direction:column;gap:8px;}
+.adm-campo-row{
+  display:grid;grid-template-columns:1fr 72px 36px;gap:8px;align-items:center;
+}
+.adm-campo-row input{
+  height:40px;border:1.5px solid var(--border);border-radius:10px;
+  padding:0 10px;font-size:13px;background:var(--inp);width:100%;
+}
+.adm-campo-row input:focus{outline:none;border-color:var(--blue);}
+.adm-campo-row .orden-inp{text-align:center;}
+.adm-campo-del{
+  width:36px;height:36px;border-radius:8px;border:none;
+  background:#fee2e2;color:var(--nok);font-size:16px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;
+}
+.adm-campo-del:active{opacity:.7;}
+.adm-campos-hint{font-size:11px;color:var(--muted);text-align:center;padding:8px;}
+
+/* ── BATTERY TEST ROW ── */
+.batt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;}
+.batt-row .tg{width:100%;}
 </style>
 </head>
 <body>
@@ -787,6 +857,53 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
   <div class="adm-op-title" id="admOpTitle">Procesando...</div>
   <div class="adm-op-sub"  id="admOpSub"></div>
+</div>
+
+
+<!-- ═══ ADMIN TABLERO MODAL ═══ -->
+<div id="admTableroModal">
+  <div class="adm-tablero-card">
+    <div class="adm-tablero-head">
+      <div class="adm-form-title" id="admTableroTitle">＋ Nuevo Tablero</div>
+      <button class="adm-close" onclick="cerrarTableroModal()">✕</button>
+    </div>
+    <div class="adm-tablero-body">
+      <!-- Marca y Activo -->
+      <div class="adm-tablero-top">
+        <div class="adm-form-field full" style="grid-column:1">
+          <label>Marca</label>
+          <select id="adf_tablero_marca">
+            <option value="">— Seleccionar —</option>
+          </select>
+        </div>
+        <div class="adm-form-field" style="grid-column:2">
+          <label>Activo</label>
+          <select id="adf_tablero_activo">
+            <option value="TRUE">TRUE</option>
+            <option value="FALSE">FALSE</option>
+          </select>
+        </div>
+      </div>
+      <!-- Lista de campos -->
+      <div>
+        <div class="adm-campos-header">
+          <span class="adm-campos-label">Campos del tablero</span>
+          <button class="adm-add-campo-btn" onclick="admAgregarCampoTablero()">＋ Agregar campo</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 72px 36px;gap:8px;padding:8px 0 4px;border-bottom:1px solid var(--border);">
+          <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;">Nombre del campo</span>
+          <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.3px;text-align:center;">Orden</span>
+          <span></span>
+        </div>
+        <div class="adm-campos-list" id="admCamposList"></div>
+        <div class="adm-campos-hint" id="admCamposHint">Agrega al menos un campo</div>
+      </div>
+    </div>
+    <div class="adm-form-footer">
+      <button class="adm-form-cancel" onclick="cerrarTableroModal()">Cancelar</button>
+      <button class="adm-form-save" id="admTableroSave" onclick="guardarTableroModal()">💾 Guardar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ═══ ADMIN FORM MODAL ═══ -->
@@ -1095,17 +1212,29 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="g2" id="tablero-campos"></div>
       </div>
 
-      <!-- Alarma y Mediciones — siempre visible -->
-      <div class="sdiv">Alarma y Mediciones</div>
+      <!-- Alarma — siempre visible -->
+      <div class="sdiv">Alarma</div>
       <div class="g2">
         <div class="field"><label>Alarma Presente</label><div class="tg" id="tg-alarm"><button class="tg-btn" onclick="tg(this,'tg-alarm','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-alarm','a-no')">NO</button></div></div>
         <div class="field"><label>Reset Alarma</label><div class="tg" id="tg-rst"><button class="tg-btn" onclick="tg(this,'tg-rst','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-rst','a-no')">NO</button></div></div>
-        <div class="field"><label>Battery Test</label><div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div></div>
-        <div class="field"><label>Cambio Baterías</label><div class="tg" id="tg-cbat"><button class="tg-btn" onclick="tg(this,'tg-cbat','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-cbat','a-no')">NO</button></div></div>
-        <div class="field"><label>Medición AC (V)</label><input type="number" id="medicionAC" placeholder="V" inputmode="decimal" step="0.1"></div>
-        <div class="field"><label>Medición Baterías (V)</label><input type="number" id="medicionBat" placeholder="V" inputmode="decimal" step="0.1"></div>
       </div>
       <div class="field"><label>Descripción Alarma</label><textarea id="descAlarma" placeholder="Describir si hay alarma presente..."></textarea></div>
+
+      <!-- Batería -->
+      <div class="sdiv">Batería</div>
+      <div class="g2">
+        <div class="field"><label>Medición AC (V)</label><input type="number" id="medicionAC" placeholder="V" inputmode="decimal" step="0.1"></div>
+        <div class="field"><label>Medición Baterías (V)</label><input type="number" id="medicionBat" placeholder="V" inputmode="decimal" step="0.1"></div>
+        <div class="field"><label>Medición Cargador (V)</label><input type="number" id="medicionCargador" placeholder="V" inputmode="decimal" step="0.1"></div>
+      </div>
+      <div class="field">
+        <label>Battery Test</label>
+        <div class="batt-row">
+          <div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div>
+          <input type="number" id="batteryTestMedicion" placeholder="Medición Test (V)" inputmode="decimal" step="0.01">
+        </div>
+      </div>
+      <div class="field"><label>Cambio Baterías</label><div class="tg" id="tg-cbat"><button class="tg-btn" onclick="tg(this,'tg-cbat','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-cbat','a-no')">NO</button></div></div>
     </div>
   </div>
 </div>
@@ -1128,17 +1257,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
       </div>
       <div class="sdiv">Ajustes de Disparo</div>
-      <div class="field"><label>Ajuste Activo</label><input type="text" id="ajusteActivo" placeholder="Ej: Grupo 1 – 300A"></div>
+      <div class="field"><label>Ajuste Activo</label><select id="ajusteActivo"><option value="">— Grupo —</option><option>Grupo 1</option><option>Grupo 2</option><option>Grupo 3</option></select></div>
       <div class="g2">
         <div class="field"><label>C. Apertura Fase (A)</label><input type="number" id="cApertFase" placeholder="A" inputmode="decimal" step="0.1"></div>
         <div class="field"><label>C. Apertura Neutro (A)</label><input type="number" id="cApertNeutro" placeholder="A" inputmode="decimal" step="0.1"></div>
       </div>
-      <div class="sdiv">Medición de Aterrizaje (Ω)</div>
-      <div class="g2">
-        <div class="field"><label>Control (Ω)</label><input type="number" id="aterControl" placeholder="Ω" inputmode="decimal" step="0.01"></div>
-        <div class="field"><label>Restaurador (Ω)</label><input type="number" id="aterRestaurador" placeholder="Ω" inputmode="decimal" step="0.01"></div>
-        <div class="field"><label>Otros (Ω)</label><input type="number" id="aterOtros" placeholder="Ω" inputmode="decimal" step="0.01"></div>
-      </div>
+
     </div>
   </div>
 </div>
@@ -1154,12 +1278,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="sdiv">Estado del Equipo</div>
       <div class="g2">
         <div class="field"><label>Gabinete</label><div class="tg" id="tg-gab"><button class="tg-btn" onclick="tg(this,'tg-gab','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-gab','a-nok')">NOK</button></div></div>
-        <div class="field"><label>Iluminación</label><div class="tg" id="tg-ilu"><button class="tg-btn" onclick="tg(this,'tg-ilu','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-ilu','a-nok')">NOK</button></div></div>
         <div class="field"><label>Borneras</label><div class="tg" id="tg-bor"><button class="tg-btn" onclick="tg(this,'tg-bor','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-bor','a-nok')">NOK</button></div></div>
-        <div class="field"><label>Estado Baterías</label>
-          <select id="estadoBaterias"><option value="">— Estado —</option><option value="B">Bueno (B)</option><option value="R">Regular (R)</option><option value="M">Malo (M)</option></select>
-        </div>
       </div>
+      <div class="field"><label>Observación</label><textarea id="obsEstadoFisico" rows="3" placeholder="Observaciones sobre el estado físico del equipo..."></textarea></div>
       <div class="sdiv">Aterrizaje</div>
       <div class="g2">
         <div class="field"><label>Restaurador</label><div class="tg" id="tg-atR"><button class="tg-btn" onclick="tg(this,'tg-atR','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atR','a-nok')">NOK</button></div></div>
@@ -1167,6 +1288,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="field"><label>Potencial</label><div class="tg" id="tg-atP"><button class="tg-btn" onclick="tg(this,'tg-atP','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atP','a-nok')">NOK</button></div></div>
         <div class="field"><label>Cable de Tierra</label><div class="tg" id="tg-ct"><button class="tg-btn" onclick="tg(this,'tg-ct','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-ct','a-nok')">NOK</button></div></div>
         <div class="field"><label># Varillas</label><input type="number" id="numVarillas" min="0" inputmode="numeric" placeholder="Cant."></div>
+      </div>
+      <div class="sdiv">Medición de Aterrizaje (Ω)</div>
+      <div class="g2">
+        <div class="field"><label>Control (Ω)</label><input type="number" id="aterControl" placeholder="Ω" inputmode="decimal" step="0.01"></div>
+        <div class="field"><label>Restaurador (Ω)</label><input type="number" id="aterRestaurador" placeholder="Ω" inputmode="decimal" step="0.01"></div>
+        <div class="field"><label>Otros (Ω)</label><input type="number" id="aterOtros" placeholder="Ω" inputmode="decimal" step="0.01"></div>
       </div>
       <div class="sdiv">Bypass</div>
       <div class="g2">
@@ -1203,6 +1330,10 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Registre materiales reemplazados o utilizados en la visita.</p>
       <div id="matContainer"></div>
       <button class="add-btn" onclick="agregarMat()">＋ Agregar Material</button>
+      <div class="field" style="margin-top:16px;">
+        <label>Observación de Materiales</label>
+        <textarea id="obsMateriales" rows="3" placeholder="Justificación o comentarios sobre los materiales utilizados..."></textarea>
+      </div>
     </div>
   </div>
 </div>
@@ -1215,27 +1346,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>8 · Observaciones</h2>
     </div>
     <div class="card-body">
-      <div class="sdiv">Estado General del Equipo</div>
-      <div class="chip-row">
-        <div class="chip" id="ch-op" onclick="selChip('op')"><span class="chip-ico">✅</span><span class="chip-lbl">Operativo<br>Sin novedad</span></div>
-        <div class="chip" id="ch-warn" onclick="selChip('warn')"><span class="chip-ico">⚠️</span><span class="chip-lbl">Operativo<br>Con observación</span></div>
-        <div class="chip" id="ch-mant" onclick="selChip('mant')"><span class="chip-ico">🔧</span><span class="chip-lbl">Requiere<br>Mantenimiento</span></div>
-        <div class="chip" id="ch-fs" onclick="selChip('fs')"><span class="chip-ico">🚨</span><span class="chip-lbl">Fuera de<br>Servicio</span></div>
-      </div>
-      <input type="hidden" id="estadoGeneral">
-
-      <div class="sdiv">Notas y Seguimiento</div>
-      <div class="field"><label>Observaciones Generales</label><textarea id="obsGenerales" rows="4" placeholder="Detalle observaciones relevantes de la visita..."></textarea></div>
-      <div class="field"><label>Acciones Correctivas Pendientes</label><textarea id="accionesPend" rows="4" placeholder="Trabajos pendientes para próxima visita..."></textarea></div>
-      <div class="g2">
-        <div class="field"><label>Fecha Próxima Visita</label><input type="date" id="fechaProxVisita"></div>
-        <div class="field"><label>Prioridad</label>
-          <select id="prioridad">
-            <option value="">— Prioridad —</option>
-            <option>🔴 Alta – Urgente</option><option>🟡 Media – 30 días</option><option>🟢 Baja – Rutina</option>
-          </select>
-        </div>
-      </div>
+      <div class="field"><label>Observaciones Generales</label><textarea id="obsGenerales" rows="5" placeholder="Detalle observaciones relevantes de la visita..."></textarea></div>
     </div>
   </div>
 </div>
@@ -1286,7 +1397,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyKjySfpN39lpXq7PlzgrhgsQryK0ffiIJ7IIUBTYkdbm9uRAvpAT5kDBYDwEoK7pb3lA/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwuiDIqoKRQtowncQwk8E5ErRRSe9ocUu9QQWS1A1RAs7zztBcOGgsCx33btsNKn0iCVw/exec';
 
 /* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
@@ -1892,10 +2003,12 @@ function getData() {
     alarmaPresente    : tg('tg-alarm'),
     resetAlarma       : tg('tg-rst'),
     descAlarma        : v('descAlarma'),
-    batteryTest       : tg('tg-batt'),
-    cambioBaterias    : tg('tg-cbat'),
-    medicionAC        : v('medicionAC'),
-    medicionBat       : v('medicionBat'),
+    batteryTest           : tg('tg-batt'),
+    batteryTestMedicion   : v('batteryTestMedicion'),
+    cambioBaterias        : tg('tg-cbat'),
+    medicionAC            : v('medicionAC'),
+    medicionBat           : v('medicionBat'),
+    medicionCargador      : v('medicionCargador'),
 
     // Corrientes y ajustes
     corrIA            : v('corrIA'),
@@ -1913,9 +2026,8 @@ function getData() {
 
     // Estado físico
     gabinete          : tg('tg-gab'),
-    iluminacion       : tg('tg-ilu'),
     borneras          : tg('tg-bor'),
-    estadoBaterias    : v('estadoBaterias'),
+    obsEstadoFisico   : v('obsEstadoFisico'),
     aterRestState     : tg('tg-atR'),
     aterCtrlState     : tg('tg-atC'),
     aterPotState      : tg('tg-atP'),
@@ -1940,11 +2052,8 @@ function getData() {
     personal             : personal,
 
     // Observaciones
-    estadoGeneral     : v('estadoGeneral'),
     obsGenerales      : v('obsGenerales'),
-    accionesPend      : v('accionesPend'),
-    prioridad         : v('prioridad'),
-    fechaProxVisita   : v('fechaProxVisita'),
+    obsMateriales     : v('obsMateriales'),
 
     // Responsable
     firmaResponsable  : v('firmaResponsable'),
@@ -2020,10 +2129,7 @@ function limpiarFormulario() {
   limpiarTabliero();
   Object.keys(SS).forEach(k => SS[k] = null);
 
-  // Resetear chips de estado
-  Object.keys(CM).forEach(x => document.getElementById('ch-' + x) && (document.getElementById('ch-' + x).className = 'chip'));
-  sch = null;
-  if(document.getElementById('estadoGeneral')) document.getElementById('estadoGeneral').value = '';
+
 
   // Limpiar materiales y personal
   document.getElementById('matContainer').innerHTML = '';
@@ -2300,80 +2406,129 @@ async function descargarFichaPDF() {
     // ══════════════════════════════════════════════════════
     //  SECCIÓN 2: MÓDEMS
     // ══════════════════════════════════════════════════════
-    if(d.modeloModem1 || d.modeloModem2) {
+    if(d.hasModem1 || d.hasModem2) {
       checkPage(12);
       sectionHeader('2 · MÓDEMS DE COMUNICACIÓN');
-      twoCol([
-        {label:'Modelo Módem 1',  value:d.modeloModem1},
-        {label:'Serie Módem 1',   value:d.serieModem1},
-        {label:'Antena Módem 1',  value:d.antenaModem1},
-        {label:'Tecnología 1',    value:d.tecModem1},
-        {label:'Modelo Módem 2',  value:d.modeloModem2},
-        {label:'Serie Módem 2',   value:d.serieModem2},
-      ]);
+      const modemItems = [];
+      if(d.hasModem1) {
+        modemItems.push(
+          {label:'Tipo Módem 1',   value:d.tipoModem1},
+          {label:'Marca Módem 1',  value:d.marcaModem1},
+          {label:'Modelo Módem 1', value:d.modeloModem1},
+          {label:'Serie Módem 1',  value:d.serieModem1},
+          {label:'Antena 1',       value:d.antenaModem1 + (d.tipoAntena1 ? ' · '+d.tipoAntena1 : '')},
+          {label:'Tecnología 1',   value:d.tecModem1},
+        );
+      }
+      if(d.hasModem2) {
+        modemItems.push(
+          {label:'Tipo Módem 2',   value:d.tipoModem2},
+          {label:'Marca Módem 2',  value:d.marcaModem2},
+          {label:'Modelo Módem 2', value:d.modeloModem2},
+          {label:'Serie Módem 2',  value:d.serieModem2},
+          {label:'Antena 2',       value:d.antenaModem2 + (d.tipoAntena2 ? ' · '+d.tipoAntena2 : '')},
+          {label:'Tecnología 2',   value:d.tecModem2},
+        );
+      }
+      twoCol(modemItems);
       y += 3;
     }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 3: TABLERO + ALARMAS + MEDICIONES
+    //  SECCIÓN 3: TABLERO DE CONTROL (dinámico por marca)
+    // ══════════════════════════════════════════════════════
+    const tableroCampos = d.tableroCampos || {};
+    const tableroEntries = Object.entries(tableroCampos).filter(([k,v2]) => v2);
+    if(tableroEntries.length > 0) {
+      checkPage(14);
+      sectionHeader('3 · TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
+      const tcols = 4, tw = CW / tcols;
+      for(let i=0;i<tableroEntries.length;i+=tcols){
+        checkPage(9);
+        const shade = (Math.floor(i/tcols))%2===0;
+        for(let j=0;j<tcols;j++){
+          const entry = tableroEntries[i+j];
+          if(!entry) continue;
+          const x = ML + tw*j;
+          if(shade) rect(x,y,tw,9,BGROW);
+          setFont(6.5,'normal',MUTED); txt(entry[0], x+2, y+3.5);
+          toggleBadge(entry[1], x+tw-17, y+5.5);
+        }
+        y += 9;
+      }
+      y += 3;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 4: ALARMA
     // ══════════════════════════════════════════════════════
     checkPage(14);
-    sectionHeader('3 · TABLERO · ALARMAS · MEDICIONES');
-
-    // Tablero F5/F6 y SEL en tabla de toggles
-    const toggleItems = [
-      ['Ground Trip Blocked', d.groundTripBlocked],
-      ['Non Reclosing',       d.nonReclosing],
-      ['Supervisory OFF',     d.supervisoryOff],
-      ['Hot Line Tag F5/F6',  d.hotLineTagF5],
-      ['Ground Enabled (SEL)',d.groundEnabled],
-      ['Reclose Enabled',     d.recloseEnabled],
-      ['Remote Enabled',      d.remoteEnabled],
-      ['Hot Line Tag SEL',    d.hotLineTagSEL],
-      ['Alarma Presente',     d.alarmaPresente],
-      ['Reset Alarma',        d.resetAlarma],
-      ['Battery Test',        d.batteryTest],
-      ['Cambio Baterías',     d.cambioBaterias],
+    sectionHeader('4 · ALARMA');
+    const alarmaItems = [
+      ['Alarma Presente', d.alarmaPresente],
+      ['Reset Alarma',    d.resetAlarma],
     ];
-    const tcols = 4;
-    const tw = CW / tcols;
-    for(let i=0;i<toggleItems.length;i+=tcols){
-      checkPage(9);
-      const shade = (i/tcols)%2===0;
-      for(let j=0;j<tcols;j++){
-        const item = toggleItems[i+j];
-        if(!item) continue;
-        const x = ML + tw*j;
-        if(shade) rect(x,y,tw,9,BGROW);
-        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
-        toggleBadge(item[1], x+tw-17, y+5.5);
-      }
-      y += 9;
+    const aw = CW / 2;
+    alarmaItems.forEach((item, i) => {
+      const x = ML + aw * i;
+      rect(x, y, aw, 9, i%2===0 ? BGROW : WHITE);
+      setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
+      toggleBadge(item[1], x+aw-17, y+5.5);
+    });
+    y += 9;
+    if(d.descAlarma) {
+      checkPage(12);
+      const aLines = doc.splitTextToSize(d.descAlarma, CW-4);
+      const aH = Math.max(8, aLines.length*4.5+4);
+      setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML, y+4); y += 5;
+      rect(ML, y, CW, aH, BGROW, BORDER);
+      setFont(8,'normal'); doc.setTextColor(30,41,59);
+      doc.text(aLines, ML+3, y+4.5);
+      y += aH + 3;
     }
-    // Mediciones AC y bat
-    checkPage(9);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    setFont(7,'normal',MUTED);
-    txt('MEDICIÓN AC (V)', ML+4, y+3.5);
-    setFont(10,'bold',BLUE); txt(d.medicionAC||'—', ML+4, y+8.5);
-    line(ML+CW/3,y,ML+CW/3,y+9,BORDER);
-    setFont(7,'normal',MUTED); txt('MEDICIÓN BATERÍAS (V)', ML+CW/3+4, y+3.5);
-    setFont(10,'bold',BLUE);   txt(d.medicionBat||'—', ML+CW/3+4, y+8.5);
-    line(ML+CW*2/3,y,ML+CW*2/3,y+9,BORDER);
-    setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML+CW*2/3+4, y+3.5);
-    setFont(7.5,'bold');        txt((d.descAlarma||'Sin alarma').slice(0,40), ML+CW*2/3+4, y+8.5);
-    y += 13;
+    y += 3;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 4: CORRIENTES Y ATERRIZAJE
+    //  SECCIÓN 5: BATERÍA
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('4 · CORRIENTES · AJUSTES · ATERRIZAJE');
-    // Corrientes en tabla horizontal
-    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Apertura Fase','C. Apertura Neutro'];
+    sectionHeader('5 · BATERÍA');
+    // Mediciones en banda horizontal
+    checkPage(9);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    const medCols = [
+      ['MEDICIÓN AC (V)',      d.medicionAC],
+      ['MEDICIÓN BAT (V)',     d.medicionBat],
+      ['MEDICIÓN CARGADOR (V)',d.medicionCargador],
+    ];
+    const mw = CW / medCols.length;
+    medCols.forEach((m2,i) => {
+      if(i>0) line(ML+mw*i,y,ML+mw*i,y+9,BORDER);
+      setFont(6.5,'normal',MUTED); txt(m2[0], ML+mw*i+4, y+3.5);
+      setFont(10,'bold',BLUE);     txt(m2[1]||'—', ML+mw*i+4, y+8.5);
+    });
+    y += 11;
+    // Battery test + medición test
+    checkPage(9);
+    rect(ML, y, CW/2, 9, BGROW);
+    setFont(6.5,'normal',MUTED); txt('BATTERY TEST', ML+2, y+3.5);
+    toggleBadge(d.batteryTest, ML+CW/2-17, y+5.5);
+    rect(ML+CW/2, y, CW/4, 9, WHITE);
+    setFont(6.5,'normal',MUTED); txt('MEDICIÓN TEST (V)', ML+CW/2+2, y+3.5);
+    setFont(9,'bold',BLUE);      txt(d.batteryTestMedicion||'—', ML+CW/2+2, y+8);
+    rect(ML+CW*3/4, y, CW/4, 9, BGROW);
+    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+CW*3/4+2, y+3.5);
+    toggleBadge(d.cambioBaterias, ML+CW-17, y+5.5);
+    y += 12;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 6: CORRIENTES Y AJUSTES
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('6 · CORRIENTES Y AJUSTES');
+    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Fase (A)','C. Neutro (A)'];
     const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN, d.ajusteActivo, d.cApertFase, d.cApertNeutro];
     const cw7 = CW / corrHeaders.length;
-    // Cabecera
     rect(ML, y, CW, 7, NAVY);
     corrHeaders.forEach((h,i) => {
       setFont(6.5,'bold',WHITE);
@@ -2385,25 +2540,16 @@ async function descargarFichaPDF() {
       setFont(9,'bold',BLUE);
       txt(v2||'—', ML+cw7*i+cw7/2, y+6, {align:'center'});
     });
-    y += 11;
-    // Aterrizaje
-    twoCol([
-      {label:'Aterrizaje Control (Ω)',      value:d.aterControl},
-      {label:'Aterrizaje Restaurador (Ω)',  value:d.aterRestaurador},
-      {label:'Aterrizaje Otros (Ω)',        value:d.aterOtros},
-    ]);
-    y += 3;
+    y += 12;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 5: ESTADO FÍSICO
+    //  SECCIÓN 7: ESTADO FÍSICO
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('5 · ESTADO FÍSICO DEL EQUIPO');
+    sectionHeader('7 · ESTADO FÍSICO DEL EQUIPO');
     const fisItems = [
       ['Gabinete',          d.gabinete],
-      ['Iluminación',       d.iluminacion],
       ['Borneras',          d.borneras],
-      ['Estado Baterías',   d.estadoBaterias],
       ['Ater. Restaurador', d.aterRestState],
       ['Ater. Control',     d.aterCtrlState],
       ['Ater. Potencial',   d.aterPotState],
@@ -2418,7 +2564,7 @@ async function descargarFichaPDF() {
     const fcols = 4, fw = CW/fcols;
     for(let i=0;i<fisItems.length;i+=fcols){
       checkPage(9);
-      const shade = (i/fcols)%2===0;
+      const shade = (Math.floor(i/fcols))%2===0;
       for(let j=0;j<fcols;j++){
         const item = fisItems[i+j];
         if(!item) continue;
@@ -2431,18 +2577,39 @@ async function descargarFichaPDF() {
       }
       y += 9;
     }
+    // Medición aterrizaje
+    checkPage(10);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    const aterCols = [['ATER. CONTROL (Ω)', d.aterControl],['ATER. RESTAURADOR (Ω)', d.aterRestaurador],['ATER. OTROS (Ω)', d.aterOtros]];
+    const atW = CW/3;
+    aterCols.forEach((a,i) => {
+      if(i>0) line(ML+atW*i,y,ML+atW*i,y+9,BORDER);
+      setFont(6.5,'normal',MUTED); txt(a[0], ML+atW*i+3, y+3.5);
+      setFont(9,'bold',BLUE);     txt(a[1]||'—', ML+atW*i+3, y+8.5);
+    });
+    y += 11;
+    // Obs estado físico
+    if(d.obsEstadoFisico) {
+      checkPage(12);
+      const ofLines = doc.splitTextToSize(d.obsEstadoFisico, CW-4);
+      const ofH = Math.max(8, ofLines.length*4.5+4);
+      setFont(7,'normal',MUTED); txt('OBSERVACIÓN ESTADO FÍSICO', ML, y+4); y+=5;
+      rect(ML, y, CW, ofH, BGROW, BORDER);
+      setFont(8,'normal'); doc.setTextColor(30,41,59);
+      doc.text(ofLines, ML+3, y+4.5);
+      y += ofH + 4;
+    }
     y += 3;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 6: MATERIALES
+    //  SECCIÓN 8: MATERIALES
     // ══════════════════════════════════════════════════════
     const mats = d.materialesUtilizados || [];
     if(mats.length > 0) {
       checkPage(14);
-      sectionHeader('6 · MATERIALES UTILIZADOS');
-      // Cabecera tabla
+      sectionHeader('8 · MATERIALES UTILIZADOS');
       rect(ML, y, CW, 7, BLUE);
-      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.46},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.20}];
+      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.50},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.16}];
       let mx = ML;
       matCols.forEach(mc => {
         setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
@@ -2455,7 +2622,7 @@ async function descargarFichaPDF() {
         mx = ML;
         const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
         matCols.forEach((mc,ci) => {
-          const maxLen = ci===1 ? 52 : 18;
+          const maxLen = ci===1 ? 58 : 18;
           setFont(7.5, ci===0?'bold':'normal');
           if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
           txt(String(vals[ci]||'').slice(0,maxLen), mx+2, y+5.5);
@@ -2463,56 +2630,37 @@ async function descargarFichaPDF() {
         });
         y += 8;
       });
-      y += 3;
+      // Obs materiales
+      if(d.obsMateriales) {
+        checkPage(10);
+        const omLines = doc.splitTextToSize('Obs: ' + d.obsMateriales, CW-4);
+        const omH = Math.max(8, omLines.length*4.5+4);
+        rect(ML, y, CW, omH, [255,251,235], ACCENT);
+        setFont(7.5,'normal',[146,64,14]); doc.text(omLines, ML+3, y+4.5);
+        y += omH;
+      }
+      y += 4;
     }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 7: ESTADO GENERAL Y OBSERVACIONES
+    //  SECCIÓN 9: OBSERVACIONES
     // ══════════════════════════════════════════════════════
-    checkPage(30);
-    sectionHeader('7 · ESTADO GENERAL · OBSERVACIONES');
-
-    // Chip de estado grande
-    const stColor = statusColor(d.estadoGeneral);
-    doc.setFillColor(stColor[0],stColor[1],stColor[2]); doc.setGState(doc.GState({opacity:0.12})); rect(ML,y,CW,10,stColor,stColor,3); doc.setGState(doc.GState({opacity:1}));
-    doc.setFillColor(...stColor);
-    doc.circle(ML+8, y+5, 3, 'F');
-    setFont(10,'bold',stColor); txt(d.estadoGeneral||'—', ML+14, y+7);
-    const prioColor = (d.prioridad||'').includes('Alta') ? NOK :
-                      (d.prioridad||'').includes('Media')? WARN : OK;
-    doc.setGState(doc.GState({opacity:0.12})); rect(PW-MR-50,y+1,48,8,prioColor,prioColor,2); doc.setGState(doc.GState({opacity:1}));
-    setFont(8,'bold',prioColor); txt('PRIORIDAD: '+(d.prioridad||'—').replace(/[🔴🟡🟢]/g,'').trim(), PW-MR-48, y+6.5);
-    y += 14;
-
-    // Observaciones y acciones
-    const obsItems = [
-      {label:'OBSERVACIONES GENERALES', value:d.obsGenerales||'—'},
-      {label:'ACCIONES PENDIENTES',     value:d.accionesPend||'—'},
-    ];
-    obsItems.forEach(obs => {
-      checkPage(14);
-      setFont(7,'bold',MUTED); txt(obs.label, ML, y+4);
-      y += 5;
-      const lines2 = doc.splitTextToSize(obs.value, CW-4);
-      const boxH = Math.max(10, lines2.length*4.5+4);
-      rect(ML, y, CW, boxH, BGROW, BORDER);
+    if(d.obsGenerales) {
+      checkPage(16);
+      sectionHeader('9 · OBSERVACIONES');
+      const oLines = doc.splitTextToSize(d.obsGenerales, CW-4);
+      const oH = Math.max(10, oLines.length*4.5+4);
+      rect(ML, y, CW, oH, BGROW, BORDER);
       setFont(8.5,'normal'); doc.setTextColor(30,41,59);
-      doc.text(lines2, ML+3, y+5);
-      y += boxH + 4;
-    });
-
-    // Fecha próxima visita
-    checkPage(10);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    setFont(7,'normal',MUTED); txt('FECHA PRÓXIMA VISITA', ML+3, y+3.5);
-    setFont(9,'bold',BLUE);    txt(d.fechaProxVisita||'—', ML+3, y+8);
-    y += 13;
+      doc.text(oLines, ML+3, y+5);
+      y += oH + 4;
+    }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 8: PERSONAL + FIRMA
+    //  SECCIÓN 10: PERSONAL + FIRMA
     // ══════════════════════════════════════════════════════
     checkPage(36);
-    sectionHeader('8 · PERSONAL DE VISITA Y FIRMA');
+    sectionHeader('10 · PERSONAL DE VISITA Y FIRMA');
 
     const personal = d.personal || [];
     const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
@@ -2669,7 +2817,7 @@ const ADM_COLS = {
     {key:'Activo',      label:'Activo',  type:'select', opts:['TRUE','FALSE'], full:false},
   ],
   tableros: [
-    {key:'Marca',  label:'Marca',  type:'text',   full:false},
+    {key:'Marca',  label:'Marca',  type:'dynamic-select', source:'marcas-restaurador', full:false},
     {key:'Campo',  label:'Campo',  type:'text',   full:true},
     {key:'Orden',  label:'Orden',  type:'number', full:false},
     {key:'Activo', label:'Activo', type:'select', opts:['TRUE','FALSE'], full:false},
@@ -2812,6 +2960,11 @@ function admFiltrar(val) {
 
 /* ── Abrir formulario modal ── */
 function admAbrirForm(idx) {
+  // Tableros tiene su propio modal especializado
+  if (admCurrentTab === 'tableros') {
+    admAbrirTableroModal(idx);
+    return;
+  }
   admEditIdx = idx;
   const seccion = admCurrentTab;
   const cols    = ADM_COLS[seccion] || [];
@@ -2831,6 +2984,22 @@ function admAbrirForm(idx) {
       input = `<select id="adf_${col.key.replace(/\s/g,'_')}">
         ${col.opts.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}
       </select>`;
+    } else if (col.type === 'dynamic-select') {
+      // Poblar opciones desde datos en memoria según la fuente indicada
+      let dynOpts = [];
+      if (col.source === 'marcas-restaurador') {
+        // Solo marcas con elemento RESTAURADOR
+        dynOpts = MARCAS_LIST.map(m => m.marca);
+      }
+      if (!dynOpts.length) {
+        // Si aún no cargaron, mostrar input de texto como fallback
+        input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${val.replace(/"/g,'&quot;')}" placeholder="${col.label}">`;
+      } else {
+        input = `<select id="adf_${col.key.replace(/\s/g,'_')}">
+          <option value="">— Seleccionar —</option>
+          ${dynOpts.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}
+        </select>`;
+      }
     } else if (col.type === 'number') {
       input = `<input type="number" id="adf_${col.key.replace(/\s/g,'_')}" value="${val}" step="0.01">`;
     } else {
@@ -3076,6 +3245,155 @@ function limpiarTabliero() {
     '⚠️ Selecciona una marca de reconectador en la sección anterior para ver los campos del tablero';
   document.getElementById('tablero-dinamico').style.display = 'none';
   document.getElementById('tablero-campos').innerHTML = '';
+}
+
+
+/* ══════════════════════════════════════════════════════════════
+   MODAL ESPECIAL DE TABLEROS
+   Permite crear/editar un tablero completo con múltiples campos
+   Cada campo se guarda como una fila separada en la hoja Tableros
+══════════════════════════════════════════════════════════════ */
+
+let admTableroEditMarca = null;  // marca en edición (null = nuevo)
+let admTableroRowNums   = [];    // rowNums existentes al editar
+
+function admAbrirTableroModal(idx) {
+  admEditIdx    = idx;
+  const isEdit  = idx !== null;
+  const row     = isEdit ? admCurrentData[idx] : {};
+
+  document.getElementById('admTableroTitle').textContent =
+    isEdit ? '✏️ Editar Tablero · ' + (row.Marca || '') : '＋ Nuevo Tablero';
+
+  // Poblar selector de marca
+  const selMarca = document.getElementById('adf_tablero_marca');
+  selMarca.innerHTML = '<option value="">— Seleccionar —</option>' +
+    MARCAS_LIST.map(m => `<option value="${m.marca}"${isEdit && row.Marca===m.marca?' selected':''}>${m.marca}</option>`).join('');
+
+  // Activo
+  document.getElementById('adf_tablero_activo').value = isEdit ? (row.Activo || 'TRUE') : 'TRUE';
+
+  // Si es edición, cargar todos los campos de esa marca
+  const list = document.getElementById('admCamposList');
+  list.innerHTML = '';
+  admTableroRowNums = [];
+
+  if (isEdit) {
+    admTableroEditMarca = row.Marca;
+    // Buscar todas las filas de esa marca en admCurrentData
+    const filas = admCurrentData.filter(r => r.Marca === row.Marca)
+      .sort((a,b) => (parseInt(a.Orden)||99) - (parseInt(b.Orden)||99));
+    filas.forEach((f, i) => {
+      admTableroRowNums.push(f._rowNum);
+      admAgregarCampoTablero(f.Campo, i+1);
+    });
+  } else {
+    admTableroEditMarca = null;
+    admAgregarCampoTablero('', 1);  // primer campo vacío
+  }
+
+  admActualizarHint();
+  document.getElementById('admTableroModal').classList.add('show');
+}
+
+function cerrarTableroModal() {
+  document.getElementById('admTableroModal').classList.remove('show');
+  admEditIdx = null;
+  admTableroEditMarca = null;
+  admTableroRowNums = [];
+}
+
+let _campoCount = 0;
+function admAgregarCampoTablero(nombre='', orden=null) {
+  _campoCount++;
+  const id = _campoCount;
+  const list = document.getElementById('admCamposList');
+
+  // Auto-orden: contar filas existentes
+  const currentCount = list.querySelectorAll('.adm-campo-row').length + 1;
+  const ord = orden || currentCount;
+
+  const row = document.createElement('div');
+  row.className = 'adm-campo-row';
+  row.id = 'campo-row-' + id;
+  row.innerHTML = `
+    <input type="text" placeholder="Nombre del campo" value="${nombre}" class="campo-nombre-inp">
+    <input type="number" placeholder="#" value="${ord}" min="1" class="orden-inp campo-orden-inp">
+    <button class="adm-campo-del" onclick="admEliminarCampoRow('campo-row-${id}')">✕</button>
+  `;
+  list.appendChild(row);
+  admActualizarHint();
+}
+
+function admEliminarCampoRow(rowId) {
+  const el = document.getElementById(rowId);
+  if (el) el.remove();
+  admActualizarHint();
+}
+
+function admActualizarHint() {
+  const count = document.getElementById('admCamposList').querySelectorAll('.adm-campo-row').length;
+  document.getElementById('admCamposHint').style.display = count === 0 ? '' : 'none';
+}
+
+// Guardar tablero — inserta/actualiza múltiples filas (una por campo)
+async function guardarTableroModal() {
+  const marca  = document.getElementById('adf_tablero_marca').value.trim();
+  const activo = document.getElementById('adf_tablero_activo').value;
+
+  if (!marca) { admToast('⚠️ Selecciona una marca'); return; }
+
+  const filas = [];
+  document.getElementById('admCamposList').querySelectorAll('.adm-campo-row').forEach(row => {
+    const campo = row.querySelector('.campo-nombre-inp').value.trim();
+    const orden = row.querySelector('.campo-orden-inp').value.trim();
+    if (campo) filas.push({ Marca:marca, Campo:campo, Orden:orden||'', Activo:activo });
+  });
+
+  if (!filas.length) { admToast('⚠️ Agrega al menos un campo'); return; }
+
+  admOpShow('saving', 'Guardando tablero...', marca);
+  const btn = document.getElementById('admTableroSave');
+  btn.disabled = true;
+
+  try {
+    const isEdit = admTableroEditMarca !== null;
+
+    if (isEdit) {
+      // Eliminar filas existentes de esa marca y reinsertar
+      for (const rn of admTableroRowNums) {
+        await fetch(WEBAPP_URL, {
+          method:'POST',
+          body:JSON.stringify({ action:'delete', sheet:'tableros', rowNum:rn }),
+          headers:{'Content-Type':'text/plain'}
+        });
+      }
+    }
+
+    // Insertar todas las filas nuevas
+    for (const fila of filas) {
+      const resp = await fetch(WEBAPP_URL, {
+        method:'POST',
+        body:JSON.stringify({ action:'insert', sheet:'tableros', data:fila }),
+        headers:{'Content-Type':'text/plain'}
+      });
+      const json = await resp.json();
+      if (json.status !== 'ok') throw new Error(json.message);
+    }
+
+    admOpSuccess('✓ Tablero guardado', marca + ' · ' + filas.length + ' campos');
+    setTimeout(() => {
+      cerrarTableroModal();
+      admCargarTabla('tableros');
+      cargarDatosSheets();
+    }, 1000);
+
+  } catch(err) {
+    admOpHide();
+    admToast('❌ Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 /* ── INIT ── */
