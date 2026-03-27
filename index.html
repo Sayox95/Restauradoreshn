@@ -749,6 +749,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <button class="adm-nav-item" onclick="admAbrirPagina('personal',this)">
     <span class="nav-icon">👤</span> Personal
   </button>
+  <button class="adm-nav-item" onclick="admAbrirPagina('tableros',this)">
+    <span class="nav-icon">🎛️</span> Tableros
+  </button>
 
   <div class="adm-nav-footer">
     <button class="adm-nav-close" onclick="cerrarAdmin()">✕ Cerrar menú</button>
@@ -902,7 +905,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
         <div class="field" id="f-marcaReconectador">
           <label>Marca <span class="req">*</span></label>
-          <select id="marcaReconectador" onchange="updMarcaModelos();updMarcaControles();clearErr('f-marcaReconectador');updP()">
+          <select id="marcaReconectador" onchange="updMarcaModelos();updMarcaControles();clearErr('f-marcaReconectador');updP();renderTabliero(this.value)">
             <option value="">— Marca —</option>
           </select>
           <div class="field-err-msg">Campo obligatorio</div>
@@ -977,6 +980,15 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
             </select>
           </div>
           <div class="field">
+            <label>Tipo de Módem</label>
+            <select id="tipoModem1">
+              <option value="">— Tipo —</option>
+              <option>Modem Datos</option>
+              <option>Modem Telemetria</option>
+              <option>Radio Modem</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Modelo</label>
             <select id="modeloModem1">
               <option value="">— Selecciona marca —</option>
@@ -1024,6 +1036,15 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
             </select>
           </div>
           <div class="field">
+            <label>Tipo de Módem</label>
+            <select id="tipoModem2">
+              <option value="">— Tipo —</option>
+              <option>Modem Datos</option>
+              <option>Modem Telemetria</option>
+              <option>Radio Modem</option>
+            </select>
+          </div>
+          <div class="field">
             <label>Modelo</label>
             <select id="modeloModem2">
               <option value="">— Selecciona marca —</option>
@@ -1064,20 +1085,17 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>4 · Tablero de Control</h2>
     </div>
     <div class="card-body">
-      <div class="sdiv">F5 / F6</div>
-      <div class="g2">
-        <div class="field"><label>Ground Trip Blocked</label><div class="tg" id="tg-gtrip"><button class="tg-btn" onclick="tg(this,'tg-gtrip','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-gtrip','a-off')">OFF</button></div></div>
-        <div class="field"><label>Non Reclosing</label><div class="tg" id="tg-nonr"><button class="tg-btn" onclick="tg(this,'tg-nonr','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-nonr','a-off')">OFF</button></div></div>
-        <div class="field"><label>Supervisory OFF</label><div class="tg" id="tg-supv"><button class="tg-btn" onclick="tg(this,'tg-supv','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-supv','a-off')">OFF</button></div></div>
-        <div class="field"><label>Hot Line Tag F5/F6</label><div class="tg" id="tg-hltf5"><button class="tg-btn" onclick="tg(this,'tg-hltf5','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-hltf5','a-off')">OFF</button></div></div>
+
+      <!-- Campos dinámicos según marca del reconectador -->
+      <div id="tablero-sin-marca" style="text-align:center;padding:24px;color:var(--muted);font-size:13px;">
+        ⚠️ Selecciona una marca de reconectador en la sección anterior para ver los campos del tablero
       </div>
-      <div class="sdiv">SEL</div>
-      <div class="g2">
-        <div class="field"><label>Ground Enabled</label><div class="tg" id="tg-grnd"><button class="tg-btn" onclick="tg(this,'tg-grnd','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-grnd','a-off')">OFF</button></div></div>
-        <div class="field"><label>Reclose Enabled</label><div class="tg" id="tg-recl"><button class="tg-btn" onclick="tg(this,'tg-recl','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-recl','a-off')">OFF</button></div></div>
-        <div class="field"><label>Remote Enabled</label><div class="tg" id="tg-rmt"><button class="tg-btn" onclick="tg(this,'tg-rmt','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-rmt','a-off')">OFF</button></div></div>
-        <div class="field"><label>Hot Line Tag SEL</label><div class="tg" id="tg-hltsel"><button class="tg-btn" onclick="tg(this,'tg-hltsel','a-on')">ON</button><button class="tg-btn" onclick="tg(this,'tg-hltsel','a-off')">OFF</button></div></div>
+      <div id="tablero-dinamico" style="display:none">
+        <div class="sdiv" id="tablero-marca-label">Tablero de Control</div>
+        <div class="g2" id="tablero-campos"></div>
       </div>
+
+      <!-- Alarma y Mediciones — siempre visible -->
       <div class="sdiv">Alarma y Mediciones</div>
       <div class="g2">
         <div class="field"><label>Alarma Presente</label><div class="tg" id="tg-alarm"><button class="tg-btn" onclick="tg(this,'tg-alarm','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-alarm','a-no')">NO</button></div></div>
@@ -1268,7 +1286,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxxCT3aWMYd4P8KOVtZuS0St6bB9HYKhZd83TJmJjCm9A2m5FkwLFeVsE3vC7QKuMdY2g/exec';
+const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbyKjySfpN39lpXq7PlzgrhgsQryK0ffiIJ7IIUBTYkdbm9uRAvpAT5kDBYDwEoK7pb3lA/exec';
 
 /* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
@@ -1280,7 +1298,8 @@ let PERS_LIST = [];
 // Datos desde Sheets (hojas Tipos y Marcas)
 let TIPOS_LIST  = [];   // [{tipo:'NOVA 15'}, ...]
 let MARCAS_LIST = [];   // [{marca:'NOVA', modelos:['NOVA 15','NOVA 38'], controles:['F-6','F-6 4.0.1']}]
-let MODEMS_LIST = [];   // [{marca:'INHAND', modelos:['GSM/GPRS','IR915']}, ...]
+let MODEMS_LIST   = [];   // [{marca:'INHAND', elemento:'MODEM DATOS', modelos:['IR915']}, ...]
+let TABLEROS_LIST = [];   // [{marca:'COOPER', campos:[{campo:'Ground Trip Blocked',orden:1},...]}]
 
 /* ── INDICADOR DE FUENTE DE DATOS ── */
 let dataSource = 'fallback'; // 'sheets' | 'fallback' | 'loading'
@@ -1343,6 +1362,7 @@ async function cargarDatosSheets() {
     if (json.tipos      && json.tipos.length      > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
     if (json.marcas     && json.marcas.length     > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
     if (json.modems     && json.modems.length     > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
+    if (json.tableros   && json.tableros.length   > 0) { TABLEROS_LIST = json.tableros; }
 
     loBar(80);
     loMsg('Cargando materiales y personal...', '');
@@ -1511,7 +1531,7 @@ function acSel(idx,type){
   for(const[k,v]of Object.entries({NOVA:'NOVA',NOJA:'NOJA',COOPER:'COOPER','G&W':'G&W'}))if(t.includes(k)){document.getElementById('marcaReconectador').value=v;break;}
   document.getElementById('modeloRecon').value=t;
   document.getElementById('ac-energis').classList.remove('open');
-  updP();showToast('✅ '+r.ubicacion+' — '+r.circuito);
+  updP();renderTabliero(document.getElementById('marcaReconectador').value);showToast('✅ '+r.ubicacion+' — '+r.circuito);
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
@@ -1567,10 +1587,25 @@ function poblarMarcasModems() {
 // Al cambiar marca de módem → actualizar modelos
 function updModelosModem(n) {
   const marca = document.getElementById('marcaModem' + n).value;
-  const sel = document.getElementById('modeloModem' + n);
+  const selMod  = document.getElementById('modeloModem' + n);
+  const selTipo = document.getElementById('tipoModem' + n);
   const found = MODEMS_LIST.find(m => m.marca === marca);
-  sel.innerHTML = '<option value="">— Modelo —</option>' +
+
+  // Actualizar modelos
+  selMod.innerHTML = '<option value="">— Modelo —</option>' +
     (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
+
+  // Autosugerir tipo según el elemento de la marca en Sheets
+  // MODEMS_LIST incluye el campo 'elemento' que viene del Code.gs
+  if (found && found.elemento && selTipo) {
+    const tipoMap = {
+      'MODEM DATOS'      : 'Modem Datos',
+      'MODEM TELEMETRIA' : 'Modem Telemetria',
+      'RADIO MODEM'      : 'Radio Modem'
+    };
+    const sugerido = tipoMap[found.elemento.toUpperCase()] || '';
+    if (sugerido) selTipo.value = sugerido;
+  }
 }
 
 // Toggle mostrar/ocultar detalle de módem
@@ -1579,7 +1614,7 @@ function toggleModem(n, show) {
   if (el) el.style.display = show ? 'block' : 'none';
   // Si se oculta, limpiar campos
   if (!show) {
-    ['marcaModem','modeloModem','serieModem'].forEach(f => {
+    ['marcaModem','modeloModem','serieModem','tipoModem'].forEach(f => {
       const el2 = document.getElementById(f + n);
       if (el2) { el2.value = ''; }
     });
@@ -1833,6 +1868,7 @@ function getData() {
 
     // Módems
     hasModem1         : (()=>{ const a=document.getElementById('tg-hasModem1')?.querySelector('.tg-btn.a-si'); return !!a; })(),
+    tipoModem1        : v('tipoModem1'),
     marcaModem1       : v('marcaModem1'),
     modeloModem1      : v('modeloModem1'),
     serieModem1       : v('serieModem1'),
@@ -1840,6 +1876,7 @@ function getData() {
     tipoAntena1       : v('tipoAntena1'),
     tecModem1         : tecModem1,
     hasModem2         : (()=>{ const a=document.getElementById('tg-hasModem2')?.querySelector('.tg-btn.a-si'); return !!a; })(),
+    tipoModem2        : v('tipoModem2'),
     marcaModem2       : v('marcaModem2'),
     modeloModem2      : v('modeloModem2'),
     serieModem2       : v('serieModem2'),
@@ -1847,17 +1884,9 @@ function getData() {
     tipoAntena2       : v('tipoAntena2'),
     tecModem2         : tecModem2,
 
-    // Tablero F5/F6
-    groundTripBlocked : tg('tg-gtrip'),
-    nonReclosing      : tg('tg-nonr'),
-    supervisoryOff    : tg('tg-supv'),
-    hotLineTagF5      : tg('tg-hltf5'),
-
-    // Tablero SEL
-    groundEnabled     : tg('tg-grnd'),
-    recloseEnabled    : tg('tg-recl'),
-    remoteEnabled     : tg('tg-rmt'),
-    hotLineTagSEL     : tg('tg-hltsel'),
+    // Tablero dinámico según marca
+    tableroMarca      : v('marcaReconectador'),
+    tableroCampos     : getTableroDinamico(),
 
     // Alarma y mediciones
     alarmaPresente    : tg('tg-alarm'),
@@ -1987,6 +2016,8 @@ function limpiarFormulario() {
   document.querySelectorAll('.tg-btn').forEach(b => b.classList.remove(...TGA));
   // Ocultar detalles de módems
   [1,2].forEach(n => { toggleModem(n,false); toggleAntenaExt(n,false); });
+  // Resetear tablero
+  limpiarTabliero();
   Object.keys(SS).forEach(k => SS[k] = null);
 
   // Resetear chips de estado
@@ -2600,6 +2631,7 @@ const ADM_META = {
   tipos:         { label:'Tipos',         icon:'📋', sub:'Tipos de reconectadores' },
   materiales:    { label:'Materiales',    icon:'🔧', sub:'Catálogo de materiales con stock' },
   personal:      { label:'Personal',      icon:'👤', sub:'Técnicos de visita' },
+  tableros:      { label:'Tableros',      icon:'🎛️', sub:'Campos de tablero por marca de reconectador' },
 };
 
 const ADM_COLS = {
@@ -2635,6 +2667,12 @@ const ADM_COLS = {
     {key:'Cargo',       label:'Cargo',   type:'text',   full:false},
     {key:'ID Empleado', label:'ID',      type:'text',   full:false},
     {key:'Activo',      label:'Activo',  type:'select', opts:['TRUE','FALSE'], full:false},
+  ],
+  tableros: [
+    {key:'Marca',  label:'Marca',  type:'text',   full:false},
+    {key:'Campo',  label:'Campo',  type:'text',   full:true},
+    {key:'Orden',  label:'Orden',  type:'number', full:false},
+    {key:'Activo', label:'Activo', type:'select', opts:['TRUE','FALSE'], full:false},
   ]
 };
 
@@ -2645,6 +2683,7 @@ const ADM_VISIBLE = {
   tipos:         ['ELEMENTO','TIPO'],
   materiales:    ['CODIGO MATERIAL','NOMBRE MATERIAL','CODIGO UNIDAD','CANTIDAD ACTUAL'],
   personal:      ['Nombre','Cargo','ID Empleado','Activo'],
+  tableros:      ['Marca','Campo','Orden','Activo'],
 };
 
 /* ── Abrir / cerrar menú lateral ── */
@@ -2949,6 +2988,95 @@ function admToast(msg) {
 
 // Alias para compatibilidad (tab anterior ya no existe)
 function admTab(sec, btn) { admAbrirPagina(sec, btn); }
+
+
+/* ══════════════════════════════════════════════════════════════
+   TABLERO DINÁMICO — se renderiza según marca del reconectador
+   TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde Sheets
+   Datos precargados (fallback) + desde Sheets
+══════════════════════════════════════════════════════════════ */
+
+
+
+// ID seguro para un campo (slug sin espacios ni caracteres especiales)
+function campoId(campo) {
+  return 'tb_' + campo.toLowerCase().replace(/[^a-z0-9]/g,'_');
+}
+
+// Renderizar tablero según la marca del reconectador
+function renderTabliero(marca) {
+  const sinMarca = document.getElementById('tablero-sin-marca');
+  const dinBlk   = document.getElementById('tablero-dinamico');
+  const label    = document.getElementById('tablero-marca-label');
+  const campos   = document.getElementById('tablero-campos');
+
+  if (!marca) {
+    sinMarca.style.display = '';
+    dinBlk.style.display   = 'none';
+    return;
+  }
+
+  // Buscar en Sheets primero, luego fallback
+  const fuente = TABLEROS_LIST;
+  const tablero = fuente.find(t => t.marca.toUpperCase() === marca.toUpperCase());
+
+  if (!tablero) {
+    sinMarca.innerHTML = `⚠️ No hay tablero configurado para la marca <strong>${marca}</strong>. Puedes agregarlo en Administración → Tableros.`;
+    sinMarca.style.display = '';
+    dinBlk.style.display   = 'none';
+    return;
+  }
+
+  sinMarca.style.display = 'none';
+  dinBlk.style.display   = '';
+  label.textContent = 'Tablero · ' + tablero.marca;
+
+  // Ordenar campos
+  const ordenados = [...tablero.campos]
+    .filter(f => f.activo !== 'FALSE' && f.activo !== false)
+    .sort((a,b) => (parseInt(a.orden)||0) - (parseInt(b.orden)||0));
+
+  campos.innerHTML = ordenados.map(f => {
+    const id = campoId(f.campo);
+    return `<div class="field">
+      <label>${f.campo}</label>
+      <div class="tg" id="${id}">
+        <button class="tg-btn" onclick="tg(this,'${id}','a-on')">ON</button>
+        <button class="tg-btn" onclick="tg(this,'${id}','a-off')">OFF</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Leer valores del tablero dinámico para getData()
+function getTableroDinamico() {
+  const result = {};
+  const marca = document.getElementById('marcaReconectador')?.value || '';
+  if (!marca) return result;
+
+  const fuente  = TABLEROS_LIST;
+  const tablero = fuente.find(t => t.marca.toUpperCase() === marca.toUpperCase());
+  if (!tablero) return result;
+
+  tablero.campos
+    .filter(f => f.activo !== 'FALSE' && f.activo !== false)
+    .forEach(f => {
+      const id     = campoId(f.campo);
+      const activo = document.getElementById(id)?.querySelector('.tg-btn.a-on,.tg-btn.a-off');
+      result[f.campo] = activo ? activo.textContent.trim() : '';
+    });
+
+  return result;
+}
+
+// Limpiar tablero al resetear formulario
+function limpiarTabliero() {
+  document.getElementById('tablero-sin-marca').style.display = '';
+  document.getElementById('tablero-sin-marca').innerHTML =
+    '⚠️ Selecciona una marca de reconectador en la sección anterior para ver los campos del tablero';
+  document.getElementById('tablero-dinamico').style.display = 'none';
+  document.getElementById('tablero-campos').innerHTML = '';
+}
 
 /* ── INIT ── */
 window.addEventListener('DOMContentLoaded',()=>{
