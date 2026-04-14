@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1f3a">
 <title>Inspección Restauradores SCADA</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=QkJWtk_66XYm0ofzgsi7IL-XKLQ1BTKh0sq8yiK5Ib_okmdf99R1oB9t7EHf-mCttW7PIt1HHk_MkV5tr70RxQZkfeysl1Xl2hnWE-GKPlnYX84DCeYJ4LJgAIxFv0wFAR8i5n_HE-7cpBYwbfDjOgx8m6g2KLJ0mOKAImbfsyEeFdZb0iJnzrScq_ACxAB-sjNAzcb3NA-ampaVnT2SiFORQm9B405eUDJU907yK8pr51Of-lQEWfwxHD6iK2Qhl4W6Vhv6-YQ4Ei6ls_FZcw" charset="UTF-8"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -2763,21 +2763,50 @@ async function descargarFichaPDF() {
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
-    // Subir PDF a R2 si el Worker está configurado
-    if (true) {
-      try {
-        const pdfBlob    = doc.output('blob');
-        const pdfBase64  = await new Promise(res => {
-          const reader = new FileReader();
-          reader.onloadend = () => res(reader.result.split(',')[1]);
-          reader.readAsDataURL(pdfBlob);
-        });
-        await fetch(`${API_BASE}/api/pdf`, {
+    // Subir PDF a R2 y luego persistir la key en D1
+    try {
+      const pdfBlob   = doc.output('blob');
+      const pdfBase64 = await new Promise(res => {
+        const reader = new FileReader();
+        reader.onloadend = () => res(reader.result.split(',')[1]);
+        reader.readAsDataURL(pdfBlob);
+      });
+
+      const pdfUploadResp = await fetch(`${API_BASE}/api/pdf`, {
+        method : 'POST',
+        body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!pdfUploadResp.ok) {
+        throw new Error(`Upload PDF falló con status ${pdfUploadResp.status}`);
+      }
+
+      const pdfUploadJson = await pdfUploadResp.json();
+
+      if (pdfUploadJson?.status === 'ok' && pdfUploadJson?.key) {
+        const saveKeyResp = await fetch(`${API_BASE}/api/save-pdf-key`, {
           method : 'POST',
-          body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
+          body   : JSON.stringify({
+            visitaNum: d.visitaNum,
+            pdfR2Key : pdfUploadJson.key
+          }),
           headers: { 'Content-Type': 'application/json' }
         });
-      } catch(e) { console.warn('PDF R2 upload failed:', e); }
+
+        if (!saveKeyResp.ok) {
+          console.warn('PDF subido a R2, pero no se pudo guardar pdf_r2_key en D1.', saveKeyResp.status);
+        } else {
+          const saveKeyJson = await saveKeyResp.json().catch(() => null);
+          if (saveKeyJson?.status !== 'ok') {
+            console.warn('PDF subido a R2, pero la API save-pdf-key no devolvió ok.', saveKeyJson);
+          }
+        }
+      } else {
+        console.warn('La API /api/pdf no devolvió una key válida.', pdfUploadJson);
+      }
+    } catch(e) {
+      console.warn('PDF R2 upload failed:', e);
     }
 
     // Cerrar modal y limpiar formulario
