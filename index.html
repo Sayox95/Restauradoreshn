@@ -726,7 +726,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="so-ring" id="soRing"></div>
   </div>
   <div class="so-title" id="soTitle">Guardando visita...</div>
-  <div class="so-sub"   id="soSub">Enviando información a Google Sheets</div>
+  <div class="so-sub"   id="soSub">Guardando información en Cloudflare</div>
   <button class="so-btn" id="soBtn" onclick="cerrarSaveOverlay()">✔ Nueva Inspección</button>
 </div>
 
@@ -736,7 +736,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="pdf-card">
     <div class="pdf-check">✅</div>
     <div class="pdf-title">¡Visita Registrada!</div>
-    <div class="pdf-meta">Información guardada en Google Sheets</div>
+    <div class="pdf-meta">Información guardada en Cloudflare</div>
     <div class="pdf-num" id="pdfModalNum">HV-000000</div>
     <div class="pdf-divider"></div>
     <div class="pdf-preview" id="pdfPreview"></div>
@@ -761,7 +761,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="lo-dot"></div>
   </div>
   <div class="lo-bar-wrap"><div class="lo-bar" id="loBar"></div></div>
-  <div class="lo-msg" id="loMsg">Conectando con Google Sheets...</div>
+  <div class="lo-msg" id="loMsg">Conectando con la base de datos...</div>
 </div>
 
 
@@ -773,12 +773,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="hbg-line"></div>
     </button>
     <div class="tb-brand">
-      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;border-radius:4px;">
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
       <div>SCADA Distribución<small>Control de Restauradores</small></div>
     </div>
   </div>
   <div class="tb-actions">
-    <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosSheets()" title="Toca para recargar desde Sheets">⏳ Cargando...</span>
+    <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosIniciales()" title="Toca para recargar catálogos desde Cloudflare">⏳ Cargando BD...</span>
     <button class="tb-btn" onclick="exportarJSON()" title="Exportar">⬇</button>
     <button class="tb-btn" onclick="window.print()" title="Imprimir">🖨</button>
     <button class="tb-btn" onclick="guardar()" title="Guardar">💾</button>
@@ -1395,26 +1395,31 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwuiDIqoKRQtowncQwk8E5ErRRSe9ocUu9QQWS1A1RAs7zztBcOGgsCx33btsNKn0iCVw/exec';
+// ═══════════════════════════════════════════════════════════
+// URL del Cloudflare Worker — reemplaza con tu worker URL
+// Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
+// ═══════════════════════════════════════════════════════════
+const API_BASE = ''; // Cloudflare Pages Functions en el mismo proyecto
+const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
-/* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
+/* ── DATOS EN MEMORIA (se pueblan desde D1 o fallback) ── */
 let RESTS = [];
 let MATS  = [];
 let PERS_LIST = [];
 
 
 
-// Datos desde Sheets (hojas Tipos y Marcas)
+// Datos desde D1 (catálogos de tipos, marcas y tableros)
 let TIPOS_LIST  = [];   // [{tipo:'NOVA 15'}, ...]
 let MARCAS_LIST = [];   // [{marca:'NOVA', modelos:['NOVA 15','NOVA 38'], controles:['F-6','F-6 4.0.1']}]
 let MODEMS_LIST   = [];   // [{marca:'INHAND', elemento:'MODEM DATOS', modelos:['IR915']}, ...]
 let TABLEROS_LIST = [];   // [{marca:'COOPER', campos:[{campo:'Ground Trip Blocked',orden:1},...]}]
 
 /* ── INDICADOR DE FUENTE DE DATOS ── */
-let dataSource = 'fallback'; // 'sheets' | 'fallback' | 'loading'
+let dataSource = 'fallback'; // 'd1' | 'fallback' | 'loading'
 
 /* ══════════════════════════════════════════════════════════════
-   CARGA DE DATOS DESDE GOOGLE SHEETS (Apps Script Web App)
+   CARGA DE DATOS DESDE CLOUDFLARE D1 (Pages Functions)
 ══════════════════════════════════════════════════════════════ */
 /* ── Helpers del overlay ── */
 function loMsg(txt, cls) {
@@ -1432,19 +1437,9 @@ function ocultarOverlay() {
   if (ov) ov.classList.add('hide');
 }
 
-async function cargarDatosSheets() {
+async function cargarDatosIniciales() {
   // Sin URL configurada → el formulario queda vacío, se avisa al usuario
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
-    loMsg('⚠️ URL de Sheets no configurada', 'err');
-    loBar(100);
-    setDataSourceBadge('sin-url');
-    agregarPers();
-    setTimeout(ocultarOverlay, 1500);
-    return;
-  }
-
-  // Con URL: mostrar progreso y bloquear hasta que termine
-  loMsg('Conectando con Google Sheets...', '');
+  loMsg('Conectando con la base de datos...', '');
   loBar(10);
   setDataSourceBadge('loading');
 
@@ -1452,7 +1447,7 @@ async function cargarDatosSheets() {
     loBar(30);
     loMsg('Leyendo catálogos y restauradores...', '');
 
-    const resp = await fetch(WEBAPP_URL + '?action=all', {
+    const resp = await fetch(`${API_BASE}/api/data?action=all`, {
       method: 'GET',
       cache:  'no-cache'
     });
@@ -1481,8 +1476,8 @@ async function cargarDatosSheets() {
           MATS.length + ' materiales · ' +
           PERS_LIST.length + ' técnicos', 'ok');
 
-    dataSource = 'sheets';
-    setDataSourceBadge('sheets', json.updated);
+    dataSource = 'd1';
+    setDataSourceBadge('d1', json.updated);
 
     // Crear tarjeta inicial de técnico AHORA que PERS_LIST ya tiene datos
     agregarPers();
@@ -1490,23 +1485,23 @@ async function cargarDatosSheets() {
     // Pequeña pausa para que el usuario vea el mensaje de éxito
     setTimeout(() => {
       ocultarOverlay();
-      showToast('✅ Datos cargados desde Google Sheets');
+      showToast('✅ Datos cargados desde Cloudflare D1');
     }, 1000);
 
   } catch (err) {
-    console.warn('Sheets no disponible:', err.message);
+    console.warn('D1 no disponible:', err.message);
     RESTS = [];
     MATS  = [];
     dataSource = 'error';
     setDataSourceBadge('error');
 
     loBar(100);
-    loMsg('No se pudo conectar con Google Sheets', 'err');
+    loMsg('No se pudo conectar con la base de datos', 'err');
 
     agregarPers();
     setTimeout(() => {
       ocultarOverlay();
-      showToast('❌ Sin conexión a Sheets — verifica tu red o la URL');
+      showToast('❌ Sin conexión a la base de datos — verifica tu red o el proyecto Pages');
     }, 1800);
   }
 }
@@ -1516,20 +1511,20 @@ function setDataSourceBadge(state, updated) {
   const el = document.getElementById('dataBadge');
   if (!el) return;
   const labels = {
-    loading  : '⏳ Cargando...',
-    sheets   : '🟢 Sheets en vivo',
+    loading  : '⏳ Cargando BD...',
+    d1       : '🟢 D1 en vivo',
     error    : '🔴 Sin conexión',
     'sin-url': '⚙️ Sin configurar'
   };
   const colors = {
     loading  : 'rgba(255,255,255,.15)',
-    sheets   : 'rgba(22,163,74,.3)',
+    d1       : 'rgba(22,163,74,.3)',
     error    : 'rgba(220,38,38,.3)',
     'sin-url': 'rgba(245,158,11,.25)'
   };
   el.textContent = labels[state] || state;
   el.style.background = colors[state] || 'rgba(255,255,255,.1)';
-  if (state === 'sheets' && updated) {
+  if (state === 'd1' && updated) {
     const d = new Date(updated);
     el.title = 'Actualizado: ' + d.toLocaleTimeString();
   }
@@ -1704,8 +1699,8 @@ function updModelosModem(n) {
   selMod.innerHTML = '<option value="">— Modelo —</option>' +
     (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
 
-  // Autosugerir tipo según el elemento de la marca en Sheets
-  // MODEMS_LIST incluye el campo 'elemento' que viene del Code.gs
+  // Autosugerir tipo según el elemento de la marca en D1
+  // MODEMS_LIST incluye el campo 'elemento' que viene de la API
   if (found && found.elemento && selTipo) {
     const tipoMap = {
       'MODEM DATOS'      : 'Modem Datos',
@@ -1928,7 +1923,7 @@ function getData() {
     }
   });
 
-  // Personal — soporta tanto select (con Sheets) como input texto (fallback)
+  // Personal — soporta tanto select (con D1) como input texto (fallback)
   const personal = [];
   document.querySelectorAll('.pers-card').forEach(c => {
     const selNombre = c.querySelector('.pers-nombre-select');
@@ -2077,7 +2072,7 @@ function mostrarSaveOverlay() {
   icon.className  = 'so-icon saving';
   icon.innerHTML  = '<div class="so-ring" id="soRing"></div>';
   title.textContent = 'Guardando visita...';
-  sub.textContent   = 'Enviando información a Google Sheets';
+  sub.textContent   = 'Guardando información en Cloudflare';
   sub.className     = 'so-sub';
   btn.style.display = 'none';
   btn.className     = 'so-btn';
@@ -2150,28 +2145,23 @@ function limpiarFormulario() {
   updP();
 }
 
-/* ── GUARDAR: local + Google Sheets ── */
+/* ── GUARDAR: local + Cloudflare ── */
 async function guardar() {
   const d = getData();
 
   // Respaldo local siempre
   try { localStorage.setItem('vis_' + Date.now(), JSON.stringify(d)); } catch(e) {}
 
-  // Sin URL configurada
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
-    mostrarSaveOverlay();
-    saveOverlayError('URL de Apps Script no configurada — visita guardada solo localmente');
-    return;
-  }
-
   // Mostrar overlay bloqueante
   mostrarSaveOverlay();
 
   try {
-    const resp = await fetch(WEBAPP_URL, {
+    // PDF se sube a R2 después del guardado exitoso desde descargarFichaPDF()
+
+    const resp = await fetch(`${API_BASE}/api/save`, {
       method  : 'POST',
       body    : JSON.stringify(d),
-      headers : { 'Content-Type': 'text/plain' }
+      headers : { 'Content-Type': 'application/json' }
     });
     const json = await resp.json();
 
@@ -2180,10 +2170,10 @@ async function guardar() {
       _lastData = d; // guardar referencia para el PDF
       saveOverlayExito(json.visitaNum || d.visitaNum, json.fila);
     } else {
-      saveOverlayError('Error en Sheets: ' + json.message + ' — visita guardada localmente');
+      saveOverlayError('Error al guardar: ' + json.message + ' — visita guardada localmente');
     }
   } catch (err) {
-    saveOverlayError('Sin conexión a Google Sheets — visita guardada localmente');
+    saveOverlayError('Sin conexión a Cloudflare — visita guardada localmente');
   }
 }
 
@@ -2242,10 +2232,24 @@ async function descargarFichaPDF() {
   try {
     const logoResp = await fetch('https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png');
     const blob = await logoResp.blob();
-    logoBase64 = await new Promise(res => {
+    const rawBase64 = await new Promise(res => {
       const reader = new FileReader();
       reader.onloadend = () => res(reader.result);
       reader.readAsDataURL(blob);
+    });
+    // Convertir a blanco usando canvas (filter invert para fondo navy del PDF)
+    logoBase64 = await new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'brightness(0) invert(1)';
+        ctx.drawImage(img, 0, 0);
+        res(cv.toDataURL('image/png'));
+      };
+      img.onerror = () => res(rawBase64); // fallback sin filtro
+      img.src = rawBase64;
     });
   } catch(e) { console.warn('Logo no disponible para PDF:', e.message); }
 
@@ -2345,10 +2349,6 @@ async function descargarFichaPDF() {
     rect(0, 0, PW, 22, NAVY);
     // Acento izquierdo
     rect(0, 0, 4, 22, ACCENT);
-    // Rayo SVG simplificado como triángulos
-    doc.setFillColor(...ACCENT);
-    doc.triangle(16,3, 13,11, 17,11, 'F');
-    doc.triangle(17,11, 14,19, 19,11, 'F');
 
     // Logo empresa en esquina izquierda del encabezado
     if(logoBase64) {
@@ -2763,6 +2763,23 @@ async function descargarFichaPDF() {
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
+    // Subir PDF a R2 si el Worker está configurado
+    if (true) {
+      try {
+        const pdfBlob    = doc.output('blob');
+        const pdfBase64  = await new Promise(res => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result.split(',')[1]);
+          reader.readAsDataURL(pdfBlob);
+        });
+        await fetch(`${API_BASE}/api/pdf`, {
+          method : 'POST',
+          body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch(e) { console.warn('PDF R2 upload failed:', e); }
+    }
+
     // Cerrar modal y limpiar formulario
     document.getElementById('pdfModal').classList.remove('show');
     setTimeout(limpiarFormulario, 300);
@@ -2778,7 +2795,7 @@ async function descargarFichaPDF() {
 
 
 /* ══════════════════════════════════════════════════════════════
-   PANEL DE ADMINISTRACIÓN — CRUD completo via Apps Script
+   PANEL DE ADMINISTRACIÓN — CRUD completo via Pages Functions
    Diseño: menú lateral de navegación + página fullscreen
 ══════════════════════════════════════════════════════════════ */
 
@@ -2894,15 +2911,10 @@ function cerrarAdminPage() {
   admCurrentTab = null;
 }
 
-/* ── Cargar datos desde Sheets ── */
+/* ── Cargar datos desde Cloudflare D1 ── */
 async function admCargarTabla(seccion) {
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
-    document.getElementById('admTableWrap').innerHTML =
-      '<div class="adm-empty">⚙️ Configura WEBAPP_URL para usar el admin</div>';
-    return;
-  }
   try {
-    const resp = await fetch(WEBAPP_URL + '?action=' + seccion + '&raw=1', { cache:'no-cache' });
+    const resp = await fetch(`${API_BASE}/api/admin?section=${seccion}&raw=1`, { cache:'no-cache' });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
     admCurrentData = json.rows || [];
@@ -3067,28 +3079,28 @@ async function guardarAdmForm() {
 
   try {
     const payload = {
-      action : esEdicion ? 'update' : 'insert',
-      sheet  : seccion,
-      rowNum : admEditRowNum,
-      data   : rowData
+      action  : esEdicion ? 'update' : 'insert',
+      section : seccion,
+      id      : admEditRowNum,
+      data    : rowData
     };
-    const resp = await fetch(WEBAPP_URL, {
+    const resp = await fetch(`${API_BASE}/api/admin`, {
       method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'text/plain'}
+      headers:{'Content-Type':'application/json'}
     });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
 
     admOpSuccess(
       esEdicion ? '✓ Registro actualizado' : '✓ Registro guardado',
-      'Los cambios se aplicaron en Google Sheets'
+      'Los cambios se aplicaron en Cloudflare'
     );
     // Breve pausa para mostrar el éxito, luego cerrar form y recargar tabla
     // admOpHide() lo llamará admRenderTabla cuando la tabla esté lista
     setTimeout(() => {
       cerrarAdmForm();
       admCargarTabla(seccion);
-      cargarDatosSheets();
+      cargarDatosIniciales();
     }, 1000);
 
   } catch(err) {
@@ -3105,22 +3117,22 @@ async function admEliminar(idx) {
     .slice(0,3).map(([,v])=>v).filter(Boolean).join(' · ');
   if (!confirm('¿Eliminar este registro? ' + preview)) return;
 
-  admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en Google Sheets');
+  admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en la base de datos');
 
   try {
-    const payload = { action:'delete', sheet:admCurrentTab, rowNum:row._rowNum };
-    const resp = await fetch(WEBAPP_URL, {
+    const payload = { action:'delete', section:admCurrentTab, id:row._rowNum };
+    const resp = await fetch(`${API_BASE}/api/admin`, {
       method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'text/plain'}
+      headers:{'Content-Type':'application/json'}
     });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
 
-    admOpSuccess('✓ Registro eliminado', 'El registro fue removido del Sheet');
+    admOpSuccess('✓ Registro eliminado', 'El registro fue eliminado correctamente');
     // admOpHide() lo llamará admRenderTabla al terminar de renderizar
     setTimeout(() => {
       admCargarTabla(admCurrentTab);
-      cargarDatosSheets();
+      cargarDatosIniciales();
     }, 900);
 
   } catch(err) {
@@ -3176,8 +3188,8 @@ function admTab(sec, btn) { admAbrirPagina(sec, btn); }
 
 /* ══════════════════════════════════════════════════════════════
    TABLERO DINÁMICO — se renderiza según marca del reconectador
-   TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde Sheets
-   Datos precargados (fallback) + desde Sheets
+   TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde D1
+   Datos precargados (fallback) + desde D1
 ══════════════════════════════════════════════════════════════ */
 
 
@@ -3200,7 +3212,7 @@ function renderTabliero(marca) {
     return;
   }
 
-  // Buscar en Sheets primero, luego fallback
+  // Buscar en D1 primero, luego fallback
   const fuente = TABLEROS_LIST;
   const tablero = fuente.find(t => t.marca.toUpperCase() === marca.toUpperCase());
 
@@ -3377,20 +3389,20 @@ async function guardarTableroModal() {
     if (isEdit) {
       // Eliminar filas existentes de esa marca y reinsertar
       for (const rn of admTableroRowNums) {
-        await fetch(WEBAPP_URL, {
+        await fetch(`${API_BASE}/api/admin`, {
           method:'POST',
-          body:JSON.stringify({ action:'delete', sheet:'tableros', rowNum:rn }),
-          headers:{'Content-Type':'text/plain'}
+          body:JSON.stringify({ action:'delete', section:'tableros', id:rn }),
+          headers:{'Content-Type':'application/json'}
         });
       }
     }
 
     // Insertar todas las filas nuevas
     for (const fila of filas) {
-      const resp = await fetch(WEBAPP_URL, {
+      const resp = await fetch(`${API_BASE}/api/admin`, {
         method:'POST',
-        body:JSON.stringify({ action:'insert', sheet:'tableros', data:fila }),
-        headers:{'Content-Type':'text/plain'}
+        body:JSON.stringify({ action:'insert', section:'tableros', data:fila }),
+        headers:{'Content-Type':'application/json'}
       });
       const json = await resp.json();
       if (json.status !== 'ok') throw new Error(json.message);
@@ -3400,7 +3412,7 @@ async function guardarTableroModal() {
     setTimeout(() => {
       cerrarTableroModal();
       admCargarTabla('tableros');
-      cargarDatosSheets();
+      cargarDatosIniciales();
     }, 1000);
 
   } catch(err) {
@@ -3420,9 +3432,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   rsCanvas();
   window.addEventListener('resize',rsCanvas);
   document.getElementById('btnPrev').disabled=true;
-  // Cargar datos desde Sheets primero, luego crear tarjeta de técnico
-  // para que el selector de personal ya tenga los datos del Sheet
-  cargarDatosSheets();
+  // Cargar datos desde D1 primero, luego crear tarjeta de técnico
+  // para que el selector de personal ya tenga los datos correctamente
+  cargarDatosIniciales();
   updP();
 });
 </script>
