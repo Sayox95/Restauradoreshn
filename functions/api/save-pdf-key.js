@@ -13,10 +13,10 @@ export async function onRequest(context) {
   try {
     const { request, env } = context;
     const body = await request.json();
-    const { visitaNum, firmaR2Key } = body || {};
+    const { visitaNum, pdfR2Key } = body || {};
 
-    if (!visitaNum || !firmaR2Key) {
-      return badRequest("visitaNum y firmaR2Key son requeridos");
+    if (!visitaNum || !pdfR2Key) {
+      return badRequest("visitaNum y pdfR2Key son requeridos");
     }
 
     const result = await env.DB.prepare(
@@ -24,13 +24,13 @@ export async function onRequest(context) {
        SET pdf_r2_key = ?
        WHERE visita_num = ?`
     )
-      .bind(firmaR2Key, visitaNum)
+      .bind(pdfR2Key, visitaNum)
       .run();
 
     return json({
       status: "ok",
       visitaNum,
-      firmaR2Key,
+      pdfR2Key,
       changes: result.meta?.changes || 0,
     });
   } catch (error) {
