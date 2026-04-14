@@ -101,3 +101,4 @@ async function handlePost(request, env) {
 
   return badRequest("Acción no reconocida");
 }
+ 
