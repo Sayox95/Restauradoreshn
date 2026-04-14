@@ -57,7 +57,7 @@ export async function onRequest(context) {
         materiales_json, materiales_resumen, obs_materiales,
         obs_generales,
         personal_json, personal_resumen,
-        firma_responsable, obs_responsable, firma_r2_key
+        firma_responsable, obs_responsable, pdf_r2_key
       ) VALUES (
         ?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,
         ?,?,?,?,?, ?,?,?,
