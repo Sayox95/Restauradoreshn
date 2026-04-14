@@ -751,9 +751,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <!-- ═══ LOADING OVERLAY ═══ -->
 <div id="loadOverlay">
   <div class="lo-logo">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-    </svg>
+    <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:56px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
     <h2>SCADA Distribución</h2>
     <p>Control de Restauradores</p>
   </div>
@@ -775,7 +773,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="hbg-line"></div>
     </button>
     <div class="tb-brand">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;border-radius:4px;">
       <div>SCADA Distribución<small>Control de Restauradores</small></div>
     </div>
   </div>
@@ -794,7 +792,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <nav id="adminNav">
   <div class="adm-nav-head">
     <div class="adm-nav-logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:32px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
       <div>
         <div class="adm-nav-title">Admin</div>
         <div class="adm-nav-sub">SCADA Distribución</div>
@@ -2239,6 +2237,18 @@ async function descargarFichaPDF() {
   btn.textContent = '⏳ Generando PDF...';
   btn.disabled = true;
 
+  // Precargar logo para el PDF
+  let logoBase64 = null;
+  try {
+    const logoResp = await fetch('https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png');
+    const blob = await logoResp.blob();
+    logoBase64 = await new Promise(res => {
+      const reader = new FileReader();
+      reader.onloadend = () => res(reader.result);
+      reader.readAsDataURL(blob);
+    });
+  } catch(e) { console.warn('Logo no disponible para PDF:', e.message); }
+
   try {
     const { jsPDF } = window.jspdf;
     const d = _lastData || {};
@@ -2340,10 +2350,14 @@ async function descargarFichaPDF() {
     doc.triangle(16,3, 13,11, 17,11, 'F');
     doc.triangle(17,11, 14,19, 19,11, 'F');
 
+    // Logo empresa en esquina izquierda del encabezado
+    if(logoBase64) {
+      try { doc.addImage(logoBase64, 'PNG', 5, 2, 18, 18, '', 'FAST'); } catch(e){}
+    }
     setFont(14,'bold',WHITE);
-    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 24, 9);
+    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 26, 9);
     setFont(8,'normal',[245,158,11]);
-    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 24, 15);
+    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 26, 15);
 
     // Chip de N° visita
     rect(PW-MR-52, 3, 52, 7, [255,255,255,10]);
@@ -2580,7 +2594,7 @@ async function descargarFichaPDF() {
     // Medición aterrizaje
     checkPage(10);
     rect(ML, y, CW, 9, [232,240,254], BORDER);
-    const aterCols = [['ATER. CONTROL (Ω)', d.aterControl],['ATER. RESTAURADOR (Ω)', d.aterRestaurador],['ATER. OTROS (Ω)', d.aterOtros]];
+    const aterCols = [['ATER. CONTROL (Ohm)', d.aterControl],['ATER. RESTAURADOR (Ohm)', d.aterRestaurador],['ATER. OTROS (Ohm)', d.aterOtros]];
     const atW = CW/3;
     aterCols.forEach((a,i) => {
       if(i>0) line(ML+atW*i,y,ML+atW*i,y+9,BORDER);
@@ -2715,9 +2729,10 @@ async function descargarFichaPDF() {
     setFont(8,'bold'); doc.setTextColor(30,41,59);
     txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
 
-    y += 8;
+    // Avanzar y hasta el fondo del box de firma (el más alto entre tabla y firmaBoxH)
+    y = firmaStartY + firmaBoxH + 6;
 
-    // ── Obs. del responsable ──
+    // ── Obs. del responsable — siempre DEBAJO de la firma ──
     if(d.obsResponsable) {
       checkPage(12);
       const oLines = doc.splitTextToSize('Nota del responsable: ' + d.obsResponsable, CW-4);
