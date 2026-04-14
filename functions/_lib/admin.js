@@ -16,7 +16,7 @@ export async function adminInsert(section, data, env) {
         safeFloat(data["Latitud"]),
         data["Estado"] || "ACTIVO"
       ),
-
+ 
     materiales: () =>
       env.DB.prepare(
         `INSERT INTO materiales (codigo, nombre, unidad, stock)
