@@ -21,7 +21,7 @@ export async function onRequest(context) {
 
     const result = await env.DB.prepare(
       `UPDATE registros
-       SET firma_r2_key = ?
+       SET pdf_r2_key = ?
        WHERE visita_num = ?`
     )
       .bind(firmaR2Key, visitaNum)
