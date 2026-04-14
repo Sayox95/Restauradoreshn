@@ -773,7 +773,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="hbg-line"></div>
     </button>
     <div class="tb-brand">
-      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;border-radius:4px;">
+      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
       <div>SCADA Distribución<small>Control de Restauradores</small></div>
     </div>
   </div>
@@ -1395,7 +1395,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
    CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
    Después de desplegar Code.gs, copia la URL aquí:
 ══════════════════════════════════════════════════════════════ */
-const WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwuiDIqoKRQtowncQwk8E5ErRRSe9ocUu9QQWS1A1RAs7zztBcOGgsCx33btsNKn0iCVw/exec';
+// ═══════════════════════════════════════════════════════════
+// URL del Cloudflare Worker — reemplaza con tu worker URL
+// Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
+// ═══════════════════════════════════════════════════════════
+const WORKER_URL = 'REEMPLAZAR_CON_TU_WORKER_URL';
+const WEBAPP_URL = WORKER_URL; // alias para compatibilidad
 
 /* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
@@ -1434,7 +1439,7 @@ function ocultarOverlay() {
 
 async function cargarDatosSheets() {
   // Sin URL configurada → el formulario queda vacío, se avisa al usuario
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
     loMsg('⚠️ URL de Sheets no configurada', 'err');
     loBar(100);
     setDataSourceBadge('sin-url');
@@ -1452,7 +1457,7 @@ async function cargarDatosSheets() {
     loBar(30);
     loMsg('Leyendo catálogos y restauradores...', '');
 
-    const resp = await fetch(WEBAPP_URL + '?action=all', {
+    const resp = await fetch(WORKER_URL + '/api/data?action=all', {
       method: 'GET',
       cache:  'no-cache'
     });
@@ -2158,7 +2163,7 @@ async function guardar() {
   try { localStorage.setItem('vis_' + Date.now(), JSON.stringify(d)); } catch(e) {}
 
   // Sin URL configurada
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
     mostrarSaveOverlay();
     saveOverlayError('URL de Apps Script no configurada — visita guardada solo localmente');
     return;
@@ -2168,10 +2173,12 @@ async function guardar() {
   mostrarSaveOverlay();
 
   try {
-    const resp = await fetch(WEBAPP_URL, {
+    // PDF se sube a R2 después del guardado exitoso desde descargarFichaPDF()
+
+    const resp = await fetch(WORKER_URL + '/api/save', {
       method  : 'POST',
       body    : JSON.stringify(d),
-      headers : { 'Content-Type': 'text/plain' }
+      headers : { 'Content-Type': 'application/json' }
     });
     const json = await resp.json();
 
@@ -2242,10 +2249,24 @@ async function descargarFichaPDF() {
   try {
     const logoResp = await fetch('https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png');
     const blob = await logoResp.blob();
-    logoBase64 = await new Promise(res => {
+    const rawBase64 = await new Promise(res => {
       const reader = new FileReader();
       reader.onloadend = () => res(reader.result);
       reader.readAsDataURL(blob);
+    });
+    // Convertir a blanco usando canvas (filter invert para fondo navy del PDF)
+    logoBase64 = await new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'brightness(0) invert(1)';
+        ctx.drawImage(img, 0, 0);
+        res(cv.toDataURL('image/png'));
+      };
+      img.onerror = () => res(rawBase64); // fallback sin filtro
+      img.src = rawBase64;
     });
   } catch(e) { console.warn('Logo no disponible para PDF:', e.message); }
 
@@ -2345,10 +2366,6 @@ async function descargarFichaPDF() {
     rect(0, 0, PW, 22, NAVY);
     // Acento izquierdo
     rect(0, 0, 4, 22, ACCENT);
-    // Rayo SVG simplificado como triángulos
-    doc.setFillColor(...ACCENT);
-    doc.triangle(16,3, 13,11, 17,11, 'F');
-    doc.triangle(17,11, 14,19, 19,11, 'F');
 
     // Logo empresa en esquina izquierda del encabezado
     if(logoBase64) {
@@ -2763,6 +2780,23 @@ async function descargarFichaPDF() {
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
+    // Subir PDF a R2 si el Worker está configurado
+    if (WORKER_URL && !WORKER_URL.includes('REEMPLAZAR')) {
+      try {
+        const pdfBlob    = doc.output('blob');
+        const pdfBase64  = await new Promise(res => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result.split(',')[1]);
+          reader.readAsDataURL(pdfBlob);
+        });
+        await fetch(WORKER_URL + '/api/pdf', {
+          method : 'POST',
+          body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+      } catch(e) { console.warn('PDF R2 upload failed:', e); }
+    }
+
     // Cerrar modal y limpiar formulario
     document.getElementById('pdfModal').classList.remove('show');
     setTimeout(limpiarFormulario, 300);
@@ -2896,13 +2930,13 @@ function cerrarAdminPage() {
 
 /* ── Cargar datos desde Sheets ── */
 async function admCargarTabla(seccion) {
-  if (!WEBAPP_URL || WEBAPP_URL.includes('PEGA_AQUI')) {
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
     document.getElementById('admTableWrap').innerHTML =
       '<div class="adm-empty">⚙️ Configura WEBAPP_URL para usar el admin</div>';
     return;
   }
   try {
-    const resp = await fetch(WEBAPP_URL + '?action=' + seccion + '&raw=1', { cache:'no-cache' });
+    const resp = await fetch(WORKER_URL + '/api/admin?section=' + seccion + '&raw=1', { cache:'no-cache' });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
     admCurrentData = json.rows || [];
@@ -3067,14 +3101,14 @@ async function guardarAdmForm() {
 
   try {
     const payload = {
-      action : esEdicion ? 'update' : 'insert',
-      sheet  : seccion,
-      rowNum : admEditRowNum,
-      data   : rowData
+      action  : esEdicion ? 'update' : 'insert',
+      section : seccion,
+      id      : admEditRowNum,
+      data    : rowData
     };
-    const resp = await fetch(WEBAPP_URL, {
+    const resp = await fetch(WORKER_URL + '/api/admin', {
       method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'text/plain'}
+      headers:{'Content-Type':'application/json'}
     });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
@@ -3108,10 +3142,10 @@ async function admEliminar(idx) {
   admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en Google Sheets');
 
   try {
-    const payload = { action:'delete', sheet:admCurrentTab, rowNum:row._rowNum };
-    const resp = await fetch(WEBAPP_URL, {
+    const payload = { action:'delete', section:admCurrentTab, id:row._rowNum };
+    const resp = await fetch(WORKER_URL + '/api/admin', {
       method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'text/plain'}
+      headers:{'Content-Type':'application/json'}
     });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
@@ -3377,20 +3411,20 @@ async function guardarTableroModal() {
     if (isEdit) {
       // Eliminar filas existentes de esa marca y reinsertar
       for (const rn of admTableroRowNums) {
-        await fetch(WEBAPP_URL, {
+        await fetch(WORKER_URL + '/api/admin', {
           method:'POST',
-          body:JSON.stringify({ action:'delete', sheet:'tableros', rowNum:rn }),
-          headers:{'Content-Type':'text/plain'}
+          body:JSON.stringify({ action:'delete', section:'tableros', id:rn }),
+          headers:{'Content-Type':'application/json'}
         });
       }
     }
 
     // Insertar todas las filas nuevas
     for (const fila of filas) {
-      const resp = await fetch(WEBAPP_URL, {
+      const resp = await fetch(WORKER_URL + '/api/admin', {
         method:'POST',
-        body:JSON.stringify({ action:'insert', sheet:'tableros', data:fila }),
-        headers:{'Content-Type':'text/plain'}
+        body:JSON.stringify({ action:'insert', section:'tableros', data:fila }),
+        headers:{'Content-Type':'application/json'}
       });
       const json = await resp.json();
       if (json.status !== 'ok') throw new Error(json.message);
