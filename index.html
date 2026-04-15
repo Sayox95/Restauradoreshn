@@ -3552,21 +3552,27 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 async function contarPendientes() {
   return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-    };
-    req.onsuccess = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
-      const count = db.transaction('pendientes','readonly')
-                      .objectStore('pendientes').count();
-      count.onsuccess = () => resolve(count.result);
-      count.onerror   = () => resolve(0);
-    };
-    req.onerror = () => resolve(0);
+    try {
+      const req = indexedDB.open('scadaDB', 1);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pendientes'))
+          db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+      };
+      req.onsuccess = e => {
+        try {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
+          const tx    = db.transaction('pendientes', 'readonly');
+          const store = tx.objectStore('pendientes');
+          const count = store.count();
+          count.onsuccess = () => resolve(count.result || 0);
+          count.onerror   = () => resolve(0);
+          tx.onerror      = () => resolve(0);
+        } catch(e) { resolve(0); }
+      };
+      req.onerror = () => resolve(0);
+    } catch(e) { resolve(0); }
   });
 }
 
