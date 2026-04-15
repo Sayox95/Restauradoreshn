@@ -7,9 +7,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#0b1f3a">
-  <link rel="manifest" href="/manifest.json"> 
+  <link rel="manifest" href="/manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="dns-prefetch" href="https://raw.githubusercontent.com"> 
 <title>Inspección Restauradores SCADA</title>
-<script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=QkJWtk_66XYm0ofzgsi7IL-XKLQ1BTKh0sq8yiK5Ib_okmdf99R1oB9t7EHf-mCttW7PIt1HHk_MkV5tr70RxQZkfeysl1Xl2hnWE-GKPlnYX84DCeYJ4LJgAIxFv0wFAR8i5n_HE-7cpBYwbfDjOgx8m6g2KLJ0mOKAImbfsyEeFdZb0iJnzrScq_ACxAB-sjNAzcb3NA-ampaVnT2SiFORQm9B405eUDJU907yK8pr51Of-lQEWfwxHD6iK2Qhl4W6Vhv6-YQ4Ei6ls_FZcw" charset="UTF-8"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -1464,149 +1467,72 @@ function ocultarOverlay() {
   if (ov) ov.classList.add('hide');
 }
 
-// ── Cache local de catálogos en IndexedDB ─────────────────────────
-const IDB_CATALOGOS_KEY = 'catalogos_v1';
-
-async function guardarCatalogosLocal(data) {
-  return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('catalogos'))
-        db.createObjectStore('catalogos');
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-    };
-    req.onsuccess = e => {
-      const db  = e.target.result;
-      const tx  = db.transaction('catalogos', 'readwrite');
-      tx.objectStore('catalogos').put({ ...data, savedAt: Date.now() }, IDB_CATALOGOS_KEY);
-      tx.oncomplete = resolve;
-      tx.onerror    = resolve;
-    };
-    req.onerror = resolve;
-  });
-}
-
-async function leerCatalogosLocal() {
-  return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('catalogos'))
-        db.createObjectStore('catalogos');
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-    };
-    req.onsuccess = e => {
-      const db  = e.target.result;
-      const tx  = db.transaction('catalogos', 'readonly');
-      const get = tx.objectStore('catalogos').get(IDB_CATALOGOS_KEY);
-      get.onsuccess = () => resolve(get.result || null);
-      get.onerror   = () => resolve(null);
-    };
-    req.onerror = () => resolve(null);
-  });
-}
-
-function aplicarDatos(json) {
-  RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
-  MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
-  if (json.personal && json.personal.length > 0) PERS_LIST = json.personal;
-  if (json.tipos    && json.tipos.length    > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
-  if (json.marcas   && json.marcas.length   > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
-  if (json.modems   && json.modems.length   > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
-  if (json.tableros && json.tableros.length > 0) { TABLEROS_LIST = json.tableros; }
-}
-
 async function cargarDatosIniciales() {
-  loMsg('Cargando datos...', '');
+  // Sin URL configurada → el formulario queda vacío, se avisa al usuario
+  loMsg('Conectando con la base de datos...', '');
   loBar(10);
   setDataSourceBadge('loading');
 
-  // ── PASO 1: Servir desde caché local INMEDIATAMENTE ──────────────
-  const cached = await leerCatalogosLocal();
-  if (cached) {
-    loBar(60);
-    loMsg('Datos locales listos...', '');
-    aplicarDatos(cached);
-    agregarPers();
-    loBar(100);
-    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales', 'ok');
-    setDataSourceBadge('d1', cached.updated);
-    dataSource = 'd1';
-    // Abrir el formulario inmediatamente con datos cacheados
-    setTimeout(() => ocultarOverlay(), 400);
-    // ── PASO 2: Actualizar en background sin bloquear ─────────────
-    actualizarDatosBackground();
-    return;
-  }
-
-  // Sin caché — primera vez, cargar desde red normalmente
-  loMsg('Primera carga, conectando...', '');
-  loBar(30);
-  await cargarDatosRed(true);
-}
-
-async function actualizarDatosBackground() {
   try {
-    const resp = await fetch(`${API_BASE}/api/data?action=all`, {
-      method:'GET', cache:'no-cache'
-    });
-    if (!resp.ok) return;
-    const json = await resp.json();
-    if (json.status !== 'ok') return;
-    // Guardar en caché local para próxima apertura
-    await guardarCatalogosLocal(json);
-    aplicarDatos(json);
-    setDataSourceBadge('d1', json.updated);
-    dataSource = 'd1';
-    // Toast silencioso solo si cambió algo
-    const nuevoCount = (json.restauradores||[]).length;
-    if (nuevoCount !== RESTS.length) {
-      showToast('🔄 Catálogos actualizados desde Cloudflare');
-    }
-  } catch(e) {
-    // Sin internet — no pasa nada, ya tenemos datos locales
-    console.log('Background update failed (offline):', e.message);
-  }
-}
+    loBar(30);
+    loMsg('Leyendo catálogos y restauradores...', '');
 
-async function cargarDatosRed(mostrarOverlay = false) {
-  try {
-    loBar(50);
-    loMsg('Leyendo catálogos...', '');
     const resp = await fetch(`${API_BASE}/api/data?action=all`, {
-      method:'GET', cache:'no-cache'
+      method: 'GET',
+      cache:  'no-cache'
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    loBar(65);
+    loMsg('Procesando datos...', '');
+
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message || 'Error desconocido');
 
-    await guardarCatalogosLocal(json);
-    aplicarDatos(json);
+    // Poblar arrays globales
+    RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
+    MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
+    if (json.personal   && json.personal.length   > 0) PERS_LIST  = json.personal;
+    if (json.tipos      && json.tipos.length      > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
+    if (json.marcas     && json.marcas.length     > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
+    if (json.modems     && json.modems.length     > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
+    if (json.tableros   && json.tableros.length   > 0) { TABLEROS_LIST = json.tableros; }
+
+    loBar(80);
+    loMsg('Cargando materiales y personal...', '');
 
     loBar(100);
-    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales · ' + PERS_LIST.length + ' técnicos', 'ok');
+    loMsg('✓ ' + RESTS.length + ' restauradores · ' +
+          MATS.length + ' materiales · ' +
+          PERS_LIST.length + ' técnicos', 'ok');
+
     dataSource = 'd1';
     setDataSourceBadge('d1', json.updated);
+
+    // Crear tarjeta inicial de técnico AHORA que PERS_LIST ya tiene datos
     agregarPers();
+
+    // Pequeña pausa para que el usuario vea el mensaje de éxito
     setTimeout(() => {
       ocultarOverlay();
       showToast('✅ Datos cargados desde Cloudflare D1');
-    }, 800);
+    }, 1000);
 
   } catch (err) {
     console.warn('D1 no disponible:', err.message);
+    RESTS = [];
+    MATS  = [];
     dataSource = 'error';
     setDataSourceBadge('error');
+
     loBar(100);
-    loMsg('Sin conexión — trabajando sin datos de red', 'err');
+    loMsg('No se pudo conectar con la base de datos', 'err');
+
     agregarPers();
     setTimeout(() => {
       ocultarOverlay();
-      showToast('⚠️ Sin conexión — datos no disponibles');
-    }, 1200);
+      showToast('❌ Sin conexión a la base de datos — verifica tu red o el proyecto Pages');
+    }, 1800);
   }
 }
 
@@ -2155,7 +2081,10 @@ function getData() {
     // Responsable
     firmaResponsable  : v('firmaResponsable'),
     obsResponsable    : v('obsResponsable'),
-    firmaImg          : hasFirma ? canvas.toDataURL() : '',
+    firmaImg          : (() => {
+      if (!hasFirma) return '';
+      try { return canvas.toDataURL('image/png'); } catch(e) { return ''; }
+    })(),
 
     timestamp         : new Date().toISOString()
   };
@@ -2328,11 +2257,24 @@ function omitirPDF() {
 /* ── GENERADOR DE PDF COMPLETO ─────────────────────────────── */
 async function descargarFichaPDF() {
   const btn = document.getElementById('pdfDlBtn');
-  btn.textContent = '⏳ Generando PDF...';
+  btn.textContent = '⏳ Cargando...';
   btn.disabled = true;
 
-  // Precargar logo para el PDF
-  let logoBase64 = null;
+  // Cargar jsPDF si no está cargado
+  try {
+    await cargarJsPDF();
+  } catch(e) {
+    alert('No se pudo cargar el generador de PDF. Verifica tu conexión.');
+    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Ficha PDF';
+    btn.disabled = false;
+    return;
+  }
+
+  btn.textContent = '⏳ Generando PDF...';
+
+  // Usar logo precargado o intentar cargar ahora
+  let logoBase64 = _logoBase64Cached;
+  if (!logoBase64) {
   try {
     const logoResp = await fetch('https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png');
     const blob = await logoResp.blob();
@@ -2356,6 +2298,7 @@ async function descargarFichaPDF() {
       img.src = rawBase64;
     });
   } catch(e) { console.warn('Logo no disponible para PDF:', e.message); }
+  } // end if(!logoBase64)
 
   try {
     const { jsPDF } = window.jspdf;
@@ -3637,6 +3580,67 @@ async function actualizarBadge() {
 // Revisar badge al cargar y cada 30 segundos
 window.addEventListener('load', () => setTimeout(actualizarBadge, 2000));
 setInterval(actualizarBadge, 30000);
+
+
+/* ── LAZY LOAD jsPDF — solo cuando se necesita ── */
+let _jspdfLoaded = false;
+let _jspdfLoading = false;
+let _jspdfCallbacks = [];
+
+function cargarJsPDF() {
+  return new Promise((resolve, reject) => {
+    if (_jspdfLoaded) { resolve(); return; }
+    _jspdfCallbacks.push({ resolve, reject });
+    if (_jspdfLoading) return;
+    _jspdfLoading = true;
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    script.onload = () => {
+      _jspdfLoaded = true;
+      _jspdfLoading = false;
+      _jspdfCallbacks.forEach(cb => cb.resolve());
+      _jspdfCallbacks = [];
+    };
+    script.onerror = () => {
+      _jspdfLoading = false;
+      _jspdfCallbacks.forEach(cb => cb.reject(new Error('No se pudo cargar jsPDF')));
+      _jspdfCallbacks = [];
+    };
+    document.head.appendChild(script);
+  });
+}
+
+/* ── PRECARGAR LOGO para PDF (evita fallos en PWA/móvil) ── */
+let _logoBase64Cached = null;
+async function precargarLogo() {
+  try {
+    const url = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png';
+    const resp = await fetch(url, { mode:'cors', cache:'force-cache' });
+    if (!resp.ok) return;
+    const blob = await resp.blob();
+    _logoBase64Cached = await new Promise(res => {
+      const reader = new FileReader();
+      reader.onloadend = () => res(reader.result);
+      reader.readAsDataURL(blob);
+    });
+    // Convertir a blanco para fondo navy del PDF
+    _logoBase64Cached = await new Promise(res => {
+      const img = new Image();
+      img.onload = () => {
+        const cv = document.createElement('canvas');
+        cv.width = img.width; cv.height = img.height;
+        const ctx = cv.getContext('2d');
+        ctx.filter = 'brightness(0) invert(1)';
+        ctx.drawImage(img, 0, 0);
+        res(cv.toDataURL('image/png'));
+      };
+      img.onerror = () => res(null);
+      img.src = _logoBase64Cached;
+    });
+  } catch(e) { console.warn('Logo precarga falló:', e.message); }
+}
+// Precargar logo en segundo plano después de que cargue la página
+window.addEventListener('load', () => setTimeout(precargarLogo, 3000));
 
 </script>
 
