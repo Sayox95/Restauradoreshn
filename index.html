@@ -6,7 +6,8 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b1f3a"> 
+<meta name="theme-color" content="#0b1f3a">
+  <link rel="manifest" href="/manifest.json"> 
 <title>Inspección Restauradores SCADA</title>
 <script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=QkJWtk_66XYm0ofzgsi7IL-XKLQ1BTKh0sq8yiK5Ib_okmdf99R1oB9t7EHf-mCttW7PIt1HHk_MkV5tr70RxQZkfeysl1Xl2hnWE-GKPlnYX84DCeYJ4LJgAIxFv0wFAR8i5n_HE-7cpBYwbfDjOgx8m6g2KLJ0mOKAImbfsyEeFdZb0iJnzrScq_ACxAB-sjNAzcb3NA-ampaVnT2SiFORQm9B405eUDJU907yK8pr51Of-lQEWfwxHD6iK2Qhl4W6Vhv6-YQ4Ei6ls_FZcw" charset="UTF-8"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
@@ -715,6 +716,33 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ── BATTERY TEST ROW ── */
 .batt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;}
 .batt-row .tg{width:100%;}
+
+/* ── OFFLINE BANNER + SYNC BADGE ── */
+#offlineBanner{
+  display:none;position:fixed;
+  top:var(--tbh,56px);left:0;right:0;
+  background:var(--nok,#dc2626);color:#fff;
+  text-align:center;padding:6px 12px;
+  font-size:12px;font-weight:700;letter-spacing:.3px;
+  z-index:6999;
+}
+#offlineBanner.show{display:block;}
+#syncBadge{
+  position:fixed;bottom:84px;right:16px;
+  background:var(--accent,#f59e0b);color:#0b1f3a;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:13px;
+  padding:8px 14px;border-radius:20px;
+  box-shadow:0 4px 16px rgba(245,158,11,.45);
+  z-index:7000;cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+  animation:syncPulse 2s infinite;
+}
+#syncBadge.hidden{display:none!important;}
+@keyframes syncPulse{
+  0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);}
+  50%{box-shadow:0 4px 28px rgba(245,158,11,.75);}
+}
 </style>
 </head>
 <body>
@@ -1392,8 +1420,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
-   Después de desplegar Code.gs, copia la URL aquí:
+   CONFIGURACIÓN — Cloudflare Pages Functions
 ══════════════════════════════════════════════════════════════ */
 // ═══════════════════════════════════════════════════════════
 // URL del Cloudflare Worker — reemplaza con tu worker URL
@@ -1640,7 +1667,7 @@ function acSel(idx,type){
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
 /* ══════════════════════════════════════════════════
-   LISTAS DINÁMICAS DESDE SHEETS
+   LISTAS DINÁMICAS DESDE D1
 ══════════════════════════════════════════════════ */
 
 // Poblar dropdown de Tipos de Reconectador
@@ -3466,6 +3493,81 @@ window.addEventListener('DOMContentLoaded',()=>{
   cargarDatosIniciales();
   updP();
 });
+
+
+/* ══════════════════════════════════════════════════════════════
+   PWA — Service Worker + Offline + Background Sync
+   - Cachea el HTML y catálogos para uso sin internet
+   - Guarda visitas en IndexedDB cuando no hay conexión
+   - Sube automáticamente cuando recupera internet
+══════════════════════════════════════════════════════════════ */
+
+// ── Registrar Service Worker ────────────────────────────────────
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      await navigator.serviceWorker.register('/sw.js');
+    } catch(e) { console.warn('SW error:', e); }
+  });
+
+  // Escuchar sincronización completada desde el SW
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'SYNC_COMPLETE') {
+      showToast(`✅ ${event.data.count} visita(s) sincronizada(s) con Cloudflare`);
+      actualizarBadge();
+    }
+  });
+}
+
+// ── Detectar online/offline ─────────────────────────────────────
+function actualizarEstadoConexion() {
+  const banner = document.getElementById('offlineBanner');
+  if (!navigator.onLine) { banner.classList.add('show'); }
+  else                   { banner.classList.remove('show'); actualizarBadge(); }
+}
+window.addEventListener('online',  actualizarEstadoConexion);
+window.addEventListener('offline', actualizarEstadoConexion);
+document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
+
+// ── IndexedDB — contar visitas pendientes ───────────────────────
+async function contarPendientes() {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
+      const count = db.transaction('pendientes','readonly')
+                      .objectStore('pendientes').count();
+      count.onsuccess = () => resolve(count.result);
+      count.onerror   = () => resolve(0);
+    };
+    req.onerror = () => resolve(0);
+  });
+}
+
+async function actualizarBadge() {
+  const n = await contarPendientes();
+  const badge = document.getElementById('syncBadge');
+  document.getElementById('syncCount').textContent = n;
+  badge.classList.toggle('hidden', n === 0);
+}
+
+// Revisar badge al cargar y cada 30 segundos
+window.addEventListener('load', () => setTimeout(actualizarBadge, 2000));
+setInterval(actualizarBadge, 30000);
+
 </script>
+
+<!-- ═══ OFFLINE BANNER + SYNC BADGE ═══ -->
+<div id="offlineBanner">📵 SIN CONEXIÓN — Las visitas se guardarán localmente y se sincronizarán al reconectar</div>
+<div id="syncBadge" class="hidden">
+  ⬆️ <span id="syncCount">0</span> visita(s) pendiente(s)
+</div>
+
 </body>
 </html>
