@@ -11,7 +11,8 @@
  *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160200';
+const CACHE_NAME    = 'scada-202604160300';
+const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
 const DB_VERSION    = 2;
@@ -40,6 +41,16 @@ self.addEventListener('install', event => {
 });
 
 // ══════════════════════════════════════════════════════════════════
+//  MESSAGE — responder a mensajes de la app
+// ══════════════════════════════════════════════════════════════════
+self.addEventListener('message', event => {
+  // La app pide activar el nuevo SW inmediatamente
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
+// ══════════════════════════════════════════════════════════════════
 //  ACTIVATE — limpiar caches viejos y tomar control de inmediato
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('activate', event => {
@@ -48,7 +59,15 @@ self.addEventListener('activate', event => {
       .then(keys => Promise.all(
         keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       ))
-      .then(() => self.clients.claim())  // controlar todas las tabs abiertas
+      .then(() => self.clients.claim())
+      .then(async () => {
+        // Notificar a todas las tabs que hay nueva versión
+        const clients = await self.clients.matchAll({ includeUncontrolled: true });
+        clients.forEach(client => client.postMessage({
+          type   : 'NEW_VERSION',
+          version: APP_VERSION
+        }));
+      })
   );
 });
 
