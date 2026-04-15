@@ -1982,12 +1982,13 @@ function rsCanvas(){canvas.width=document.getElementById('firmaWrap').clientWidt
 function gxy(e){const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return[s.clientX-r.left,s.clientY-r.top];}
 canvas.addEventListener('mousedown',e=>{drw=true;[lx,ly]=gxy(e);});
 canvas.addEventListener('touchstart',e=>{e.preventDefault();drw=true;[lx,ly]=gxy(e);},{passive:false});
+let _firmaDataURL = null;
 function draw(e){if(!drw)return;const[x,y]=gxy(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.strokeStyle='#0b1f3a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();[lx,ly]=[x,y];hasFirma=true;document.getElementById('firmaHint').style.display='none';}
 canvas.addEventListener('mousemove',draw);
 canvas.addEventListener('touchmove',e=>{e.preventDefault();draw(e);},{passive:false});
-canvas.addEventListener('mouseup',()=>drw=false);
-canvas.addEventListener('touchend',()=>drw=false);
-function limpFirma(){ctx.clearRect(0,0,canvas.width,canvas.height);hasFirma=false;document.getElementById('firmaHint').style.display='';}
+canvas.addEventListener('mouseup',()=>{drw=false;if(hasFirma){try{_firmaDataURL=canvas.toDataURL('image/png');}catch(e){}}});
+canvas.addEventListener('touchend',()=>{drw=false;if(hasFirma){try{_firmaDataURL=canvas.toDataURL('image/png');}catch(e){}}});
+function limpFirma(){ctx.clearRect(0,0,canvas.width,canvas.height);hasFirma=false;_firmaDataURL=null;document.getElementById('firmaHint').style.display='';}
 
 /* ── PROGRESS ── */
 function updP(){
@@ -2190,10 +2191,7 @@ function getData() {
     // Responsable
     firmaResponsable  : v('firmaResponsable'),
     obsResponsable    : v('obsResponsable'),
-    firmaImg          : (() => {
-      if (!hasFirma) return '';
-      try { return canvas.toDataURL('image/png'); } catch(e) { return ''; }
-    })(),
+    firmaImg          : (_firmaDataURL && hasFirma) ? _firmaDataURL : '',
 
     timestamp         : new Date().toISOString()
   };
@@ -2279,7 +2277,7 @@ function limpiarFormulario() {
   // Nuevo número de visita con fecha actual
   const n = new Date();
   document.getElementById('visitaNum').value =
-    `HV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;
+    `HV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}-${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}${String(n.getSeconds()).padStart(2,'0')}`;
   document.getElementById('fechaVisita').valueAsDate = n;
 
   // Volver a sección 1 y resetear progreso
@@ -3153,30 +3151,47 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 async function contarPendientes() {
   return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-    };
-    req.onsuccess = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
-      const count = db.transaction('pendientes','readonly')
-                      .objectStore('pendientes').count();
-      count.onsuccess = () => resolve(count.result);
-      count.onerror   = () => resolve(0);
-    };
-    req.onerror = () => resolve(0);
+    try {
+      const req = indexedDB.open('scadaDB', 2);
+      req.onupgradeneeded = e => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains('pendientes'))
+          db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+        if (!db.objectStoreNames.contains('pdfs_pendientes'))
+          db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
+      };
+      req.onsuccess = e => {
+        try {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
+          const tx    = db.transaction('pendientes','readonly');
+          const count = tx.objectStore('pendientes').count();
+          count.onsuccess = () => resolve(count.result || 0);
+          count.onerror   = () => resolve(0);
+          tx.onerror      = () => resolve(0);
+        } catch(e) { resolve(0); }
+      };
+      req.onerror = () => resolve(0);
+    } catch(e) { resolve(0); }
   });
 }
 
 async function actualizarBadge() {
-  const n = await contarPendientes();
+  const n     = await contarPendientes();
   const badge = document.getElementById('syncBadge');
   document.getElementById('syncCount').textContent = n;
   badge.classList.toggle('hidden', n === 0);
+  return n;
 }
+
+// Al tocar el badge — forzar sincronización manual
+document.addEventListener('DOMContentLoaded', () => {
+  const badge = document.getElementById('syncBadge');
+  if (badge) badge.addEventListener('click', () => {
+    if (navigator.onLine) sincronizarPendientesOnline();
+    else showToast('❌ Sin conexión — espera a tener internet');
+  });
+});
 
 // Revisar badge al cargar y cada 30 segundos
 window.addEventListener('load', () => setTimeout(actualizarBadge, 2000));
