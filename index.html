@@ -778,6 +778,38 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 }
 .sync-sub.ok {color:#86efac;}
 .sync-sub.err{color:#fca5a5;}
+
+/* ── VERSION CHIP ── */
+.version-chip{
+  font-size:9px;font-weight:700;
+  color:rgba(255,255,255,.35);
+  letter-spacing:.3px;
+  padding:1px 5px;
+  border:1px solid rgba(255,255,255,.15);
+  border-radius:4px;
+  margin-top:2px;
+  display:inline-block;
+}
+
+/* ── UPDATE TOAST ── */
+#updateToast{
+  position:fixed;bottom:80px;left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:var(--blue);color:#fff;
+  padding:12px 20px;border-radius:14px;
+  font-size:13px;font-weight:600;
+  z-index:9700;opacity:0;
+  transition:all .3s;white-space:nowrap;
+  pointer-events:none;
+  box-shadow:0 4px 20px rgba(21,101,192,.4);
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;
+}
+#updateToast.show{
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+  pointer-events:all;
+}
 </style>
 </head>
 <body>
@@ -837,7 +869,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </button>
     <div class="tb-brand">
       <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
-      <div>SCADA Distribución<small>Control de Restauradores</small></div>
+      <div>SCADA Distribución<small>Control de Restauradores</small><span class="version-chip" id="versionChip">v1.0.0</span></div>
     </div>
   </div>
   <div class="tb-actions">
@@ -1461,7 +1493,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // URL del Cloudflare Worker — reemplaza con tu worker URL
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
-const API_BASE = ''; // Cloudflare Pages Functions en el mismo proyecto
+const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
+const APP_VERSION = '1.0.0'; // ← Cambiar en cada deploy importante
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── DATOS EN MEMORIA (se pueblan desde D1 o fallback) ── */
@@ -3955,6 +3988,87 @@ async function _generarDocPDF(d) {
   }
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   VERSIONADO — detección de actualización disponible
+══════════════════════════════════════════════════════════════ */
+
+// Mostrar versión actual en el chip del topbar
+document.addEventListener('DOMContentLoaded', () => {
+  const chip = document.getElementById('versionChip');
+  if (chip) chip.textContent = 'v' + APP_VERSION;
+});
+
+// Detectar cuando hay un nuevo SW esperando (nueva versión disponible)
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+
+    // SW nuevo esperando activación = nueva versión lista
+    if (reg.waiting) {
+      mostrarUpdateToast();
+    }
+
+    reg.addEventListener('updatefound', () => {
+      const newSW = reg.installing;
+      newSW.addEventListener('statechange', () => {
+        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+          mostrarUpdateToast();
+        }
+      });
+    });
+  }).catch(e => console.warn('SW error:', e));
+
+  // Cuando el SW toma control (después de skipWaiting), recargar
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!refreshing) {
+      refreshing = true;
+      window.location.reload();
+    }
+  });
+
+  // Escuchar mensajes del SW
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'SYNC_COMPLETE') {
+      actualizarBadge();
+      showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
+    }
+    if (event.data?.type === 'NEW_VERSION') {
+      mostrarUpdateToast(event.data.version);
+    }
+  });
+}
+
+let _updateToastTimer = null;
+function mostrarUpdateToast(version) {
+  const t = document.getElementById('updateToast');
+  if (!t) return;
+  t.innerHTML = '🔄 Nueva versión disponible' +
+    (version ? ' (v' + version + ')' : '') +
+    ' — toca para actualizar';
+  t.classList.add('show');
+  // Auto-ocultar después de 15 segundos si no toca
+  clearTimeout(_updateToastTimer);
+  _updateToastTimer = setTimeout(() => t.classList.remove('show'), 15000);
+}
+
+function aplicarActualizacion() {
+  document.getElementById('updateToast').classList.remove('show');
+  // Decirle al SW en espera que tome control
+  navigator.serviceWorker.getRegistration().then(reg => {
+    if (reg?.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    } else {
+      window.location.reload();
+    }
+  });
+}
+
+// Verificar actualizaciones cada 30 minutos en segundo plano
+setInterval(() => {
+  navigator.serviceWorker?.getRegistration().then(reg => reg?.update());
+}, 30 * 60 * 1000);
+
 </script>
 
 <!-- ═══ OFFLINE BANNER + SYNC BADGE ═══ -->
@@ -3963,6 +4077,11 @@ async function _generarDocPDF(d) {
   ⬆️ <span id="syncCount">0</span> visita(s) pendiente(s)
 </div>
 
+
+<!-- ═══ UPDATE TOAST ═══ -->
+<div id="updateToast" onclick="aplicarActualizacion()">
+  🔄 Nueva versión disponible — toca para actualizar
+</div>
 
 <!-- ═══ SYNC OVERLAY ═══ -->
 <div id="syncOverlay">
