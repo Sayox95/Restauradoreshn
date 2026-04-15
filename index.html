@@ -2810,7 +2810,7 @@ async function descargarFichaPDF() {
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
-    // Subir PDF a R2 y luego persistir la key en D1
+    // Subir PDF a R2 — con fallback offline a IndexedDB
     try {
       const pdfBlob   = doc.output('blob');
       const pdfBase64 = await new Promise(res => {
@@ -2819,41 +2819,9 @@ async function descargarFichaPDF() {
         reader.readAsDataURL(pdfBlob);
       });
 
-      const pdfUploadResp = await fetch(`${API_BASE}/api/pdf`, {
-        method : 'POST',
-        body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!pdfUploadResp.ok) {
-        throw new Error(`Upload PDF falló con status ${pdfUploadResp.status}`);
-      }
-
-      const pdfUploadJson = await pdfUploadResp.json();
-
-      if (pdfUploadJson?.status === 'ok' && pdfUploadJson?.key) {
-        const saveKeyResp = await fetch(`${API_BASE}/api/save-pdf-key`, {
-          method : 'POST',
-          body   : JSON.stringify({
-            visitaNum: d.visitaNum,
-            pdfR2Key : pdfUploadJson.key
-          }),
-          headers: { 'Content-Type': 'application/json' }
-        });
-
-        if (!saveKeyResp.ok) {
-          console.warn('PDF subido a R2, pero no se pudo guardar pdf_r2_key en D1.', saveKeyResp.status);
-        } else {
-          const saveKeyJson = await saveKeyResp.json().catch(() => null);
-          if (saveKeyJson?.status !== 'ok') {
-            console.warn('PDF subido a R2, pero la API save-pdf-key no devolvió ok.', saveKeyJson);
-          }
-        }
-      } else {
-        console.warn('La API /api/pdf no devolvió una key válida.', pdfUploadJson);
-      }
+      await subirPdfConFallback(d.visitaNum, pdfBase64);
     } catch(e) {
-      console.warn('PDF R2 upload failed:', e);
+      console.warn('PDF upload error:', e);
     }
 
     // Cerrar modal y limpiar formulario
@@ -3647,6 +3615,129 @@ async function precargarLogo() {
 }
 // Precargar logo en segundo plano después de que cargue la página
 window.addEventListener('load', () => setTimeout(precargarLogo, 3000));
+
+
+/* ══════════════════════════════════════════════════════════════
+   PDF OFFLINE — subir a R2 con fallback a IndexedDB
+══════════════════════════════════════════════════════════════ */
+
+const PDF_STORE = 'pdfs_pendientes';
+
+// Abrir/crear store de PDFs pendientes en IndexedDB
+function abrirDBPdfs() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('scadaDB', 2); // versión 2 agrega pdf store
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+      if (!db.objectStoreNames.contains(PDF_STORE))
+        db.createObjectStore(PDF_STORE, { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess  = e => resolve(e.target.result);
+    req.onerror    = e => reject(e.target.error);
+  });
+}
+
+// Guardar PDF pendiente en IndexedDB
+async function guardarPdfPendiente(visitaNum, pdfBase64) {
+  try {
+    const db = await abrirDBPdfs();
+    await new Promise((resolve, reject) => {
+      const tx    = db.transaction(PDF_STORE, 'readwrite');
+      tx.objectStore(PDF_STORE).add({ visitaNum, pdfBase64, savedAt: Date.now() });
+      tx.oncomplete = resolve;
+      tx.onerror    = e => reject(e.target.error);
+    });
+    console.log('PDF guardado localmente para sync posterior:', visitaNum);
+  } catch(e) {
+    console.warn('No se pudo guardar PDF en IndexedDB:', e);
+  }
+}
+
+// Subir PDF a R2 — si falla por offline lo guarda en IndexedDB
+async function subirPdfConFallback(visitaNum, pdfBase64) {
+  try {
+    const resp = await fetch(`${API_BASE}/api/pdf`, {
+      method : 'POST',
+      body   : JSON.stringify({ visitaNum, pdfBase64 }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const json = await resp.json();
+
+    if (json?.status === 'ok' && json?.key) {
+      // Guardar la key en D1
+      await fetch(`${API_BASE}/api/save-pdf-key`, {
+        method : 'POST',
+        body   : JSON.stringify({ visitaNum, pdfR2Key: json.key }),
+        headers: { 'Content-Type': 'application/json' }
+      }).catch(e => console.warn('save-pdf-key falló:', e));
+    }
+  } catch(e) {
+    // Sin conexión → guardar PDF localmente
+    console.warn('Sin conexión, guardando PDF localmente:', e.message);
+    await guardarPdfPendiente(visitaNum, pdfBase64);
+    showToast('📥 PDF guardado localmente — se subirá al reconectar');
+  }
+}
+
+// Sincronizar PDFs pendientes cuando hay internet
+async function sincronizarPdfsPendientes() {
+  let db;
+  try { db = await abrirDBPdfs(); } catch { return; }
+
+  const pdfs = await new Promise(resolve => {
+    try {
+      const tx  = db.transaction(PDF_STORE, 'readonly');
+      const req = tx.objectStore(PDF_STORE).getAll();
+      req.onsuccess = e => resolve(e.target.result || []);
+      req.onerror   = () => resolve([]);
+    } catch { resolve([]); }
+  });
+
+  if (!pdfs.length) return;
+
+  const subidos = [];
+  for (const item of pdfs) {
+    try {
+      const resp = await fetch(`${API_BASE}/api/pdf`, {
+        method : 'POST',
+        body   : JSON.stringify({ visitaNum: item.visitaNum, pdfBase64: item.pdfBase64 }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const json = await resp.json();
+
+      if (json?.status === 'ok' && json?.key) {
+        await fetch(`${API_BASE}/api/save-pdf-key`, {
+          method : 'POST',
+          body   : JSON.stringify({ visitaNum: item.visitaNum, pdfR2Key: json.key }),
+          headers: { 'Content-Type': 'application/json' }
+        }).catch(() => {});
+        subidos.push(item.id);
+      }
+    } catch { break; } // Sin internet, intentar luego
+  }
+
+  if (subidos.length) {
+    // Eliminar los subidos de IndexedDB
+    const tx = db.transaction(PDF_STORE, 'readwrite');
+    const store = tx.objectStore(PDF_STORE);
+    subidos.forEach(id => store.delete(id));
+    showToast(`✅ ${subidos.length} PDF(s) sincronizado(s) con el servidor`);
+  }
+}
+
+// Intentar sincronizar PDFs pendientes cuando regresa la conexión
+window.addEventListener('online', () => {
+  setTimeout(sincronizarPdfsPendientes, 3000);
+});
+// También al cargar si hay internet
+window.addEventListener('load', () => {
+  if (navigator.onLine) setTimeout(sincronizarPdfsPendientes, 5000);
+});
 
 </script>
 
