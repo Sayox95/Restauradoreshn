@@ -5,7 +5,7 @@
  * - Background Sync: sube visitas pendientes cuando recupera conexión
  */
 
-const CACHE_NAME = 'scada-202604151433';  // actualiza este timestamp en cada deploy
+const CACHE_NAME = 'scada-202604151500';  // actualiza este timestamp en cada deploy
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
 const DB_VERSION    = 1;
