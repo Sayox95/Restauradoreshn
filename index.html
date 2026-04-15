@@ -3103,7 +3103,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   buildNav();
   document.getElementById('fechaVisita').valueAsDate=new Date();
   const n=new Date();
-  document.getElementById('visitaNum').value=`HV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}`;
+  document.getElementById('visitaNum').value=`HV-${n.getFullYear()}${String(n.getMonth()+1).padStart(2,'0')}${String(n.getDate()).padStart(2,'0')}-${String(n.getHours()).padStart(2,'0')}${String(n.getMinutes()).padStart(2,'0')}${String(n.getSeconds()).padStart(2,'0')}`;
   rsCanvas();
   window.addEventListener('resize',rsCanvas);
   document.getElementById('btnPrev').disabled=true;
