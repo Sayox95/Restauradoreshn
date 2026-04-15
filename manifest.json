@@ -3,24 +3,38 @@
   "short_name": "SCADA",
   "description": "Hoja de visita para inspección de restauradores en red eléctrica",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0b1f3a",
   "theme_color": "#0b1f3a",
   "icons": [
     {
-      "src": "https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png",
+      "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "categories": ["utilities", "productivity"],
-  "lang": "es"
+  "lang": "es",
+  "prefer_related_applications": false
 }
