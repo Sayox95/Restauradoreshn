@@ -11,11 +11,12 @@
  *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160001';
+const CACHE_NAME    = 'scada-202604160100';
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
 const DB_VERSION    = 2;
 const STORE_PENDING = 'pendientes';
+const STORE_PDFS    = 'pdfs_pendientes';
 const STORE_PDFS    = 'pdfs_pendientes';
 
 // Assets que se cachean en el install (críticos para offline)
@@ -225,6 +226,9 @@ function abrirDB() {
         });
         store.createIndex('visitaNum', 'visitaNum', { unique: false });
         store.createIndex('savedAt',   'savedAt',   { unique: false });
+      }
+      if (!db.objectStoreNames.contains(STORE_PDFS)) {
+        db.createObjectStore(STORE_PDFS, { keyPath: 'id', autoIncrement: true });
       }
       if (!db.objectStoreNames.contains(STORE_PDFS)) {
         db.createObjectStore(STORE_PDFS, {
