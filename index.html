@@ -1464,72 +1464,149 @@ function ocultarOverlay() {
   if (ov) ov.classList.add('hide');
 }
 
+// ── Cache local de catálogos en IndexedDB ─────────────────────────
+const IDB_CATALOGOS_KEY = 'catalogos_v1';
+
+async function guardarCatalogosLocal(data) {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('catalogos'))
+        db.createObjectStore('catalogos');
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db  = e.target.result;
+      const tx  = db.transaction('catalogos', 'readwrite');
+      tx.objectStore('catalogos').put({ ...data, savedAt: Date.now() }, IDB_CATALOGOS_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror    = resolve;
+    };
+    req.onerror = resolve;
+  });
+}
+
+async function leerCatalogosLocal() {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('catalogos'))
+        db.createObjectStore('catalogos');
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db  = e.target.result;
+      const tx  = db.transaction('catalogos', 'readonly');
+      const get = tx.objectStore('catalogos').get(IDB_CATALOGOS_KEY);
+      get.onsuccess = () => resolve(get.result || null);
+      get.onerror   = () => resolve(null);
+    };
+    req.onerror = () => resolve(null);
+  });
+}
+
+function aplicarDatos(json) {
+  RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
+  MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
+  if (json.personal && json.personal.length > 0) PERS_LIST = json.personal;
+  if (json.tipos    && json.tipos.length    > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
+  if (json.marcas   && json.marcas.length   > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
+  if (json.modems   && json.modems.length   > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
+  if (json.tableros && json.tableros.length > 0) { TABLEROS_LIST = json.tableros; }
+}
+
 async function cargarDatosIniciales() {
-  // Sin URL configurada → el formulario queda vacío, se avisa al usuario
-  loMsg('Conectando con la base de datos...', '');
+  loMsg('Cargando datos...', '');
   loBar(10);
   setDataSourceBadge('loading');
 
-  try {
-    loBar(30);
-    loMsg('Leyendo catálogos y restauradores...', '');
+  // ── PASO 1: Servir desde caché local INMEDIATAMENTE ──────────────
+  const cached = await leerCatalogosLocal();
+  if (cached) {
+    loBar(60);
+    loMsg('Datos locales listos...', '');
+    aplicarDatos(cached);
+    agregarPers();
+    loBar(100);
+    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales', 'ok');
+    setDataSourceBadge('d1', cached.updated);
+    dataSource = 'd1';
+    // Abrir el formulario inmediatamente con datos cacheados
+    setTimeout(() => ocultarOverlay(), 400);
+    // ── PASO 2: Actualizar en background sin bloquear ─────────────
+    actualizarDatosBackground();
+    return;
+  }
 
+  // Sin caché — primera vez, cargar desde red normalmente
+  loMsg('Primera carga, conectando...', '');
+  loBar(30);
+  await cargarDatosRed(true);
+}
+
+async function actualizarDatosBackground() {
+  try {
     const resp = await fetch(`${API_BASE}/api/data?action=all`, {
-      method: 'GET',
-      cache:  'no-cache'
+      method:'GET', cache:'no-cache'
+    });
+    if (!resp.ok) return;
+    const json = await resp.json();
+    if (json.status !== 'ok') return;
+    // Guardar en caché local para próxima apertura
+    await guardarCatalogosLocal(json);
+    aplicarDatos(json);
+    setDataSourceBadge('d1', json.updated);
+    dataSource = 'd1';
+    // Toast silencioso solo si cambió algo
+    const nuevoCount = (json.restauradores||[]).length;
+    if (nuevoCount !== RESTS.length) {
+      showToast('🔄 Catálogos actualizados desde Cloudflare');
+    }
+  } catch(e) {
+    // Sin internet — no pasa nada, ya tenemos datos locales
+    console.log('Background update failed (offline):', e.message);
+  }
+}
+
+async function cargarDatosRed(mostrarOverlay = false) {
+  try {
+    loBar(50);
+    loMsg('Leyendo catálogos...', '');
+    const resp = await fetch(`${API_BASE}/api/data?action=all`, {
+      method:'GET', cache:'no-cache'
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-
-    loBar(65);
-    loMsg('Procesando datos...', '');
-
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message || 'Error desconocido');
 
-    // Poblar arrays globales
-    RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
-    MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
-    if (json.personal   && json.personal.length   > 0) PERS_LIST  = json.personal;
-    if (json.tipos      && json.tipos.length      > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
-    if (json.marcas     && json.marcas.length     > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
-    if (json.modems     && json.modems.length     > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
-    if (json.tableros   && json.tableros.length   > 0) { TABLEROS_LIST = json.tableros; }
-
-    loBar(80);
-    loMsg('Cargando materiales y personal...', '');
+    await guardarCatalogosLocal(json);
+    aplicarDatos(json);
 
     loBar(100);
-    loMsg('✓ ' + RESTS.length + ' restauradores · ' +
-          MATS.length + ' materiales · ' +
-          PERS_LIST.length + ' técnicos', 'ok');
-
+    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales · ' + PERS_LIST.length + ' técnicos', 'ok');
     dataSource = 'd1';
     setDataSourceBadge('d1', json.updated);
-
-    // Crear tarjeta inicial de técnico AHORA que PERS_LIST ya tiene datos
     agregarPers();
-
-    // Pequeña pausa para que el usuario vea el mensaje de éxito
     setTimeout(() => {
       ocultarOverlay();
       showToast('✅ Datos cargados desde Cloudflare D1');
-    }, 1000);
+    }, 800);
 
   } catch (err) {
     console.warn('D1 no disponible:', err.message);
-    RESTS = [];
-    MATS  = [];
     dataSource = 'error';
     setDataSourceBadge('error');
-
     loBar(100);
-    loMsg('No se pudo conectar con la base de datos', 'err');
-
+    loMsg('Sin conexión — trabajando sin datos de red', 'err');
     agregarPers();
     setTimeout(() => {
       ocultarOverlay();
-      showToast('❌ Sin conexión a la base de datos — verifica tu red o el proyecto Pages');
-    }, 1800);
+      showToast('⚠️ Sin conexión — datos no disponibles');
+    }, 1200);
   }
 }
 
