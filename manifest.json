@@ -8,6 +8,8 @@
   "orientation": "portrait",
   "background_color": "#0b1f3a",
   "theme_color": "#0b1f3a",
+  "lang": "es",
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192.png",
@@ -33,8 +35,5 @@
       "type": "image/png",
       "purpose": "maskable"
     }
-  ],
-  "categories": ["utilities", "productivity"],
-  "lang": "es",
-  "prefer_related_applications": false
+  ]
 }
