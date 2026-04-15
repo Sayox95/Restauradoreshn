@@ -1420,8 +1420,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   CONFIGURACIÓN — PEGA AQUÍ TU URL DE APPS SCRIPT WEB APP
-   Después de desplegar Code.gs, copia la URL aquí:
+   CONFIGURACIÓN — Cloudflare Pages Functions
 ══════════════════════════════════════════════════════════════ */
 // ═══════════════════════════════════════════════════════════
 // URL del Cloudflare Worker — reemplaza con tu worker URL
@@ -1668,7 +1667,7 @@ function acSel(idx,type){
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
 /* ══════════════════════════════════════════════════
-   LISTAS DINÁMICAS DESDE SHEETS
+   LISTAS DINÁMICAS DESDE D1
 ══════════════════════════════════════════════════ */
 
 // Poblar dropdown de Tipos de Reconectador
