@@ -12,7 +12,7 @@
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
   <link rel="dns-prefetch" href="https://raw.githubusercontent.com"> 
 <title>Inspección Restauradores SCADA</title>
-
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -746,6 +746,38 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);}
   50%{box-shadow:0 4px 28px rgba(245,158,11,.75);}
 }
+
+/* ── SYNC OVERLAY (bloquea app durante sincronización) ── */
+#syncOverlay{
+  position:fixed;inset:0;
+  background:rgba(11,31,58,.95);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+  z-index:9900;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .3s,visibility .3s;
+}
+#syncOverlay.show{opacity:1;visibility:visible;pointer-events:all;}
+.sync-spinner{
+  width:56px;height:56px;border-radius:50%;
+  border:3px solid rgba(245,158,11,.2);
+  border-top-color:var(--accent,#f59e0b);
+  animation:soSpin .8s linear infinite;
+}
+.sync-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:22px;color:#fff;
+  text-align:center;letter-spacing:.5px;
+}
+.sync-sub{
+  font-size:13px;color:rgba(255,255,255,.5);
+  text-align:center;padding:0 32px;min-height:18px;
+}
+.sync-sub.ok {color:#86efac;}
+.sync-sub.err{color:#fca5a5;}
 </style>
 </head>
 <body>
@@ -1467,72 +1499,149 @@ function ocultarOverlay() {
   if (ov) ov.classList.add('hide');
 }
 
+// ── Cache local de catálogos en IndexedDB ─────────────────────────
+const IDB_CATALOGOS_KEY = 'catalogos_v1';
+
+async function guardarCatalogosLocal(data) {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('catalogos'))
+        db.createObjectStore('catalogos');
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db  = e.target.result;
+      const tx  = db.transaction('catalogos', 'readwrite');
+      tx.objectStore('catalogos').put({ ...data, savedAt: Date.now() }, IDB_CATALOGOS_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror    = resolve;
+    };
+    req.onerror = resolve;
+  });
+}
+
+async function leerCatalogosLocal() {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('catalogos'))
+        db.createObjectStore('catalogos');
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db  = e.target.result;
+      const tx  = db.transaction('catalogos', 'readonly');
+      const get = tx.objectStore('catalogos').get(IDB_CATALOGOS_KEY);
+      get.onsuccess = () => resolve(get.result || null);
+      get.onerror   = () => resolve(null);
+    };
+    req.onerror = () => resolve(null);
+  });
+}
+
+function aplicarDatos(json) {
+  RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
+  MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
+  if (json.personal && json.personal.length > 0) PERS_LIST = json.personal;
+  if (json.tipos    && json.tipos.length    > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
+  if (json.marcas   && json.marcas.length   > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
+  if (json.modems   && json.modems.length   > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
+  if (json.tableros && json.tableros.length > 0) { TABLEROS_LIST = json.tableros; }
+}
+
 async function cargarDatosIniciales() {
-  // Sin URL configurada → el formulario queda vacío, se avisa al usuario
-  loMsg('Conectando con la base de datos...', '');
+  loMsg('Cargando datos...', '');
   loBar(10);
   setDataSourceBadge('loading');
 
-  try {
-    loBar(30);
-    loMsg('Leyendo catálogos y restauradores...', '');
+  // ── PASO 1: Servir desde caché local INMEDIATAMENTE ──────────────
+  const cached = await leerCatalogosLocal();
+  if (cached) {
+    loBar(60);
+    loMsg('Datos locales listos...', '');
+    aplicarDatos(cached);
+    agregarPers();
+    loBar(100);
+    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales', 'ok');
+    setDataSourceBadge('d1', cached.updated);
+    dataSource = 'd1';
+    // Abrir el formulario inmediatamente con datos cacheados
+    setTimeout(() => ocultarOverlay(), 400);
+    // ── PASO 2: Actualizar en background sin bloquear ─────────────
+    actualizarDatosBackground();
+    return;
+  }
 
+  // Sin caché — primera vez, cargar desde red normalmente
+  loMsg('Primera carga, conectando...', '');
+  loBar(30);
+  await cargarDatosRed(true);
+}
+
+async function actualizarDatosBackground() {
+  try {
     const resp = await fetch(`${API_BASE}/api/data?action=all`, {
-      method: 'GET',
-      cache:  'no-cache'
+      method:'GET', cache:'no-cache'
+    });
+    if (!resp.ok) return;
+    const json = await resp.json();
+    if (json.status !== 'ok') return;
+    // Guardar en caché local para próxima apertura
+    await guardarCatalogosLocal(json);
+    aplicarDatos(json);
+    setDataSourceBadge('d1', json.updated);
+    dataSource = 'd1';
+    // Toast silencioso solo si cambió algo
+    const nuevoCount = (json.restauradores||[]).length;
+    if (nuevoCount !== RESTS.length) {
+      showToast('🔄 Catálogos actualizados desde Cloudflare');
+    }
+  } catch(e) {
+    // Sin internet — no pasa nada, ya tenemos datos locales
+    console.log('Background update failed (offline):', e.message);
+  }
+}
+
+async function cargarDatosRed(mostrarOverlay = false) {
+  try {
+    loBar(50);
+    loMsg('Leyendo catálogos...', '');
+    const resp = await fetch(`${API_BASE}/api/data?action=all`, {
+      method:'GET', cache:'no-cache'
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-
-    loBar(65);
-    loMsg('Procesando datos...', '');
-
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message || 'Error desconocido');
 
-    // Poblar arrays globales
-    RESTS = (json.restauradores && json.restauradores.length > 0) ? json.restauradores : [];
-    MATS  = (json.materiales   && json.materiales.length   > 0) ? json.materiales   : [];
-    if (json.personal   && json.personal.length   > 0) PERS_LIST  = json.personal;
-    if (json.tipos      && json.tipos.length      > 0) { TIPOS_LIST = json.tipos; poblarTipos(); }
-    if (json.marcas     && json.marcas.length     > 0) { MARCAS_LIST = json.marcas; poblarMarcas(); }
-    if (json.modems     && json.modems.length     > 0) { MODEMS_LIST = json.modems; poblarMarcasModems(); }
-    if (json.tableros   && json.tableros.length   > 0) { TABLEROS_LIST = json.tableros; }
-
-    loBar(80);
-    loMsg('Cargando materiales y personal...', '');
+    await guardarCatalogosLocal(json);
+    aplicarDatos(json);
 
     loBar(100);
-    loMsg('✓ ' + RESTS.length + ' restauradores · ' +
-          MATS.length + ' materiales · ' +
-          PERS_LIST.length + ' técnicos', 'ok');
-
+    loMsg('✓ ' + RESTS.length + ' restauradores · ' + MATS.length + ' materiales · ' + PERS_LIST.length + ' técnicos', 'ok');
     dataSource = 'd1';
     setDataSourceBadge('d1', json.updated);
-
-    // Crear tarjeta inicial de técnico AHORA que PERS_LIST ya tiene datos
     agregarPers();
-
-    // Pequeña pausa para que el usuario vea el mensaje de éxito
     setTimeout(() => {
       ocultarOverlay();
       showToast('✅ Datos cargados desde Cloudflare D1');
-    }, 1000);
+    }, 800);
 
   } catch (err) {
     console.warn('D1 no disponible:', err.message);
-    RESTS = [];
-    MATS  = [];
     dataSource = 'error';
     setDataSourceBadge('error');
-
     loBar(100);
-    loMsg('No se pudo conectar con la base de datos', 'err');
-
+    loMsg('Sin conexión — trabajando sin datos de red', 'err');
     agregarPers();
     setTimeout(() => {
       ocultarOverlay();
-      showToast('❌ Sin conexión a la base de datos — verifica tu red o el proyecto Pages');
-    }, 1800);
+      showToast('⚠️ Sin conexión — datos no disponibles');
+    }, 1200);
   }
 }
 
@@ -2257,560 +2366,52 @@ function omitirPDF() {
 /* ── GENERADOR DE PDF COMPLETO ─────────────────────────────── */
 async function descargarFichaPDF() {
   const btn = document.getElementById('pdfDlBtn');
-  btn.textContent = '⏳ Cargando...';
+  btn.textContent = '⏳ Generando PDF...';
   btn.disabled = true;
 
-  // Cargar jsPDF si no está cargado
-  try {
-    await cargarJsPDF();
-  } catch(e) {
-    alert('No se pudo cargar el generador de PDF. Verifica tu conexión.');
-    btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Ficha PDF';
-    btn.disabled = false;
-    return;
-  }
-
-  btn.textContent = '⏳ Generando PDF...';
-
-  // Usar logo precargado o intentar cargar ahora
+  // Usar logo precargado en memoria (o intentar cargar si no está listo)
   let logoBase64 = _logoBase64Cached;
   if (!logoBase64) {
-  try {
-    const logoResp = await fetch('https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png');
-    const blob = await logoResp.blob();
-    const rawBase64 = await new Promise(res => {
-      const reader = new FileReader();
-      reader.onloadend = () => res(reader.result);
-      reader.readAsDataURL(blob);
-    });
-    // Convertir a blanco usando canvas (filter invert para fondo navy del PDF)
-    logoBase64 = await new Promise(res => {
-      const img = new Image();
-      img.onload = () => {
-        const cv = document.createElement('canvas');
-        cv.width = img.width; cv.height = img.height;
-        const ctx = cv.getContext('2d');
-        ctx.filter = 'brightness(0) invert(1)';
-        ctx.drawImage(img, 0, 0);
-        res(cv.toDataURL('image/png'));
-      };
-      img.onerror = () => res(rawBase64); // fallback sin filtro
-      img.src = rawBase64;
-    });
-  } catch(e) { console.warn('Logo no disponible para PDF:', e.message); }
-  } // end if(!logoBase64)
-
-  try {
-    const { jsPDF } = window.jspdf;
-    const d = _lastData || {};
-    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
-    const PW = 215.9, PH = 279.4;
-    const ML = 12, MR = 12, MT = 12;
-    let y = MT;
-
-    // ── Paleta de colores ──
-    const NAVY   = [11, 31, 58];
-    const BLUE   = [21, 101, 192];
-    const ACCENT = [245, 158, 11];
-    const OK     = [22, 163, 74];
-    const NOK    = [220, 38, 38];
-    const WARN   = [234, 179, 8];
-    const MUTED  = [100, 116, 139];
-    const BGROW  = [241, 245, 249];
-    const WHITE  = [255, 255, 255];
-    const BORDER = [209, 217, 230];
-    const CW     = PW - ML - MR; // content width
-
-    // ── helpers ──
-    const setFont = (size, style='normal', color=null) => {
-      doc.setFontSize(size);
-      doc.setFont('helvetica', style);
-      if(color) doc.setTextColor(...color); else doc.setTextColor(30,41,59);
-    };
-    const rect = (x,yy,w,h,fill,stroke=null,r=0) => {
-      if(fill){ doc.setFillColor(...fill); }
-      if(stroke){ doc.setDrawColor(...stroke); doc.setLineWidth(.3); }
-      else { doc.setDrawColor(255,255,255); doc.setLineWidth(0); }
-      if(r>0) doc.roundedRect(x,yy,w,h,r,r,fill&&stroke?'FD':fill?'F':'D');
-      else    doc.rect(x,yy,w,h,fill&&stroke?'FD':fill?'F':'D');
-    };
-    const line = (x1,yy1,x2,yy2,color=BORDER,lw=.3) => {
-      doc.setDrawColor(...color); doc.setLineWidth(lw);
-      doc.line(x1,yy1,x2,yy2);
-    };
-    const txt = (t,x,yy,opts={}) => {
-      doc.text(String(t||'—'), x, yy, opts);
-    };
-    const checkPage = (needed=10) => {
-      if(y + needed > PH - 14) {
-        doc.addPage();
-        y = MT;
-        drawPageFooter();
-      }
-    };
-    const sectionHeader = (label, color=NAVY) => {
-      checkPage(10);
-      rect(ML, y, CW, 7, color);
-      setFont(8.5, 'bold', WHITE);
-      txt(label, ML+3, y+5);
-      y += 9;
-    };
-    const fieldRow = (label, value, x, yy, w, shade=false) => {
-      if(shade) rect(x, yy, w, 7, BGROW);
-      setFont(7, 'normal', MUTED); txt(label, x+2, yy+3);
-      setFont(8.5, 'bold');        txt(String(value||'—').slice(0,48), x+2, yy+6.5);
-    };
-    const twoCol = (items) => {
-      // items: [{label, value}] rendered in 2 columns
-      const half = Math.ceil(items.length/2);
-      const colW = CW/2;
-      for(let i=0;i<half;i++){
-        checkPage(8);
-        const shade = i%2===0;
-        fieldRow(items[i].label, items[i].value, ML, y, colW, shade);
-        if(items[i+half]) fieldRow(items[i+half].label, items[i+half].value, ML+colW, y, colW, shade);
-        y += 8;
-      }
-    };
-    const statusColor = (estado) => {
-      const e = (estado||'').toLowerCase();
-      if(e.includes('sin novedad'))  return OK;
-      if(e.includes('observaci'))    return WARN;
-      if(e.includes('manten'))       return [234,88,12];
-      if(e.includes('fuera'))        return NOK;
-      return MUTED;
-    };
-    const toggleBadge = (val, x, yy) => {
-      const v = (val||'').toUpperCase();
-      const isPos = ['SI','ON','OK','LTE','3G','EXTERNA'].includes(v);
-      const isNeg = ['NO','OFF','NOK'].includes(v);
-      const bg = isPos ? OK : isNeg ? NOK : BLUE;
-      rect(x, yy-3.5, 14, 5, bg, null, 2);
-      setFont(6.5,'bold',WHITE); txt(v||'—', x+7, yy, {align:'center'});
-    };
-
-    // ══════════════════════════════════════════════════════
-    //  ENCABEZADO
-    // ══════════════════════════════════════════════════════
-    // Franja superior navy
-    rect(0, 0, PW, 22, NAVY);
-    // Acento izquierdo
-    rect(0, 0, 4, 22, ACCENT);
-
-    // Logo empresa en esquina izquierda del encabezado
-    if(logoBase64) {
-      try { doc.addImage(logoBase64, 'PNG', 5, 2, 18, 18, '', 'FAST'); } catch(e){}
-    }
-    setFont(14,'bold',WHITE);
-    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 26, 9);
-    setFont(8,'normal',[245,158,11]);
-    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 26, 15);
-
-    // Chip de N° visita
-    rect(PW-MR-52, 3, 52, 7, [255,255,255,10]);
-    setFont(7,'normal',[200,210,230]); txt('N° VISITA', PW-MR-50, 7);
-    setFont(9,'bold',WHITE); txt(d.visitaNum||'—', PW-MR-50, 13);
-
-    y = 26;
-
-    // Banda de datos rápidos
-    rect(ML, y, CW, 9, BGROW, BORDER);
-    const quickItems = [
-      ['FECHA', d.fechaVisita||'—'],
-      ['TIPO',  d.tipoVisita||'—'],
-      ['LLEGADA', d.horaLlegada||'—'],
-      ['SALIDA', d.horaSalida||'—'],
-      ['ENERGIS', d.codigoEnergis||'—'],
-    ];
-    const qw = CW / quickItems.length;
-    quickItems.forEach((q,i) => {
-      if(i>0) line(ML+qw*i, y, ML+qw*i, y+9, BORDER);
-      setFont(6,'normal',MUTED); txt(q[0], ML+qw*i+qw/2, y+3.5, {align:'center'});
-      setFont(8,'bold');         txt(q[1], ML+qw*i+qw/2, y+8,   {align:'center'});
-    });
-    y += 13;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 1: DATOS GENERALES + RECONECTADOR (2 cols)
-    // ══════════════════════════════════════════════════════
-    sectionHeader('1 · IDENTIFICACIÓN DEL RESTAURADOR');
-    const colA = ML, colB = ML + CW/2, colW2 = CW/2;
-    const genItems = [
-      {label:'Circuito',    value:d.codigoCircuito},
-      {label:'Ubicación',   value:d.nombreUbicacion},
-        {label:'Subestación', value:d.subestacion},
-      {label:'Zona',        value:d.zona},
-      {label:'Sector',      value:d.sector},
-      {label:'Latitud',     value:d.latitud},
-      {label:'Longitud',    value:d.longitud},
-    ];
-    const reconItems = [
-      {label:'Tipo Reconectador', value:d.tipoRecon},
-      {label:'Marca',             value:d.marcaReconectador},
-      {label:'Modelo',            value:d.modeloRecon},
-      {label:'Serie Reconectador',value:d.serieRecon},
-      {label:'Tipo Control',      value:d.tipoControl},
-      {label:'Serie Control',     value:d.serieControl},
-      {label:'Firmware/Proview',  value:d.proviewControl},
-      {label:'Medio Extinción',   value:d.medioExtincion},
-    ];
-    const maxRows = Math.max(genItems.length, reconItems.length);
-    for(let i=0;i<maxRows;i++){
-      checkPage(8);
-      const shade = i%2===0;
-      if(genItems[i])   fieldRow(genItems[i].label,   genItems[i].value,   colA, y, colW2, shade);
-      if(reconItems[i]) fieldRow(reconItems[i].label, reconItems[i].value, colB, y, colW2, shade);
-      y += 8;
-    }
-    y += 3;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 2: MÓDEMS
-    // ══════════════════════════════════════════════════════
-    if(d.hasModem1 || d.hasModem2) {
-      checkPage(12);
-      sectionHeader('2 · MÓDEMS DE COMUNICACIÓN');
-      const modemItems = [];
-      if(d.hasModem1) {
-        modemItems.push(
-          {label:'Tipo Módem 1',   value:d.tipoModem1},
-          {label:'Marca Módem 1',  value:d.marcaModem1},
-          {label:'Modelo Módem 1', value:d.modeloModem1},
-          {label:'Serie Módem 1',  value:d.serieModem1},
-          {label:'Antena 1',       value:d.antenaModem1 + (d.tipoAntena1 ? ' · '+d.tipoAntena1 : '')},
-          {label:'Tecnología 1',   value:d.tecModem1},
-        );
-      }
-      if(d.hasModem2) {
-        modemItems.push(
-          {label:'Tipo Módem 2',   value:d.tipoModem2},
-          {label:'Marca Módem 2',  value:d.marcaModem2},
-          {label:'Modelo Módem 2', value:d.modeloModem2},
-          {label:'Serie Módem 2',  value:d.serieModem2},
-          {label:'Antena 2',       value:d.antenaModem2 + (d.tipoAntena2 ? ' · '+d.tipoAntena2 : '')},
-          {label:'Tecnología 2',   value:d.tecModem2},
-        );
-      }
-      twoCol(modemItems);
-      y += 3;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 3: TABLERO DE CONTROL (dinámico por marca)
-    // ══════════════════════════════════════════════════════
-    const tableroCampos = d.tableroCampos || {};
-    const tableroEntries = Object.entries(tableroCampos).filter(([k,v2]) => v2);
-    if(tableroEntries.length > 0) {
-      checkPage(14);
-      sectionHeader('3 · TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
-      const tcols = 4, tw = CW / tcols;
-      for(let i=0;i<tableroEntries.length;i+=tcols){
-        checkPage(9);
-        const shade = (Math.floor(i/tcols))%2===0;
-        for(let j=0;j<tcols;j++){
-          const entry = tableroEntries[i+j];
-          if(!entry) continue;
-          const x = ML + tw*j;
-          if(shade) rect(x,y,tw,9,BGROW);
-          setFont(6.5,'normal',MUTED); txt(entry[0], x+2, y+3.5);
-          toggleBadge(entry[1], x+tw-17, y+5.5);
-        }
-        y += 9;
-      }
-      y += 3;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 4: ALARMA
-    // ══════════════════════════════════════════════════════
-    checkPage(14);
-    sectionHeader('4 · ALARMA');
-    const alarmaItems = [
-      ['Alarma Presente', d.alarmaPresente],
-      ['Reset Alarma',    d.resetAlarma],
-    ];
-    const aw = CW / 2;
-    alarmaItems.forEach((item, i) => {
-      const x = ML + aw * i;
-      rect(x, y, aw, 9, i%2===0 ? BGROW : WHITE);
-      setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
-      toggleBadge(item[1], x+aw-17, y+5.5);
-    });
-    y += 9;
-    if(d.descAlarma) {
-      checkPage(12);
-      const aLines = doc.splitTextToSize(d.descAlarma, CW-4);
-      const aH = Math.max(8, aLines.length*4.5+4);
-      setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML, y+4); y += 5;
-      rect(ML, y, CW, aH, BGROW, BORDER);
-      setFont(8,'normal'); doc.setTextColor(30,41,59);
-      doc.text(aLines, ML+3, y+4.5);
-      y += aH + 3;
-    }
-    y += 3;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 5: BATERÍA
-    // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('5 · BATERÍA');
-    // Mediciones en banda horizontal
-    checkPage(9);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    const medCols = [
-      ['MEDICIÓN AC (V)',      d.medicionAC],
-      ['MEDICIÓN BAT (V)',     d.medicionBat],
-      ['MEDICIÓN CARGADOR (V)',d.medicionCargador],
-    ];
-    const mw = CW / medCols.length;
-    medCols.forEach((m2,i) => {
-      if(i>0) line(ML+mw*i,y,ML+mw*i,y+9,BORDER);
-      setFont(6.5,'normal',MUTED); txt(m2[0], ML+mw*i+4, y+3.5);
-      setFont(10,'bold',BLUE);     txt(m2[1]||'—', ML+mw*i+4, y+8.5);
-    });
-    y += 11;
-    // Battery test + medición test
-    checkPage(9);
-    rect(ML, y, CW/2, 9, BGROW);
-    setFont(6.5,'normal',MUTED); txt('BATTERY TEST', ML+2, y+3.5);
-    toggleBadge(d.batteryTest, ML+CW/2-17, y+5.5);
-    rect(ML+CW/2, y, CW/4, 9, WHITE);
-    setFont(6.5,'normal',MUTED); txt('MEDICIÓN TEST (V)', ML+CW/2+2, y+3.5);
-    setFont(9,'bold',BLUE);      txt(d.batteryTestMedicion||'—', ML+CW/2+2, y+8);
-    rect(ML+CW*3/4, y, CW/4, 9, BGROW);
-    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+CW*3/4+2, y+3.5);
-    toggleBadge(d.cambioBaterias, ML+CW-17, y+5.5);
-    y += 12;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 6: CORRIENTES Y AJUSTES
-    // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('6 · CORRIENTES Y AJUSTES');
-    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Fase (A)','C. Neutro (A)'];
-    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN, d.ajusteActivo, d.cApertFase, d.cApertNeutro];
-    const cw7 = CW / corrHeaders.length;
-    rect(ML, y, CW, 7, NAVY);
-    corrHeaders.forEach((h,i) => {
-      setFont(6.5,'bold',WHITE);
-      txt(h, ML+cw7*i+cw7/2, y+5, {align:'center'});
-    });
-    y += 7;
-    rect(ML, y, CW, 8, BGROW, BORDER);
-    corrVals.forEach((v2,i) => {
-      setFont(9,'bold',BLUE);
-      txt(v2||'—', ML+cw7*i+cw7/2, y+6, {align:'center'});
-    });
-    y += 12;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 7: ESTADO FÍSICO
-    // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('7 · ESTADO FÍSICO DEL EQUIPO');
-    const fisItems = [
-      ['Gabinete',          d.gabinete],
-      ['Borneras',          d.borneras],
-      ['Ater. Restaurador', d.aterRestState],
-      ['Ater. Control',     d.aterCtrlState],
-      ['Ater. Potencial',   d.aterPotState],
-      ['Cable de Tierra',   d.cableTierra],
-      ['N° Varillas',       d.numVarillas],
-      ['Tipo Cuchilla',     d.tipoCuchilla],
-      ['Estado Cuchillas',  d.estadoCuchillas],
-      ['N° Cuchillas',      d.numCuchillas],
-      ['Pararrayos',        d.pararrayos],
-      ['N° Pararrayos',     d.numPararrayos],
-    ];
-    const fcols = 4, fw = CW/fcols;
-    for(let i=0;i<fisItems.length;i+=fcols){
-      checkPage(9);
-      const shade = (Math.floor(i/fcols))%2===0;
-      for(let j=0;j<fcols;j++){
-        const item = fisItems[i+j];
-        if(!item) continue;
-        const x = ML + fw*j;
-        if(shade) rect(x,y,fw,9,BGROW);
-        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
-        const isToggle = ['OK','NOK','SI','NO'].includes((item[1]||'').toUpperCase());
-        if(isToggle) toggleBadge(item[1], x+fw-17, y+5.5);
-        else { setFont(8,'bold'); txt(String(item[1]||'—').slice(0,14), x+2, y+8); }
-      }
-      y += 9;
-    }
-    // Medición aterrizaje
-    checkPage(10);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    const aterCols = [['ATER. CONTROL (Ohm)', d.aterControl],['ATER. RESTAURADOR (Ohm)', d.aterRestaurador],['ATER. OTROS (Ohm)', d.aterOtros]];
-    const atW = CW/3;
-    aterCols.forEach((a,i) => {
-      if(i>0) line(ML+atW*i,y,ML+atW*i,y+9,BORDER);
-      setFont(6.5,'normal',MUTED); txt(a[0], ML+atW*i+3, y+3.5);
-      setFont(9,'bold',BLUE);     txt(a[1]||'—', ML+atW*i+3, y+8.5);
-    });
-    y += 11;
-    // Obs estado físico
-    if(d.obsEstadoFisico) {
-      checkPage(12);
-      const ofLines = doc.splitTextToSize(d.obsEstadoFisico, CW-4);
-      const ofH = Math.max(8, ofLines.length*4.5+4);
-      setFont(7,'normal',MUTED); txt('OBSERVACIÓN ESTADO FÍSICO', ML, y+4); y+=5;
-      rect(ML, y, CW, ofH, BGROW, BORDER);
-      setFont(8,'normal'); doc.setTextColor(30,41,59);
-      doc.text(ofLines, ML+3, y+4.5);
-      y += ofH + 4;
-    }
-    y += 3;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 8: MATERIALES
-    // ══════════════════════════════════════════════════════
-    const mats = d.materialesUtilizados || [];
-    if(mats.length > 0) {
-      checkPage(14);
-      sectionHeader('8 · MATERIALES UTILIZADOS');
-      rect(ML, y, CW, 7, BLUE);
-      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.50},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.16}];
-      let mx = ML;
-      matCols.forEach(mc => {
-        setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
-        mx += CW*mc.w;
-      });
-      y += 7;
-      mats.forEach((m,idx) => {
-        checkPage(8);
-        if(idx%2===0) rect(ML,y,CW,8,BGROW);
-        mx = ML;
-        const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
-        matCols.forEach((mc,ci) => {
-          const maxLen = ci===1 ? 58 : 18;
-          setFont(7.5, ci===0?'bold':'normal');
-          if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
-          txt(String(vals[ci]||'').slice(0,maxLen), mx+2, y+5.5);
-          mx += CW*mc.w;
+    try {
+      const logoResp = await fetch(
+        'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png',
+        { cache: 'force-cache' }
+      );
+      if (logoResp.ok) {
+        const blob = await logoResp.blob();
+        const raw  = await new Promise(res => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result);
+          reader.readAsDataURL(blob);
         });
-        y += 8;
-      });
-      // Obs materiales
-      if(d.obsMateriales) {
-        checkPage(10);
-        const omLines = doc.splitTextToSize('Obs: ' + d.obsMateriales, CW-4);
-        const omH = Math.max(8, omLines.length*4.5+4);
-        rect(ML, y, CW, omH, [255,251,235], ACCENT);
-        setFont(7.5,'normal',[146,64,14]); doc.text(omLines, ML+3, y+4.5);
-        y += omH;
+        logoBase64 = await new Promise(res => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => {
+            const cv = document.createElement('canvas');
+            cv.width = img.width; cv.height = img.height;
+            const ctx = cv.getContext('2d');
+            ctx.filter = 'brightness(0) invert(1)';
+            ctx.drawImage(img, 0, 0);
+            res(cv.toDataURL('image/png'));
+          };
+          img.onerror = () => res(raw);
+          img.src = raw;
+        });
+        _logoBase64Cached = logoBase64;
       }
-      y += 4;
-    }
+    } catch(e) { console.warn('Logo no disponible:', e.message); }
+  }
 
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 9: OBSERVACIONES
-    // ══════════════════════════════════════════════════════
-    if(d.obsGenerales) {
-      checkPage(16);
-      sectionHeader('9 · OBSERVACIONES');
-      const oLines = doc.splitTextToSize(d.obsGenerales, CW-4);
-      const oH = Math.max(10, oLines.length*4.5+4);
-      rect(ML, y, CW, oH, BGROW, BORDER);
-      setFont(8.5,'normal'); doc.setTextColor(30,41,59);
-      doc.text(oLines, ML+3, y+5);
-      y += oH + 4;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 10: PERSONAL + FIRMA
-    // ══════════════════════════════════════════════════════
-    checkPage(36);
-    sectionHeader('10 · PERSONAL DE VISITA Y FIRMA');
-
-    const personal = d.personal || [];
-    const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
-
-    // Personal (izquierda)
-    if(personal.length > 0) {
-      rect(ML, y, persW, 7, BLUE);
-      setFont(7,'bold',WHITE); txt('NOMBRE', ML+2, y+5);
-      setFont(7,'bold',WHITE); txt('CARGO', ML+persW*.55, y+5);
-      setFont(7,'bold',WHITE); txt('ID', ML+persW*.82, y+5);
-      y += 7;
-      personal.forEach((p,i) => {
-        checkPage(8);
-        if(i%2===0) rect(ML,y,persW,8,BGROW);
-        setFont(8,'bold');   txt((p.nombre||'—').slice(0,28), ML+2, y+5.5);
-        setFont(7.5,'normal',MUTED); txt((p.cargo||'—').slice(0,20), ML+persW*.55, y+5.5);
-        setFont(7.5,'normal');        txt(p.id||'—', ML+persW*.82, y+5.5);
-        y += 8;
-      });
-    }
-
-    // Firma (derecha) — alineada con la tabla de personal
-    // Alto de firma: mínimo 45mm (suficiente para imagen legible) o lo que ocupe el personal
-    const persTableH = personal.length * 8 + 7;  // alto real de la tabla de personal
-    const FIRMA_MIN_H = 45;                        // alto mínimo garantizado para la firma
-    const firmaBoxH   = Math.max(FIRMA_MIN_H, persTableH);
-    const firmaStartY = y - persTableH;            // alineado con la parte inferior de la tabla
-    const firmaX      = ML + persW + gap;
-
-    rect(firmaX, firmaStartY, firmaW, firmaBoxH, BGROW, BORDER);
-
-    // Etiqueta superior
-    setFont(7,'normal',MUTED);
-    txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
-    line(firmaX+4, firmaStartY+7, firmaX+firmaW-4, firmaStartY+7, BORDER, .2);
-
-    if(d.firmaImg && d.firmaImg.startsWith('data:image')) {
-      try {
-        // Imagen ocupa el espacio central dejando margen arriba (etiqueta) y abajo (nombre)
-        const fImgY = firmaStartY + 9;
-        const fImgH = firmaBoxH - 18;   // resta etiqueta (9) + nombre (9)
-        const fImgW = firmaW - 8;
-        doc.addImage(d.firmaImg, 'PNG', firmaX+4, fImgY, fImgW, fImgH, '', 'FAST');
-      } catch(e){}
-    } else {
-      setFont(8,'normal',MUTED);
-      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2 - 2, {align:'center'});
-    }
-
-    // Nombre del responsable al fondo
-    line(firmaX+4, firmaStartY+firmaBoxH-9, firmaX+firmaW-4, firmaStartY+firmaBoxH-9, BORDER, .2);
-    setFont(8,'bold'); doc.setTextColor(30,41,59);
-    txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
-
-    // Avanzar y hasta el fondo del box de firma (el más alto entre tabla y firmaBoxH)
-    y = firmaStartY + firmaBoxH + 6;
-
-    // ── Obs. del responsable — siempre DEBAJO de la firma ──
-    if(d.obsResponsable) {
-      checkPage(12);
-      const oLines = doc.splitTextToSize('Nota del responsable: ' + d.obsResponsable, CW-4);
-      const oH = Math.max(10, oLines.length*4.5+4);
-      rect(ML, y, CW, oH, [255,251,235], [245,158,11]);
-      setFont(7.5,'normal',[146,64,14]); doc.text(oLines, ML+3, y+5);
-      y += oH + 4;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
-    // ══════════════════════════════════════════════════════
-    function drawPageFooter() {
-      const pages = doc.internal.getNumberOfPages();
-      for(let i=1;i<=pages;i++){
-        doc.setPage(i);
-        rect(0, PH-10, PW, 10, NAVY);
-        setFont(6.5,'normal',[150,170,200]);
-        txt('SCADA Distribución — Hoja de Visita · ' + (d.visitaNum||'') + ' · ' + (d.fechaVisita||''), ML, PH-4);
-        txt('Pág. '+i+' / '+pages, PW-MR, PH-4, {align:'right'});
-        txt('Generado: '+new Date().toLocaleString('es-HN'), PW/2, PH-4, {align:'center'});
-      }
-    }
-    drawPageFooter();
-
-    // ── Guardar ──
+  try {
+    const d = _lastData || {};
+    const doc = await _generarDocPDF(d);
+    if (!doc) throw new Error('Error generando PDF');
     const filename = 'Ficha_' + (d.visitaNum||'visita') + '_' +
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
-    // Subir PDF a R2 — con fallback offline a IndexedDB
+    // Subir PDF a R2 y luego persistir la key en D1
     try {
       const pdfBlob   = doc.output('blob');
       const pdfBase64 = await new Promise(res => {
@@ -2819,9 +2420,41 @@ async function descargarFichaPDF() {
         reader.readAsDataURL(pdfBlob);
       });
 
-      await subirPdfConFallback(d.visitaNum, pdfBase64);
+      const pdfUploadResp = await fetch(`${API_BASE}/api/pdf`, {
+        method : 'POST',
+        body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!pdfUploadResp.ok) {
+        throw new Error(`Upload PDF falló con status ${pdfUploadResp.status}`);
+      }
+
+      const pdfUploadJson = await pdfUploadResp.json();
+
+      if (pdfUploadJson?.status === 'ok' && pdfUploadJson?.key) {
+        const saveKeyResp = await fetch(`${API_BASE}/api/save-pdf-key`, {
+          method : 'POST',
+          body   : JSON.stringify({
+            visitaNum: d.visitaNum,
+            pdfR2Key : pdfUploadJson.key
+          }),
+          headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!saveKeyResp.ok) {
+          console.warn('PDF subido a R2, pero no se pudo guardar pdf_r2_key en D1.', saveKeyResp.status);
+        } else {
+          const saveKeyJson = await saveKeyResp.json().catch(() => null);
+          if (saveKeyJson?.status !== 'ok') {
+            console.warn('PDF subido a R2, pero la API save-pdf-key no devolvió ok.', saveKeyJson);
+          }
+        }
+      } else {
+        console.warn('La API /api/pdf no devolvió una key válida.', pdfUploadJson);
+      }
     } catch(e) {
-      console.warn('PDF upload error:', e);
+      console.warn('PDF R2 upload failed:', e);
     }
 
     // Cerrar modal y limpiar formulario
@@ -3520,27 +3153,21 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 async function contarPendientes() {
   return new Promise(resolve => {
-    try {
-      const req = indexedDB.open('scadaDB', 1);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('pendientes'))
-          db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-      };
-      req.onsuccess = e => {
-        try {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
-          const tx    = db.transaction('pendientes', 'readonly');
-          const store = tx.objectStore('pendientes');
-          const count = store.count();
-          count.onsuccess = () => resolve(count.result || 0);
-          count.onerror   = () => resolve(0);
-          tx.onerror      = () => resolve(0);
-        } catch(e) { resolve(0); }
-      };
-      req.onerror = () => resolve(0);
-    } catch(e) { resolve(0); }
+    const req = indexedDB.open('scadaDB', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+    };
+    req.onsuccess = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
+      const count = db.transaction('pendientes','readonly')
+                      .objectStore('pendientes').count();
+      count.onsuccess = () => resolve(count.result);
+      count.onerror   = () => resolve(0);
+    };
+    req.onerror = () => resolve(0);
   });
 }
 
@@ -3556,188 +3183,762 @@ window.addEventListener('load', () => setTimeout(actualizarBadge, 2000));
 setInterval(actualizarBadge, 30000);
 
 
-/* ── LAZY LOAD jsPDF — solo cuando se necesita ── */
-let _jspdfLoaded = false;
-let _jspdfLoading = false;
-let _jspdfCallbacks = [];
-
-function cargarJsPDF() {
-  return new Promise((resolve, reject) => {
-    if (_jspdfLoaded) { resolve(); return; }
-    _jspdfCallbacks.push({ resolve, reject });
-    if (_jspdfLoading) return;
-    _jspdfLoading = true;
-    const script = document.createElement('script');
-    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-    script.onload = () => {
-      _jspdfLoaded = true;
-      _jspdfLoading = false;
-      _jspdfCallbacks.forEach(cb => cb.resolve());
-      _jspdfCallbacks = [];
-    };
-    script.onerror = () => {
-      _jspdfLoading = false;
-      _jspdfCallbacks.forEach(cb => cb.reject(new Error('No se pudo cargar jsPDF')));
-      _jspdfCallbacks = [];
-    };
-    document.head.appendChild(script);
-  });
-}
-
-/* ── PRECARGAR LOGO para PDF (evita fallos en PWA/móvil) ── */
+/* ── LOGO: precargar en segundo plano para PDF ── */
 let _logoBase64Cached = null;
 async function precargarLogo() {
   try {
-    const url = 'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png';
-    const resp = await fetch(url, { mode:'cors', cache:'force-cache' });
-    if (!resp.ok) return;
-    const blob = await resp.blob();
-    _logoBase64Cached = await new Promise(res => {
-      const reader = new FileReader();
-      reader.onloadend = () => res(reader.result);
-      reader.readAsDataURL(blob);
+    const logoResp = await fetch(
+      'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png',
+      { cache: 'force-cache' }
+    );
+    if (!logoResp.ok) return;
+    const blob = await logoResp.blob();
+    const raw  = await new Promise(res => {
+      const r = new FileReader();
+      r.onloadend = () => res(r.result);
+      r.readAsDataURL(blob);
     });
-    // Convertir a blanco para fondo navy del PDF
     _logoBase64Cached = await new Promise(res => {
       const img = new Image();
       img.onload = () => {
-        const cv = document.createElement('canvas');
-        cv.width = img.width; cv.height = img.height;
+        const cv  = document.createElement('canvas');
+        cv.width  = img.width; cv.height = img.height;
         const ctx = cv.getContext('2d');
         ctx.filter = 'brightness(0) invert(1)';
         ctx.drawImage(img, 0, 0);
         res(cv.toDataURL('image/png'));
       };
-      img.onerror = () => res(null);
-      img.src = _logoBase64Cached;
+      img.onerror = () => res(raw);
+      img.src = raw;
     });
-  } catch(e) { console.warn('Logo precarga falló:', e.message); }
+  } catch(e) { console.warn('Logo precarga:', e.message); }
 }
-// Precargar logo en segundo plano después de que cargue la página
-window.addEventListener('load', () => setTimeout(precargarLogo, 3000));
-
+window.addEventListener('load', () => setTimeout(precargarLogo, 2000));
 
 /* ══════════════════════════════════════════════════════════════
-   PDF OFFLINE — subir a R2 con fallback a IndexedDB
+   SINCRONIZACIÓN OFFLINE — visitas + PDF
+   Flujo:
+   1. Sin internet → SW guarda visita en IndexedDB via /api/save
+   2. Al detectar internet → sincronizarPendientesOnline()
+   3. Para cada visita: POST /api/save, genera PDF, sube a R2
+   4. Overlay bloquea la app durante todo el proceso
 ══════════════════════════════════════════════════════════════ */
 
-const PDF_STORE = 'pdfs_pendientes';
+// ── Helpers del overlay de sync ────────────────────────────────
+function mostrarSyncOverlay(titulo, sub) {
+  document.getElementById('syncOverlayTitle').textContent = titulo || 'Sincronizando...';
+  const subEl = document.getElementById('syncOverlaySub');
+  subEl.textContent  = sub || '';
+  subEl.className    = 'sync-sub';
+  document.getElementById('syncOverlay').classList.add('show');
+}
+function actualizarSyncOverlay(titulo, sub, tipo) {
+  document.getElementById('syncOverlayTitle').textContent = titulo;
+  const subEl = document.getElementById('syncOverlaySub');
+  subEl.textContent = sub || '';
+  subEl.className   = 'sync-sub' + (tipo ? ' ' + tipo : '');
+}
+function ocultarSyncOverlay() {
+  document.getElementById('syncOverlay').classList.remove('show');
+}
 
-// Abrir/crear store de PDFs pendientes en IndexedDB
-function abrirDBPdfs() {
+// ── Abrir IndexedDB (compatibilidad con SW) ────────────────────
+function abrirDBSync() {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('scadaDB', 2); // versión 2 agrega pdf store
+    const req = indexedDB.open('scadaDB', 2);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('pendientes'))
         db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains(PDF_STORE))
-        db.createObjectStore(PDF_STORE, { keyPath:'id', autoIncrement:true });
+      if (!db.objectStoreNames.contains('pdfs_pendientes'))
+        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
     };
     req.onsuccess  = e => resolve(e.target.result);
     req.onerror    = e => reject(e.target.error);
   });
 }
 
-// Guardar PDF pendiente en IndexedDB
-async function guardarPdfPendiente(visitaNum, pdfBase64) {
+async function getPendientesDB() {
   try {
-    const db = await abrirDBPdfs();
-    await new Promise((resolve, reject) => {
-      const tx    = db.transaction(PDF_STORE, 'readwrite');
-      tx.objectStore(PDF_STORE).add({ visitaNum, pdfBase64, savedAt: Date.now() });
-      tx.oncomplete = resolve;
-      tx.onerror    = e => reject(e.target.error);
-    });
-    console.log('PDF guardado localmente para sync posterior:', visitaNum);
-  } catch(e) {
-    console.warn('No se pudo guardar PDF en IndexedDB:', e);
-  }
-}
-
-// Subir PDF a R2 — si falla por offline lo guarda en IndexedDB
-async function subirPdfConFallback(visitaNum, pdfBase64) {
-  try {
-    const resp = await fetch(`${API_BASE}/api/pdf`, {
-      method : 'POST',
-      body   : JSON.stringify({ visitaNum, pdfBase64 }),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const json = await resp.json();
-
-    if (json?.status === 'ok' && json?.key) {
-      // Guardar la key en D1
-      await fetch(`${API_BASE}/api/save-pdf-key`, {
-        method : 'POST',
-        body   : JSON.stringify({ visitaNum, pdfR2Key: json.key }),
-        headers: { 'Content-Type': 'application/json' }
-      }).catch(e => console.warn('save-pdf-key falló:', e));
-    }
-  } catch(e) {
-    // Sin conexión → guardar PDF localmente
-    console.warn('Sin conexión, guardando PDF localmente:', e.message);
-    await guardarPdfPendiente(visitaNum, pdfBase64);
-    showToast('📥 PDF guardado localmente — se subirá al reconectar');
-  }
-}
-
-// Sincronizar PDFs pendientes cuando hay internet
-async function sincronizarPdfsPendientes() {
-  let db;
-  try { db = await abrirDBPdfs(); } catch { return; }
-
-  const pdfs = await new Promise(resolve => {
-    try {
-      const tx  = db.transaction(PDF_STORE, 'readonly');
-      const req = tx.objectStore(PDF_STORE).getAll();
+    const db = await abrirDBSync();
+    return new Promise((resolve, reject) => {
+      const tx  = db.transaction('pendientes','readonly');
+      const req = tx.objectStore('pendientes').getAll();
       req.onsuccess = e => resolve(e.target.result || []);
       req.onerror   = () => resolve([]);
-    } catch { resolve([]); }
-  });
+    });
+  } catch { return []; }
+}
 
-  if (!pdfs.length) return;
+async function eliminarPendienteDB(id) {
+  try {
+    const db = await abrirDBSync();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('pendientes','readwrite');
+      tx.objectStore('pendientes').delete(id);
+      tx.oncomplete = resolve;
+      tx.onerror    = reject;
+    });
+  } catch(e) { console.warn('Error eliminando pendiente:', e); }
+}
 
-  const subidos = [];
-  for (const item of pdfs) {
-    try {
-      const resp = await fetch(`${API_BASE}/api/pdf`, {
-        method : 'POST',
-        body   : JSON.stringify({ visitaNum: item.visitaNum, pdfBase64: item.pdfBase64 }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      const json = await resp.json();
-
-      if (json?.status === 'ok' && json?.key) {
-        await fetch(`${API_BASE}/api/save-pdf-key`, {
-          method : 'POST',
-          body   : JSON.stringify({ visitaNum: item.visitaNum, pdfR2Key: json.key }),
-          headers: { 'Content-Type': 'application/json' }
-        }).catch(() => {});
-        subidos.push(item.id);
-      }
-    } catch { break; } // Sin internet, intentar luego
-  }
-
-  if (subidos.length) {
-    // Eliminar los subidos de IndexedDB
-    const tx = db.transaction(PDF_STORE, 'readwrite');
-    const store = tx.objectStore(PDF_STORE);
-    subidos.forEach(id => store.delete(id));
-    showToast(`✅ ${subidos.length} PDF(s) sincronizado(s) con el servidor`);
+// ── Generar PDF en memoria desde datos de visita ───────────────
+async function generarPdfBase64(visita) {
+  try {
+    if (!window.jspdf) return null;
+    const { jsPDF } = window.jspdf;
+    // Restaurar _lastData temporalmente para el generador
+    const prev = _lastData;
+    _lastData = visita;
+    // Usar el mismo generador pero sin guardar ni abrir modal
+    const doc = await _generarDocPDF(visita);
+    _lastData = prev;
+    if (!doc) return null;
+    const blob   = doc.output('blob');
+    const base64 = await new Promise(res => {
+      const reader = new FileReader();
+      reader.onloadend = () => res(reader.result.split(',')[1]);
+      reader.readAsDataURL(blob);
+    });
+    return base64;
+  } catch(e) {
+    console.warn('Error generando PDF para sync:', e);
+    return null;
   }
 }
 
-// Intentar sincronizar PDFs pendientes cuando regresa la conexión
+// ── Sincronizar todas las visitas pendientes ───────────────────
+async function sincronizarPendientesOnline() {
+  const pendientes = await getPendientesDB();
+  if (!pendientes.length) return;
+
+  mostrarSyncOverlay(
+    '⬆️ Sincronizando datos',
+    pendientes.length + ' visita(s) pendiente(s) de subir'
+  );
+
+  let exitosos = 0;
+  let errores  = 0;
+
+  for (let i = 0; i < pendientes.length; i++) {
+    const item    = pendientes[i];
+    const visita  = item.data;
+    const num     = i + 1;
+    const total   = pendientes.length;
+
+    actualizarSyncOverlay(
+      `⬆️ Sincronizando ${num}/${total}`,
+      'Guardando visita ' + (visita.visitaNum || '') + '...'
+    );
+
+    try {
+      // 1. Subir visita a D1
+      const saveResp = await fetch(`${API_BASE}/api/save`, {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(visita)
+      });
+      if (!saveResp.ok) throw new Error('HTTP ' + saveResp.status);
+      const saveJson = await saveResp.json();
+      if (saveJson.status !== 'ok') throw new Error(saveJson.message);
+
+      // 2. Generar PDF y subir a R2
+      actualizarSyncOverlay(
+        `⬆️ Sincronizando ${num}/${total}`,
+        'Generando y subiendo PDF ' + (visita.visitaNum || '') + '...'
+      );
+
+      const pdfBase64 = await generarPdfBase64(visita);
+      if (pdfBase64) {
+        try {
+          const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ visitaNum: visita.visitaNum, pdfBase64 })
+          });
+          if (pdfResp.ok) {
+            const pdfJson = await pdfResp.json();
+            if (pdfJson?.status === 'ok' && pdfJson?.key) {
+              // 3. Guardar key del PDF en D1
+              await fetch(`${API_BASE}/api/save-pdf-key`, {
+                method : 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body   : JSON.stringify({ visitaNum: visita.visitaNum, pdfR2Key: pdfJson.key })
+              }).catch(() => {});
+            }
+          }
+        } catch(e) { console.warn('PDF upload failed:', e); }
+      }
+
+      // 4. Eliminar de IndexedDB
+      await eliminarPendienteDB(item.id);
+      exitosos++;
+
+    } catch(e) {
+      console.warn('Error sincronizando visita:', e);
+      errores++;
+      // Si es error de red, parar — no tiene sentido continuar sin internet
+      if (!navigator.onLine) break;
+    }
+  }
+
+  // Resultado final
+  if (errores === 0) {
+    actualizarSyncOverlay(
+      '✅ Sincronización completa',
+      exitosos + ' visita(s) subida(s) correctamente',
+      'ok'
+    );
+  } else {
+    actualizarSyncOverlay(
+      '⚠️ Sincronización parcial',
+      exitosos + ' exitosa(s), ' + errores + ' con error',
+      'err'
+    );
+  }
+
+  await new Promise(r => setTimeout(r, 2000));
+  ocultarSyncOverlay();
+  actualizarBadge();
+  showToast(exitosos + ' visita(s) sincronizada(s)');
+}
+
+// ── Detectar reconexión y sincronizar automáticamente ─────────
 window.addEventListener('online', () => {
-  setTimeout(sincronizarPdfsPendientes, 3000);
+  setTimeout(() => sincronizarPendientesOnline(), 2000);
 });
-// También al cargar si hay internet
+// Al cargar la app con internet, revisar si hay pendientes
 window.addEventListener('load', () => {
-  if (navigator.onLine) setTimeout(sincronizarPdfsPendientes, 5000);
+  if (navigator.onLine) setTimeout(() => sincronizarPendientesOnline(), 4000);
 });
+
+// También escuchar mensaje del SW cuando completa sync
+navigator.serviceWorker?.addEventListener('message', event => {
+  if (event.data?.type === 'SYNC_COMPLETE') {
+    actualizarBadge();
+    showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
+  }
+});
+
+
+/* ── Generador interno de PDF (reutilizable para sync offline) ── */
+async function _generarDocPDF(d) {
+  if (!window.jspdf) return null;
+  // Usar logo precargado
+  let logoBase64 = _logoBase64Cached;
+  try {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
+    const PW = 215.9, PH = 279.4;
+    const ML = 12, MR = 12, MT = 12;
+    let y = MT;
+
+    // ── Paleta de colores ──
+    const NAVY   = [11, 31, 58];
+    const BLUE   = [21, 101, 192];
+    const ACCENT = [245, 158, 11];
+    const OK     = [22, 163, 74];
+    const NOK    = [220, 38, 38];
+    const WARN   = [234, 179, 8];
+    const MUTED  = [100, 116, 139];
+    const BGROW  = [241, 245, 249];
+    const WHITE  = [255, 255, 255];
+    const BORDER = [209, 217, 230];
+    const CW     = PW - ML - MR; // content width
+
+    // ── helpers ──
+    const setFont = (size, style='normal', color=null) => {
+      doc.setFontSize(size);
+      doc.setFont('helvetica', style);
+      if(color) doc.setTextColor(...color); else doc.setTextColor(30,41,59);
+    };
+    const rect = (x,yy,w,h,fill,stroke=null,r=0) => {
+      if(fill){ doc.setFillColor(...fill); }
+      if(stroke){ doc.setDrawColor(...stroke); doc.setLineWidth(.3); }
+      else { doc.setDrawColor(255,255,255); doc.setLineWidth(0); }
+      if(r>0) doc.roundedRect(x,yy,w,h,r,r,fill&&stroke?'FD':fill?'F':'D');
+      else    doc.rect(x,yy,w,h,fill&&stroke?'FD':fill?'F':'D');
+    };
+    const line = (x1,yy1,x2,yy2,color=BORDER,lw=.3) => {
+      doc.setDrawColor(...color); doc.setLineWidth(lw);
+      doc.line(x1,yy1,x2,yy2);
+    };
+    const txt = (t,x,yy,opts={}) => {
+      doc.text(String(t||'—'), x, yy, opts);
+    };
+    const checkPage = (needed=10) => {
+      if(y + needed > PH - 14) {
+        doc.addPage();
+        y = MT;
+        drawPageFooter();
+      }
+    };
+    const sectionHeader = (label, color=NAVY) => {
+      checkPage(10);
+      rect(ML, y, CW, 7, color);
+      setFont(8.5, 'bold', WHITE);
+      txt(label, ML+3, y+5);
+      y += 9;
+    };
+    const fieldRow = (label, value, x, yy, w, shade=false) => {
+      if(shade) rect(x, yy, w, 7, BGROW);
+      setFont(7, 'normal', MUTED); txt(label, x+2, yy+3);
+      setFont(8.5, 'bold');        txt(String(value||'—').slice(0,48), x+2, yy+6.5);
+    };
+    const twoCol = (items) => {
+      // items: [{label, value}] rendered in 2 columns
+      const half = Math.ceil(items.length/2);
+      const colW = CW/2;
+      for(let i=0;i<half;i++){
+        checkPage(8);
+        const shade = i%2===0;
+        fieldRow(items[i].label, items[i].value, ML, y, colW, shade);
+        if(items[i+half]) fieldRow(items[i+half].label, items[i+half].value, ML+colW, y, colW, shade);
+        y += 8;
+      }
+    };
+    const statusColor = (estado) => {
+      const e = (estado||'').toLowerCase();
+      if(e.includes('sin novedad'))  return OK;
+      if(e.includes('observaci'))    return WARN;
+      if(e.includes('manten'))       return [234,88,12];
+      if(e.includes('fuera'))        return NOK;
+      return MUTED;
+    };
+    const toggleBadge = (val, x, yy) => {
+      const v = (val||'').toUpperCase();
+      const isPos = ['SI','ON','OK','LTE','3G','EXTERNA'].includes(v);
+      const isNeg = ['NO','OFF','NOK'].includes(v);
+      const bg = isPos ? OK : isNeg ? NOK : BLUE;
+      rect(x, yy-3.5, 14, 5, bg, null, 2);
+      setFont(6.5,'bold',WHITE); txt(v||'—', x+7, yy, {align:'center'});
+    };
+
+    // ══════════════════════════════════════════════════════
+    //  ENCABEZADO
+    // ══════════════════════════════════════════════════════
+    // Franja superior navy
+    rect(0, 0, PW, 22, NAVY);
+    // Acento izquierdo
+    rect(0, 0, 4, 22, ACCENT);
+
+    // Logo empresa en esquina izquierda del encabezado
+    if(logoBase64) {
+      try { doc.addImage(logoBase64, 'PNG', 5, 2, 18, 18, '', 'FAST'); } catch(e){}
+    }
+    setFont(14,'bold',WHITE);
+    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 26, 9);
+    setFont(8,'normal',[245,158,11]);
+    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 26, 15);
+
+    // Chip de N° visita
+    rect(PW-MR-52, 3, 52, 7, [255,255,255,10]);
+    setFont(7,'normal',[200,210,230]); txt('N° VISITA', PW-MR-50, 7);
+    setFont(9,'bold',WHITE); txt(d.visitaNum||'—', PW-MR-50, 13);
+
+    y = 26;
+
+    // Banda de datos rápidos
+    rect(ML, y, CW, 9, BGROW, BORDER);
+    const quickItems = [
+      ['FECHA', d.fechaVisita||'—'],
+      ['TIPO',  d.tipoVisita||'—'],
+      ['LLEGADA', d.horaLlegada||'—'],
+      ['SALIDA', d.horaSalida||'—'],
+      ['ENERGIS', d.codigoEnergis||'—'],
+    ];
+    const qw = CW / quickItems.length;
+    quickItems.forEach((q,i) => {
+      if(i>0) line(ML+qw*i, y, ML+qw*i, y+9, BORDER);
+      setFont(6,'normal',MUTED); txt(q[0], ML+qw*i+qw/2, y+3.5, {align:'center'});
+      setFont(8,'bold');         txt(q[1], ML+qw*i+qw/2, y+8,   {align:'center'});
+    });
+    y += 13;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 1: DATOS GENERALES + RECONECTADOR (2 cols)
+    // ══════════════════════════════════════════════════════
+    sectionHeader('1 · IDENTIFICACIÓN DEL RESTAURADOR');
+    const colA = ML, colB = ML + CW/2, colW2 = CW/2;
+    const genItems = [
+      {label:'Circuito',    value:d.codigoCircuito},
+      {label:'Ubicación',   value:d.nombreUbicacion},
+        {label:'Subestación', value:d.subestacion},
+      {label:'Zona',        value:d.zona},
+      {label:'Sector',      value:d.sector},
+      {label:'Latitud',     value:d.latitud},
+      {label:'Longitud',    value:d.longitud},
+    ];
+    const reconItems = [
+      {label:'Tipo Reconectador', value:d.tipoRecon},
+      {label:'Marca',             value:d.marcaReconectador},
+      {label:'Modelo',            value:d.modeloRecon},
+      {label:'Serie Reconectador',value:d.serieRecon},
+      {label:'Tipo Control',      value:d.tipoControl},
+      {label:'Serie Control',     value:d.serieControl},
+      {label:'Firmware/Proview',  value:d.proviewControl},
+      {label:'Medio Extinción',   value:d.medioExtincion},
+    ];
+    const maxRows = Math.max(genItems.length, reconItems.length);
+    for(let i=0;i<maxRows;i++){
+      checkPage(8);
+      const shade = i%2===0;
+      if(genItems[i])   fieldRow(genItems[i].label,   genItems[i].value,   colA, y, colW2, shade);
+      if(reconItems[i]) fieldRow(reconItems[i].label, reconItems[i].value, colB, y, colW2, shade);
+      y += 8;
+    }
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 2: MÓDEMS
+    // ══════════════════════════════════════════════════════
+    if(d.hasModem1 || d.hasModem2) {
+      checkPage(12);
+      sectionHeader('2 · MÓDEMS DE COMUNICACIÓN');
+      const modemItems = [];
+      if(d.hasModem1) {
+        modemItems.push(
+          {label:'Tipo Módem 1',   value:d.tipoModem1},
+          {label:'Marca Módem 1',  value:d.marcaModem1},
+          {label:'Modelo Módem 1', value:d.modeloModem1},
+          {label:'Serie Módem 1',  value:d.serieModem1},
+          {label:'Antena 1',       value:d.antenaModem1 + (d.tipoAntena1 ? ' · '+d.tipoAntena1 : '')},
+          {label:'Tecnología 1',   value:d.tecModem1},
+        );
+      }
+      if(d.hasModem2) {
+        modemItems.push(
+          {label:'Tipo Módem 2',   value:d.tipoModem2},
+          {label:'Marca Módem 2',  value:d.marcaModem2},
+          {label:'Modelo Módem 2', value:d.modeloModem2},
+          {label:'Serie Módem 2',  value:d.serieModem2},
+          {label:'Antena 2',       value:d.antenaModem2 + (d.tipoAntena2 ? ' · '+d.tipoAntena2 : '')},
+          {label:'Tecnología 2',   value:d.tecModem2},
+        );
+      }
+      twoCol(modemItems);
+      y += 3;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 3: TABLERO DE CONTROL (dinámico por marca)
+    // ══════════════════════════════════════════════════════
+    const tableroCampos = d.tableroCampos || {};
+    const tableroEntries = Object.entries(tableroCampos).filter(([k,v2]) => v2);
+    if(tableroEntries.length > 0) {
+      checkPage(14);
+      sectionHeader('3 · TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
+      const tcols = 4, tw = CW / tcols;
+      for(let i=0;i<tableroEntries.length;i+=tcols){
+        checkPage(9);
+        const shade = (Math.floor(i/tcols))%2===0;
+        for(let j=0;j<tcols;j++){
+          const entry = tableroEntries[i+j];
+          if(!entry) continue;
+          const x = ML + tw*j;
+          if(shade) rect(x,y,tw,9,BGROW);
+          setFont(6.5,'normal',MUTED); txt(entry[0], x+2, y+3.5);
+          toggleBadge(entry[1], x+tw-17, y+5.5);
+        }
+        y += 9;
+      }
+      y += 3;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 4: ALARMA
+    // ══════════════════════════════════════════════════════
+    checkPage(14);
+    sectionHeader('4 · ALARMA');
+    const alarmaItems = [
+      ['Alarma Presente', d.alarmaPresente],
+      ['Reset Alarma',    d.resetAlarma],
+    ];
+    const aw = CW / 2;
+    alarmaItems.forEach((item, i) => {
+      const x = ML + aw * i;
+      rect(x, y, aw, 9, i%2===0 ? BGROW : WHITE);
+      setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
+      toggleBadge(item[1], x+aw-17, y+5.5);
+    });
+    y += 9;
+    if(d.descAlarma) {
+      checkPage(12);
+      const aLines = doc.splitTextToSize(d.descAlarma, CW-4);
+      const aH = Math.max(8, aLines.length*4.5+4);
+      setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML, y+4); y += 5;
+      rect(ML, y, CW, aH, BGROW, BORDER);
+      setFont(8,'normal'); doc.setTextColor(30,41,59);
+      doc.text(aLines, ML+3, y+4.5);
+      y += aH + 3;
+    }
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 5: BATERÍA
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('5 · BATERÍA');
+    // Mediciones en banda horizontal
+    checkPage(9);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    const medCols = [
+      ['MEDICIÓN AC (V)',      d.medicionAC],
+      ['MEDICIÓN BAT (V)',     d.medicionBat],
+      ['MEDICIÓN CARGADOR (V)',d.medicionCargador],
+    ];
+    const mw = CW / medCols.length;
+    medCols.forEach((m2,i) => {
+      if(i>0) line(ML+mw*i,y,ML+mw*i,y+9,BORDER);
+      setFont(6.5,'normal',MUTED); txt(m2[0], ML+mw*i+4, y+3.5);
+      setFont(10,'bold',BLUE);     txt(m2[1]||'—', ML+mw*i+4, y+8.5);
+    });
+    y += 11;
+    // Battery test + medición test
+    checkPage(9);
+    rect(ML, y, CW/2, 9, BGROW);
+    setFont(6.5,'normal',MUTED); txt('BATTERY TEST', ML+2, y+3.5);
+    toggleBadge(d.batteryTest, ML+CW/2-17, y+5.5);
+    rect(ML+CW/2, y, CW/4, 9, WHITE);
+    setFont(6.5,'normal',MUTED); txt('MEDICIÓN TEST (V)', ML+CW/2+2, y+3.5);
+    setFont(9,'bold',BLUE);      txt(d.batteryTestMedicion||'—', ML+CW/2+2, y+8);
+    rect(ML+CW*3/4, y, CW/4, 9, BGROW);
+    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+CW*3/4+2, y+3.5);
+    toggleBadge(d.cambioBaterias, ML+CW-17, y+5.5);
+    y += 12;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 6: CORRIENTES Y AJUSTES
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('6 · CORRIENTES Y AJUSTES');
+    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Fase (A)','C. Neutro (A)'];
+    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN, d.ajusteActivo, d.cApertFase, d.cApertNeutro];
+    const cw7 = CW / corrHeaders.length;
+    rect(ML, y, CW, 7, NAVY);
+    corrHeaders.forEach((h,i) => {
+      setFont(6.5,'bold',WHITE);
+      txt(h, ML+cw7*i+cw7/2, y+5, {align:'center'});
+    });
+    y += 7;
+    rect(ML, y, CW, 8, BGROW, BORDER);
+    corrVals.forEach((v2,i) => {
+      setFont(9,'bold',BLUE);
+      txt(v2||'—', ML+cw7*i+cw7/2, y+6, {align:'center'});
+    });
+    y += 12;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 7: ESTADO FÍSICO
+    // ══════════════════════════════════════════════════════
+    checkPage(20);
+    sectionHeader('7 · ESTADO FÍSICO DEL EQUIPO');
+    const fisItems = [
+      ['Gabinete',          d.gabinete],
+      ['Borneras',          d.borneras],
+      ['Ater. Restaurador', d.aterRestState],
+      ['Ater. Control',     d.aterCtrlState],
+      ['Ater. Potencial',   d.aterPotState],
+      ['Cable de Tierra',   d.cableTierra],
+      ['N° Varillas',       d.numVarillas],
+      ['Tipo Cuchilla',     d.tipoCuchilla],
+      ['Estado Cuchillas',  d.estadoCuchillas],
+      ['N° Cuchillas',      d.numCuchillas],
+      ['Pararrayos',        d.pararrayos],
+      ['N° Pararrayos',     d.numPararrayos],
+    ];
+    const fcols = 4, fw = CW/fcols;
+    for(let i=0;i<fisItems.length;i+=fcols){
+      checkPage(9);
+      const shade = (Math.floor(i/fcols))%2===0;
+      for(let j=0;j<fcols;j++){
+        const item = fisItems[i+j];
+        if(!item) continue;
+        const x = ML + fw*j;
+        if(shade) rect(x,y,fw,9,BGROW);
+        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
+        const isToggle = ['OK','NOK','SI','NO'].includes((item[1]||'').toUpperCase());
+        if(isToggle) toggleBadge(item[1], x+fw-17, y+5.5);
+        else { setFont(8,'bold'); txt(String(item[1]||'—').slice(0,14), x+2, y+8); }
+      }
+      y += 9;
+    }
+    // Medición aterrizaje
+    checkPage(10);
+    rect(ML, y, CW, 9, [232,240,254], BORDER);
+    const aterCols = [['ATER. CONTROL (Ohm)', d.aterControl],['ATER. RESTAURADOR (Ohm)', d.aterRestaurador],['ATER. OTROS (Ohm)', d.aterOtros]];
+    const atW = CW/3;
+    aterCols.forEach((a,i) => {
+      if(i>0) line(ML+atW*i,y,ML+atW*i,y+9,BORDER);
+      setFont(6.5,'normal',MUTED); txt(a[0], ML+atW*i+3, y+3.5);
+      setFont(9,'bold',BLUE);     txt(a[1]||'—', ML+atW*i+3, y+8.5);
+    });
+    y += 11;
+    // Obs estado físico
+    if(d.obsEstadoFisico) {
+      checkPage(12);
+      const ofLines = doc.splitTextToSize(d.obsEstadoFisico, CW-4);
+      const ofH = Math.max(8, ofLines.length*4.5+4);
+      setFont(7,'normal',MUTED); txt('OBSERVACIÓN ESTADO FÍSICO', ML, y+4); y+=5;
+      rect(ML, y, CW, ofH, BGROW, BORDER);
+      setFont(8,'normal'); doc.setTextColor(30,41,59);
+      doc.text(ofLines, ML+3, y+4.5);
+      y += ofH + 4;
+    }
+    y += 3;
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 8: MATERIALES
+    // ══════════════════════════════════════════════════════
+    const mats = d.materialesUtilizados || [];
+    if(mats.length > 0) {
+      checkPage(14);
+      sectionHeader('8 · MATERIALES UTILIZADOS');
+      rect(ML, y, CW, 7, BLUE);
+      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.50},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.16}];
+      let mx = ML;
+      matCols.forEach(mc => {
+        setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
+        mx += CW*mc.w;
+      });
+      y += 7;
+      mats.forEach((m,idx) => {
+        checkPage(8);
+        if(idx%2===0) rect(ML,y,CW,8,BGROW);
+        mx = ML;
+        const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
+        matCols.forEach((mc,ci) => {
+          const maxLen = ci===1 ? 58 : 18;
+          setFont(7.5, ci===0?'bold':'normal');
+          if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
+          txt(String(vals[ci]||'').slice(0,maxLen), mx+2, y+5.5);
+          mx += CW*mc.w;
+        });
+        y += 8;
+      });
+      // Obs materiales
+      if(d.obsMateriales) {
+        checkPage(10);
+        const omLines = doc.splitTextToSize('Obs: ' + d.obsMateriales, CW-4);
+        const omH = Math.max(8, omLines.length*4.5+4);
+        rect(ML, y, CW, omH, [255,251,235], ACCENT);
+        setFont(7.5,'normal',[146,64,14]); doc.text(omLines, ML+3, y+4.5);
+        y += omH;
+      }
+      y += 4;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 9: OBSERVACIONES
+    // ══════════════════════════════════════════════════════
+    if(d.obsGenerales) {
+      checkPage(16);
+      sectionHeader('9 · OBSERVACIONES');
+      const oLines = doc.splitTextToSize(d.obsGenerales, CW-4);
+      const oH = Math.max(10, oLines.length*4.5+4);
+      rect(ML, y, CW, oH, BGROW, BORDER);
+      setFont(8.5,'normal'); doc.setTextColor(30,41,59);
+      doc.text(oLines, ML+3, y+5);
+      y += oH + 4;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  SECCIÓN 10: PERSONAL + FIRMA
+    // ══════════════════════════════════════════════════════
+    checkPage(36);
+    sectionHeader('10 · PERSONAL DE VISITA Y FIRMA');
+
+    const personal = d.personal || [];
+    const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
+
+    // Personal (izquierda)
+    if(personal.length > 0) {
+      rect(ML, y, persW, 7, BLUE);
+      setFont(7,'bold',WHITE); txt('NOMBRE', ML+2, y+5);
+      setFont(7,'bold',WHITE); txt('CARGO', ML+persW*.55, y+5);
+      setFont(7,'bold',WHITE); txt('ID', ML+persW*.82, y+5);
+      y += 7;
+      personal.forEach((p,i) => {
+        checkPage(8);
+        if(i%2===0) rect(ML,y,persW,8,BGROW);
+        setFont(8,'bold');   txt((p.nombre||'—').slice(0,28), ML+2, y+5.5);
+        setFont(7.5,'normal',MUTED); txt((p.cargo||'—').slice(0,20), ML+persW*.55, y+5.5);
+        setFont(7.5,'normal');        txt(p.id||'—', ML+persW*.82, y+5.5);
+        y += 8;
+      });
+    }
+
+    // Firma (derecha) — alineada con la tabla de personal
+    // Alto de firma: mínimo 45mm (suficiente para imagen legible) o lo que ocupe el personal
+    const persTableH = personal.length * 8 + 7;  // alto real de la tabla de personal
+    const FIRMA_MIN_H = 45;                        // alto mínimo garantizado para la firma
+    const firmaBoxH   = Math.max(FIRMA_MIN_H, persTableH);
+    const firmaStartY = y - persTableH;            // alineado con la parte inferior de la tabla
+    const firmaX      = ML + persW + gap;
+
+    rect(firmaX, firmaStartY, firmaW, firmaBoxH, BGROW, BORDER);
+
+    // Etiqueta superior
+    setFont(7,'normal',MUTED);
+    txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
+    line(firmaX+4, firmaStartY+7, firmaX+firmaW-4, firmaStartY+7, BORDER, .2);
+
+    if(d.firmaImg && d.firmaImg.startsWith('data:image')) {
+      try {
+        // Imagen ocupa el espacio central dejando margen arriba (etiqueta) y abajo (nombre)
+        const fImgY = firmaStartY + 9;
+        const fImgH = firmaBoxH - 18;   // resta etiqueta (9) + nombre (9)
+        const fImgW = firmaW - 8;
+        doc.addImage(d.firmaImg, 'PNG', firmaX+4, fImgY, fImgW, fImgH, '', 'FAST');
+      } catch(e){}
+    } else {
+      setFont(8,'normal',MUTED);
+      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2 - 2, {align:'center'});
+    }
+
+    // Nombre del responsable al fondo
+    line(firmaX+4, firmaStartY+firmaBoxH-9, firmaX+firmaW-4, firmaStartY+firmaBoxH-9, BORDER, .2);
+    setFont(8,'bold'); doc.setTextColor(30,41,59);
+    txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
+
+    // Avanzar y hasta el fondo del box de firma (el más alto entre tabla y firmaBoxH)
+    y = firmaStartY + firmaBoxH + 6;
+
+    // ── Obs. del responsable — siempre DEBAJO de la firma ──
+    if(d.obsResponsable) {
+      checkPage(12);
+      const oLines = doc.splitTextToSize('Nota del responsable: ' + d.obsResponsable, CW-4);
+      const oH = Math.max(10, oLines.length*4.5+4);
+      rect(ML, y, CW, oH, [255,251,235], [245,158,11]);
+      setFont(7.5,'normal',[146,64,14]); doc.text(oLines, ML+3, y+5);
+      y += oH + 4;
+    }
+
+    // ══════════════════════════════════════════════════════
+    //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
+    // ══════════════════════════════════════════════════════
+    function drawPageFooter() {
+      const pages = doc.internal.getNumberOfPages();
+      for(let i=1;i<=pages;i++){
+        doc.setPage(i);
+        rect(0, PH-10, PW, 10, NAVY);
+        setFont(6.5,'normal',[150,170,200]);
+        txt('SCADA Distribución — Hoja de Visita · ' + (d.visitaNum||'') + ' · ' + (d.fechaVisita||''), ML, PH-4);
+        txt('Pág. '+i+' / '+pages, PW-MR, PH-4, {align:'right'});
+        txt('Generado: '+new Date().toLocaleString('es-HN'), PW/2, PH-4, {align:'center'});
+      }
+    }
+    drawPageFooter();
+
+    // ── Guardar ──
+    const filename = 'Ficha_' + (d.visitaNum||'visita') + '_' +
+                     (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
+    return doc; // devolver doc sin guardar
+  } catch(e) {
+    console.warn('_generarDocPDF error:', e);
+    return null;
+  }
+}
 
 </script>
 
@@ -3745,6 +3946,14 @@ window.addEventListener('load', () => {
 <div id="offlineBanner">📵 SIN CONEXIÓN — Las visitas se guardarán localmente y se sincronizarán al reconectar</div>
 <div id="syncBadge" class="hidden">
   ⬆️ <span id="syncCount">0</span> visita(s) pendiente(s)
+</div>
+
+
+<!-- ═══ SYNC OVERLAY ═══ -->
+<div id="syncOverlay">
+  <div class="sync-spinner"></div>
+  <div class="sync-title" id="syncOverlayTitle">Sincronizando...</div>
+  <div class="sync-sub"   id="syncOverlaySub">Subiendo visita y PDF al servidor</div>
 </div>
 
 </body>
