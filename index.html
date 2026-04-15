@@ -1,14 +1,17 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="es">
-<head> 
+<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0b1f3a"> 
+<meta name="theme-color" content="#0b1f3a">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Inspección Restauradores SCADA</title>
-<script type="text/javascript" src="https://gc.kes.v2.scr.kaspersky-labs.com/7EA5E9BB-55E1-4C31-9C21-4943DDFED2E4/main.js?attr=QkJWtk_66XYm0ofzgsi7IL-XKLQ1BTKh0sq8yiK5Ib_okmdf99R1oB9t7EHf-mCttW7PIt1HHk_MkV5tr70RxQZkfeysl1Xl2hnWE-GKPlnYX84DCeYJ4LJgAIxFv0wFAR8i5n_HE-7cpBYwbfDjOgx8m6g2KLJ0mOKAImbfsyEeFdZb0iJnzrScq_ACxAB-sjNAzcb3NA-ampaVnT2SiFORQm9B405eUDJU907yK8pr51Of-lQEWfwxHD6iK2Qhl4W6Vhv6-YQ4Ei6ls_FZcw" charset="UTF-8"></script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -19,10 +22,10 @@
   --nok:#dc2626; --nok-l:#fee2e2;
   --bg:#eef2f7; --card:#fff; --border:#d1d9e6;
   --text:#1e293b; --muted:#64748b; --inp:#f8fafc;
-  --sec-bg:#e8f0fe; 
-  --r:14px; --rs:8px; 
+  --sec-bg:#e8f0fe;
+  --r:14px; --rs:8px;
   --sh:0 2px 8px rgba(0,0,0,.08),0 0 1px rgba(0,0,0,.06);
-  --sh-lg:0 8px 32px rgba(0,0,0,.14); 
+  --sh-lg:0 8px 32px rgba(0,0,0,.14);
   --tbh:56px; --navh:64px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -715,6 +718,34 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* ── BATTERY TEST ROW ── */
 .batt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;}
 .batt-row .tg{width:100%;}
+
+/* ── BADGE PENDIENTES OFFLINE ── */
+#syncBadge{
+  display:none;
+  position:fixed;bottom:80px;right:16px;
+  background:var(--accent);color:var(--navy);
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:13px;
+  padding:8px 14px;border-radius:20px;
+  box-shadow:0 4px 16px rgba(245,158,11,.4);
+  z-index:7000;cursor:pointer;
+  display:flex;align-items:center;gap:6px;
+  animation:syncPulse 2s infinite;
+}
+#syncBadge.hidden{display:none!important;}
+@keyframes syncPulse{
+  0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);}
+  50%{box-shadow:0 4px 24px rgba(245,158,11,.7);}
+}
+#offlineBanner{
+  display:none;
+  position:fixed;top:var(--tbh);left:0;right:0;
+  background:var(--nok);color:#fff;
+  text-align:center;padding:6px;
+  font-size:12px;font-weight:700;
+  z-index:6999;letter-spacing:.3px;
+}
+#offlineBanner.show{display:block;}
 </style>
 </head>
 <body>
@@ -726,7 +757,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="so-ring" id="soRing"></div>
   </div>
   <div class="so-title" id="soTitle">Guardando visita...</div>
-  <div class="so-sub"   id="soSub">Guardando información en Cloudflare</div>
+  <div class="so-sub"   id="soSub">Enviando información a Google Sheets</div>
   <button class="so-btn" id="soBtn" onclick="cerrarSaveOverlay()">✔ Nueva Inspección</button>
 </div>
 
@@ -736,7 +767,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="pdf-card">
     <div class="pdf-check">✅</div>
     <div class="pdf-title">¡Visita Registrada!</div>
-    <div class="pdf-meta">Información guardada en Cloudflare</div>
+    <div class="pdf-meta">Información guardada en Google Sheets</div>
     <div class="pdf-num" id="pdfModalNum">HV-000000</div>
     <div class="pdf-divider"></div>
     <div class="pdf-preview" id="pdfPreview"></div>
@@ -761,7 +792,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="lo-dot"></div>
   </div>
   <div class="lo-bar-wrap"><div class="lo-bar" id="loBar"></div></div>
-  <div class="lo-msg" id="loMsg">Conectando con la base de datos...</div>
+  <div class="lo-msg" id="loMsg">Conectando con Google Sheets...</div>
 </div>
 
 
@@ -778,7 +809,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
   </div>
   <div class="tb-actions">
-    <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosIniciales()" title="Toca para recargar catálogos desde Cloudflare">⏳ Cargando BD...</span>
+    <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosSheets()" title="Toca para recargar desde Sheets">⏳ Cargando...</span>
     <button class="tb-btn" onclick="exportarJSON()" title="Exportar">⬇</button>
     <button class="tb-btn" onclick="window.print()" title="Imprimir">🖨</button>
     <button class="tb-btn" onclick="guardar()" title="Guardar">💾</button>
@@ -1399,27 +1430,27 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // URL del Cloudflare Worker — reemplaza con tu worker URL
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
-const API_BASE = ''; // Cloudflare Pages Functions en el mismo proyecto
-const WEBAPP_URL = API_BASE; // alias para compatibilidad
+const WORKER_URL = 'https://scada-worker.formulariosenee.workers.dev';
+const WEBAPP_URL = WORKER_URL; // alias para compatibilidad
 
-/* ── DATOS EN MEMORIA (se pueblan desde D1 o fallback) ── */
+/* ── DATOS EN MEMORIA (se pueblan desde Sheets o fallback) ── */
 let RESTS = [];
 let MATS  = [];
 let PERS_LIST = [];
 
 
 
-// Datos desde D1 (catálogos de tipos, marcas y tableros)
+// Datos desde Sheets (hojas Tipos y Marcas)
 let TIPOS_LIST  = [];   // [{tipo:'NOVA 15'}, ...]
 let MARCAS_LIST = [];   // [{marca:'NOVA', modelos:['NOVA 15','NOVA 38'], controles:['F-6','F-6 4.0.1']}]
 let MODEMS_LIST   = [];   // [{marca:'INHAND', elemento:'MODEM DATOS', modelos:['IR915']}, ...]
 let TABLEROS_LIST = [];   // [{marca:'COOPER', campos:[{campo:'Ground Trip Blocked',orden:1},...]}]
 
 /* ── INDICADOR DE FUENTE DE DATOS ── */
-let dataSource = 'fallback'; // 'd1' | 'fallback' | 'loading'
+let dataSource = 'fallback'; // 'sheets' | 'fallback' | 'loading'
 
 /* ══════════════════════════════════════════════════════════════
-   CARGA DE DATOS DESDE CLOUDFLARE D1 (Pages Functions)
+   CARGA DE DATOS DESDE GOOGLE SHEETS (Apps Script Web App)
 ══════════════════════════════════════════════════════════════ */
 /* ── Helpers del overlay ── */
 function loMsg(txt, cls) {
@@ -1437,9 +1468,19 @@ function ocultarOverlay() {
   if (ov) ov.classList.add('hide');
 }
 
-async function cargarDatosIniciales() {
+async function cargarDatosSheets() {
   // Sin URL configurada → el formulario queda vacío, se avisa al usuario
-  loMsg('Conectando con la base de datos...', '');
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
+    loMsg('⚠️ URL de Sheets no configurada', 'err');
+    loBar(100);
+    setDataSourceBadge('sin-url');
+    agregarPers();
+    setTimeout(ocultarOverlay, 1500);
+    return;
+  }
+
+  // Con URL: mostrar progreso y bloquear hasta que termine
+  loMsg('Conectando con Google Sheets...', '');
   loBar(10);
   setDataSourceBadge('loading');
 
@@ -1447,7 +1488,7 @@ async function cargarDatosIniciales() {
     loBar(30);
     loMsg('Leyendo catálogos y restauradores...', '');
 
-    const resp = await fetch(`${API_BASE}/api/data?action=all`, {
+    const resp = await fetch(WORKER_URL + '/api/data?action=all', {
       method: 'GET',
       cache:  'no-cache'
     });
@@ -1476,8 +1517,8 @@ async function cargarDatosIniciales() {
           MATS.length + ' materiales · ' +
           PERS_LIST.length + ' técnicos', 'ok');
 
-    dataSource = 'd1';
-    setDataSourceBadge('d1', json.updated);
+    dataSource = 'sheets';
+    setDataSourceBadge('sheets', json.updated);
 
     // Crear tarjeta inicial de técnico AHORA que PERS_LIST ya tiene datos
     agregarPers();
@@ -1485,23 +1526,23 @@ async function cargarDatosIniciales() {
     // Pequeña pausa para que el usuario vea el mensaje de éxito
     setTimeout(() => {
       ocultarOverlay();
-      showToast('✅ Datos cargados desde Cloudflare D1');
+      showToast('✅ Datos cargados desde Google Sheets');
     }, 1000);
 
   } catch (err) {
-    console.warn('D1 no disponible:', err.message);
+    console.warn('Sheets no disponible:', err.message);
     RESTS = [];
     MATS  = [];
     dataSource = 'error';
     setDataSourceBadge('error');
 
     loBar(100);
-    loMsg('No se pudo conectar con la base de datos', 'err');
+    loMsg('No se pudo conectar con Google Sheets', 'err');
 
     agregarPers();
     setTimeout(() => {
       ocultarOverlay();
-      showToast('❌ Sin conexión a la base de datos — verifica tu red o el proyecto Pages');
+      showToast('❌ Sin conexión a Sheets — verifica tu red o la URL');
     }, 1800);
   }
 }
@@ -1511,20 +1552,20 @@ function setDataSourceBadge(state, updated) {
   const el = document.getElementById('dataBadge');
   if (!el) return;
   const labels = {
-    loading  : '⏳ Cargando BD...',
-    d1       : '🟢 D1 en vivo',
+    loading  : '⏳ Cargando...',
+    sheets   : '🟢 Sheets en vivo',
     error    : '🔴 Sin conexión',
     'sin-url': '⚙️ Sin configurar'
   };
   const colors = {
     loading  : 'rgba(255,255,255,.15)',
-    d1       : 'rgba(22,163,74,.3)',
+    sheets   : 'rgba(22,163,74,.3)',
     error    : 'rgba(220,38,38,.3)',
     'sin-url': 'rgba(245,158,11,.25)'
   };
   el.textContent = labels[state] || state;
   el.style.background = colors[state] || 'rgba(255,255,255,.1)';
-  if (state === 'd1' && updated) {
+  if (state === 'sheets' && updated) {
     const d = new Date(updated);
     el.title = 'Actualizado: ' + d.toLocaleTimeString();
   }
@@ -1699,8 +1740,8 @@ function updModelosModem(n) {
   selMod.innerHTML = '<option value="">— Modelo —</option>' +
     (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
 
-  // Autosugerir tipo según el elemento de la marca en D1
-  // MODEMS_LIST incluye el campo 'elemento' que viene de la API
+  // Autosugerir tipo según el elemento de la marca en Sheets
+  // MODEMS_LIST incluye el campo 'elemento' que viene del Code.gs
   if (found && found.elemento && selTipo) {
     const tipoMap = {
       'MODEM DATOS'      : 'Modem Datos',
@@ -1923,7 +1964,7 @@ function getData() {
     }
   });
 
-  // Personal — soporta tanto select (con D1) como input texto (fallback)
+  // Personal — soporta tanto select (con Sheets) como input texto (fallback)
   const personal = [];
   document.querySelectorAll('.pers-card').forEach(c => {
     const selNombre = c.querySelector('.pers-nombre-select');
@@ -2072,7 +2113,7 @@ function mostrarSaveOverlay() {
   icon.className  = 'so-icon saving';
   icon.innerHTML  = '<div class="so-ring" id="soRing"></div>';
   title.textContent = 'Guardando visita...';
-  sub.textContent   = 'Guardando información en Cloudflare';
+  sub.textContent   = 'Enviando información a Google Sheets';
   sub.className     = 'so-sub';
   btn.style.display = 'none';
   btn.className     = 'so-btn';
@@ -2145,20 +2186,26 @@ function limpiarFormulario() {
   updP();
 }
 
-/* ── GUARDAR: local + Cloudflare ── */
+/* ── GUARDAR: local + Google Sheets ── */
 async function guardar() {
   const d = getData();
 
   // Respaldo local siempre
   try { localStorage.setItem('vis_' + Date.now(), JSON.stringify(d)); } catch(e) {}
 
+  // Sin URL configurada
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
+    mostrarSaveOverlay();
+    saveOverlayError('URL de Apps Script no configurada — visita guardada solo localmente');
+    return;
+  }
+
   // Mostrar overlay bloqueante
   mostrarSaveOverlay();
 
   try {
-    // PDF se sube a R2 después del guardado exitoso desde descargarFichaPDF()
 
-    const resp = await fetch(`${API_BASE}/api/save`, {
+    const resp = await fetch(WORKER_URL + '/api/save', {
       method  : 'POST',
       body    : JSON.stringify(d),
       headers : { 'Content-Type': 'application/json' }
@@ -2170,10 +2217,10 @@ async function guardar() {
       _lastData = d; // guardar referencia para el PDF
       saveOverlayExito(json.visitaNum || d.visitaNum, json.fila);
     } else {
-      saveOverlayError('Error al guardar: ' + json.message + ' — visita guardada localmente');
+      saveOverlayError('Error en Sheets: ' + json.message + ' — visita guardada localmente');
     }
   } catch (err) {
-    saveOverlayError('Sin conexión a Cloudflare — visita guardada localmente');
+    saveOverlayError('Sin conexión a Google Sheets — visita guardada localmente');
   }
 }
 
@@ -2763,50 +2810,21 @@ async function descargarFichaPDF() {
                      (d.codigoCircuito||'').replace(/[^a-zA-Z0-9]/g,'-') + '.pdf';
     doc.save(filename);
 
-    // Subir PDF a R2 y luego persistir la key en D1
-    try {
-      const pdfBlob   = doc.output('blob');
-      const pdfBase64 = await new Promise(res => {
-        const reader = new FileReader();
-        reader.onloadend = () => res(reader.result.split(',')[1]);
-        reader.readAsDataURL(pdfBlob);
-      });
-
-      const pdfUploadResp = await fetch(`${API_BASE}/api/pdf`, {
-        method : 'POST',
-        body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      if (!pdfUploadResp.ok) {
-        throw new Error(`Upload PDF falló con status ${pdfUploadResp.status}`);
-      }
-
-      const pdfUploadJson = await pdfUploadResp.json();
-
-      if (pdfUploadJson?.status === 'ok' && pdfUploadJson?.key) {
-        const saveKeyResp = await fetch(`${API_BASE}/api/save-pdf-key`, {
+    // Subir PDF a R2
+    if (WORKER_URL && !WORKER_URL.includes('REEMPLAZAR')) {
+      try {
+        const pdfBlob   = doc.output('blob');
+        const pdfBase64 = await new Promise(res => {
+          const reader = new FileReader();
+          reader.onloadend = () => res(reader.result.split(',')[1]);
+          reader.readAsDataURL(pdfBlob);
+        });
+        await fetch(WORKER_URL + '/api/pdf', {
           method : 'POST',
-          body   : JSON.stringify({
-            visitaNum: d.visitaNum,
-            pdfR2Key : pdfUploadJson.key
-          }),
+          body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
           headers: { 'Content-Type': 'application/json' }
         });
-
-        if (!saveKeyResp.ok) {
-          console.warn('PDF subido a R2, pero no se pudo guardar pdf_r2_key en D1.', saveKeyResp.status);
-        } else {
-          const saveKeyJson = await saveKeyResp.json().catch(() => null);
-          if (saveKeyJson?.status !== 'ok') {
-            console.warn('PDF subido a R2, pero la API save-pdf-key no devolvió ok.', saveKeyJson);
-          }
-        }
-      } else {
-        console.warn('La API /api/pdf no devolvió una key válida.', pdfUploadJson);
-      }
-    } catch(e) {
-      console.warn('PDF R2 upload failed:', e);
+      } catch(e) { console.warn('PDF R2 upload failed:', e); }
     }
 
     // Cerrar modal y limpiar formulario
@@ -2824,7 +2842,7 @@ async function descargarFichaPDF() {
 
 
 /* ══════════════════════════════════════════════════════════════
-   PANEL DE ADMINISTRACIÓN — CRUD completo via Pages Functions
+   PANEL DE ADMINISTRACIÓN — CRUD completo via Apps Script
    Diseño: menú lateral de navegación + página fullscreen
 ══════════════════════════════════════════════════════════════ */
 
@@ -2940,10 +2958,15 @@ function cerrarAdminPage() {
   admCurrentTab = null;
 }
 
-/* ── Cargar datos desde Cloudflare D1 ── */
+/* ── Cargar datos desde Sheets ── */
 async function admCargarTabla(seccion) {
+  if (!WORKER_URL || WORKER_URL.includes('REEMPLAZAR')) {
+    document.getElementById('admTableWrap').innerHTML =
+      '<div class="adm-empty">⚙️ Configura WEBAPP_URL para usar el admin</div>';
+    return;
+  }
   try {
-    const resp = await fetch(`${API_BASE}/api/admin?section=${seccion}&raw=1`, { cache:'no-cache' });
+    const resp = await fetch(WORKER_URL + '/api/admin?section=' + seccion + '&raw=1', { cache:'no-cache' });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
     admCurrentData = json.rows || [];
@@ -3113,7 +3136,7 @@ async function guardarAdmForm() {
       id      : admEditRowNum,
       data    : rowData
     };
-    const resp = await fetch(`${API_BASE}/api/admin`, {
+    const resp = await fetch(WORKER_URL + '/api/admin', {
       method:'POST', body:JSON.stringify(payload),
       headers:{'Content-Type':'application/json'}
     });
@@ -3122,14 +3145,14 @@ async function guardarAdmForm() {
 
     admOpSuccess(
       esEdicion ? '✓ Registro actualizado' : '✓ Registro guardado',
-      'Los cambios se aplicaron en Cloudflare'
+      'Los cambios se aplicaron en Google Sheets'
     );
     // Breve pausa para mostrar el éxito, luego cerrar form y recargar tabla
     // admOpHide() lo llamará admRenderTabla cuando la tabla esté lista
     setTimeout(() => {
       cerrarAdmForm();
       admCargarTabla(seccion);
-      cargarDatosIniciales();
+      cargarDatosSheets();
     }, 1000);
 
   } catch(err) {
@@ -3146,22 +3169,22 @@ async function admEliminar(idx) {
     .slice(0,3).map(([,v])=>v).filter(Boolean).join(' · ');
   if (!confirm('¿Eliminar este registro? ' + preview)) return;
 
-  admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en la base de datos');
+  admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en Google Sheets');
 
   try {
     const payload = { action:'delete', section:admCurrentTab, id:row._rowNum };
-    const resp = await fetch(`${API_BASE}/api/admin`, {
+    const resp = await fetch(WORKER_URL + '/api/admin', {
       method:'POST', body:JSON.stringify(payload),
       headers:{'Content-Type':'application/json'}
     });
     const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
 
-    admOpSuccess('✓ Registro eliminado', 'El registro fue eliminado correctamente');
+    admOpSuccess('✓ Registro eliminado', 'El registro fue removido del Sheet');
     // admOpHide() lo llamará admRenderTabla al terminar de renderizar
     setTimeout(() => {
       admCargarTabla(admCurrentTab);
-      cargarDatosIniciales();
+      cargarDatosSheets();
     }, 900);
 
   } catch(err) {
@@ -3217,8 +3240,8 @@ function admTab(sec, btn) { admAbrirPagina(sec, btn); }
 
 /* ══════════════════════════════════════════════════════════════
    TABLERO DINÁMICO — se renderiza según marca del reconectador
-   TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde D1
-   Datos precargados (fallback) + desde D1
+   TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde Sheets
+   Datos precargados (fallback) + desde Sheets
 ══════════════════════════════════════════════════════════════ */
 
 
@@ -3241,7 +3264,7 @@ function renderTabliero(marca) {
     return;
   }
 
-  // Buscar en D1 primero, luego fallback
+  // Buscar en Sheets primero, luego fallback
   const fuente = TABLEROS_LIST;
   const tablero = fuente.find(t => t.marca.toUpperCase() === marca.toUpperCase());
 
@@ -3418,7 +3441,7 @@ async function guardarTableroModal() {
     if (isEdit) {
       // Eliminar filas existentes de esa marca y reinsertar
       for (const rn of admTableroRowNums) {
-        await fetch(`${API_BASE}/api/admin`, {
+        await fetch(WORKER_URL + '/api/admin', {
           method:'POST',
           body:JSON.stringify({ action:'delete', section:'tableros', id:rn }),
           headers:{'Content-Type':'application/json'}
@@ -3428,7 +3451,7 @@ async function guardarTableroModal() {
 
     // Insertar todas las filas nuevas
     for (const fila of filas) {
-      const resp = await fetch(`${API_BASE}/api/admin`, {
+      const resp = await fetch(WORKER_URL + '/api/admin', {
         method:'POST',
         body:JSON.stringify({ action:'insert', section:'tableros', data:fila }),
         headers:{'Content-Type':'application/json'}
@@ -3441,7 +3464,7 @@ async function guardarTableroModal() {
     setTimeout(() => {
       cerrarTableroModal();
       admCargarTabla('tableros');
-      cargarDatosIniciales();
+      cargarDatosSheets();
     }, 1000);
 
   } catch(err) {
@@ -3461,11 +3484,92 @@ window.addEventListener('DOMContentLoaded',()=>{
   rsCanvas();
   window.addEventListener('resize',rsCanvas);
   document.getElementById('btnPrev').disabled=true;
-  // Cargar datos desde D1 primero, luego crear tarjeta de técnico
-  // para que el selector de personal ya tenga los datos correctamente
-  cargarDatosIniciales();
+  // Cargar datos desde Sheets primero, luego crear tarjeta de técnico
+  // para que el selector de personal ya tenga los datos del Sheet
+  cargarDatosSheets();
   updP();
 });
+
+/* ══════════════════════════════════════════════════════════════
+   PWA — Service Worker + Offline + Background Sync
+══════════════════════════════════════════════════════════════ */
+
+// Registrar Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('/sw.js');
+      console.log('SW registrado:', reg.scope);
+    } catch(e) {
+      console.warn('SW no se pudo registrar:', e);
+    }
+  });
+
+  // Escuchar mensajes del SW (sync completado)
+  navigator.serviceWorker.addEventListener('message', event => {
+    if (event.data?.type === 'SYNC_COMPLETE') {
+      const count = event.data.count;
+      mostrarToast(`✅ ${count} visita(s) sincronizada(s) con el servidor`);
+      actualizarBadgePendientes();
+    }
+  });
+}
+
+// Detectar online/offline
+window.addEventListener('online',  () => {
+  document.getElementById('offlineBanner').classList.remove('show');
+  actualizarBadgePendientes();
+});
+window.addEventListener('offline', () => {
+  document.getElementById('offlineBanner').classList.add('show');
+});
+// Estado inicial
+if (!navigator.onLine) {
+  document.getElementById('offlineBanner').classList.add('show');
+}
+
+// Contar visitas pendientes en IndexedDB
+async function contarPendientes() {
+  return new Promise(resolve => {
+    const req = indexedDB.open('scadaDB', 1);
+    req.onsuccess = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
+      const tx    = db.transaction('pendientes','readonly');
+      const store = tx.objectStore('pendientes');
+      const count = store.count();
+      count.onsuccess = () => resolve(count.result);
+      count.onerror   = () => resolve(0);
+    };
+    req.onerror = () => resolve(0);
+  });
+}
+
+async function actualizarBadgePendientes() {
+  const n     = await contarPendientes();
+  const badge = document.getElementById('syncBadge');
+  document.getElementById('syncCount').textContent = n;
+  if (n > 0) { badge.classList.remove('hidden'); }
+  else        { badge.classList.add('hidden'); }
+}
+
+function verPendientes() {
+  mostrarToast('⏳ Sincronizando cuando haya conexión estable...');
+}
+
+// Revisar pendientes al cargar
+window.addEventListener('load', () => setTimeout(actualizarBadgePendientes, 1500));
+
+// Guardar overlay — mostrar mensaje offline si aplica
+const _origGuardar = typeof guardar === 'function' ? guardar : null;
+
 </script>
+
+<!-- ═══ OFFLINE BADGE + BANNER ═══ -->
+<div id="offlineBanner">📵 SIN CONEXIÓN — Las visitas se guardarán localmente</div>
+<div id="syncBadge" class="hidden" onclick="verPendientes()">
+  ⬆️ <span id="syncCount">0</span> pendiente(s) de sincronizar
+</div>
+
 </body>
 </html>
