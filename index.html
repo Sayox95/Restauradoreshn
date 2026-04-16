@@ -3683,8 +3683,15 @@ async function sincronizarPendientesOnline() {
 // ── Detectar reconexión y sincronizar automáticamente ─────────
 window.addEventListener('online', async () => {
   setTimeout(async () => {
-    dlog('[ONLINE] Conexión detectada — iniciando sync...');
-    await sincronizarPendientesOnline();
+    dlog('[ONLINE] Conexión detectada — revisando pendientes...');
+    const visitas = await getPendientesDB();
+    const pdfs    = await getPdfsPendientes();
+    dlog('[ONLINE] Visitas: ' + visitas.length + ' | PDFs: ' + pdfs.length);
+    if (visitas.length > 0 || pdfs.length > 0) {
+      await sincronizarPendientesOnline();
+    } else {
+      dlog('[ONLINE] Nada pendiente, no se sincroniza');
+    }
   }, 2000);
 });
 // Al cargar la app con internet, revisar si hay pendientes
@@ -4718,6 +4725,33 @@ function toggleDebug() {
   el.style.display = 'block';
   if (!isVisible) el.scrollTop = el.scrollHeight;
 }
+
+
+/* ── Limpiar PDFs con formato incorrecto del IndexedDB ── */
+async function limpiarPdfsCorruptos() {
+  try {
+    const db   = await abrirScadaDB();
+    const pdfs = await getPdfsPendientes();
+    // PDFs válidos tienen visitaNum que empieza con 'HV-'
+    const corruptos = pdfs.filter(p => !p.visitaNum || !String(p.visitaNum).startsWith('HV-'));
+    if (!corruptos.length) return;
+    console.log('[PDF] Limpiando', corruptos.length, 'PDFs con formato incorrecto...');
+    // Limpiar todo el store y re-insertar solo los válidos
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction('pdfs_pendientes', 'readwrite');
+      tx.objectStore('pdfs_pendientes').clear();
+      tx.oncomplete = resolve;
+      tx.onerror    = reject;
+    });
+    // Re-insertar los válidos
+    const validos = pdfs.filter(p => p.visitaNum && String(p.visitaNum).startsWith('HV-'));
+    for (const pdf of validos) {
+      await guardarPdfOffline(pdf.visitaNum, pdf.pdfBase64);
+    }
+    console.log('[PDF] Limpieza completada. Válidos conservados:', validos.length);
+  } catch(e) { console.warn('limpiarPdfsCorruptos:', e); }
+}
+window.addEventListener('load', () => setTimeout(limpiarPdfsCorruptos, 3000));
 
 </script>
 
