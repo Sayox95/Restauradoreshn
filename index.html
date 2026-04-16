@@ -3362,7 +3362,7 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 
 /* ── DB UNIFICADA — versión 3, todos los stores ── */
-const SCADA_DB_VERSION = 9;
+const SCADA_DB_VERSION = 10;
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
@@ -3386,8 +3386,8 @@ function abrirScadaDB() {
         s.createIndex('visitaNum','visitaNum',{unique:false});
         s.createIndex('savedAt','savedAt',{unique:false});
       }
-      if (!db.objectStoreNames.contains('pdfs_pendientes'))
-        db.createObjectStore('pdfs_pendientes', { autoIncrement:true });
+      if (!db.objectStoreNames.contains('pdf_queue'))
+        db.createObjectStore('pdf_queue', { autoIncrement:true });
       if (!db.objectStoreNames.contains('fotos_offline'))
         db.createObjectStore('fotos_offline', { keyPath:'visitaNum' });
       if (!db.objectStoreNames.contains('catalogos'))
@@ -4583,7 +4583,7 @@ async function eliminarFotosOffline(visitaNum) {
 
 
 /* ── PDFs pendientes de subir a R2 ── */
-// ── PDFs pendientes — usan store 'pdfs_pendientes' con keyPath 'visitaNum' ──
+// ── PDFs pendientes — usan store 'pdf_queue' con keyPath 'visitaNum' ──
 // NOTA: el store se crea en abrirScadaDB con autoIncrement:true pero usamos
 // visitaNum como identificador único via put() con key explícita
 
@@ -4591,9 +4591,9 @@ async function guardarPdfOffline(visitaNum, pdfBase64) {
   try {
     const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
-      const tx = db.transaction('pdfs_pendientes', 'readwrite');
+      const tx = db.transaction('pdf_queue', 'readwrite');
       // put() reemplaza si ya existe (keyPath = visitaNum)
-      tx.objectStore('pdfs_pendientes').put({ visitaNum, pdfBase64, savedAt: Date.now() });
+      tx.objectStore('pdf_queue').put({ visitaNum, pdfBase64, savedAt: Date.now() });
       tx.oncomplete = () => {
         console.log('✅ PDF guardado offline:', visitaNum);
         // Verificar inmediatamente que quedó guardado
@@ -4610,13 +4610,13 @@ async function getPdfsPendientes() {
     const db = await abrirScadaDB();
     console.log('[PDF] DB version:', db.version, '| Stores:', [...db.objectStoreNames]);
     return new Promise(resolve => {
-      if (!db.objectStoreNames.contains('pdfs_pendientes')) {
+      if (!db.objectStoreNames.contains('pdf_queue')) {
         console.warn('[PDF] Store pdfs_pendientes NO EXISTE en la DB');
         resolve([]);
         return;
       }
-      const tx  = db.transaction('pdfs_pendientes', 'readonly');
-      const req = tx.objectStore('pdfs_pendientes').getAll();
+      const tx  = db.transaction('pdf_queue', 'readonly');
+      const req = tx.objectStore('pdf_queue').getAll();
       req.onsuccess = e => {
         const items = e.target.result || [];
         console.log('[PDF] PDFs pendientes encontrados:', items.length, items.map(i => i.visitaNum));
@@ -4631,23 +4631,33 @@ async function getPdfsPendientes() {
 async function eliminarPdfOffline(visitaNum) {
   try {
     const db = await abrirScadaDB();
-    dlog('[PDF] Eliminando PDF: ' + visitaNum + ' | keyPath store: ' + db.objectStoreNames.contains('pdfs_pendientes'));
+    dlog('[PDF] Eliminando PDF por cursor: ' + visitaNum);
     await new Promise((resolve, reject) => {
-      const tx    = db.transaction('pdfs_pendientes', 'readwrite');
-      const store = tx.objectStore('pdfs_pendientes');
+      const tx    = db.transaction('pdf_queue', 'readwrite');
+      const store = tx.objectStore('pdf_queue');
       dlog('[PDF] Store keyPath: ' + store.keyPath);
-      const req   = store.delete(visitaNum);
-      req.onsuccess = () => dlog('[PDF] ✅ Delete request OK para: ' + visitaNum);
-      req.onerror   = e => dlog('[PDF] ❌ Delete error: ' + e.target.error);
-      tx.oncomplete = () => { dlog('[PDF] ✅ Transacción delete completa: ' + visitaNum); resolve(); };
-      tx.onerror    = e => { dlog('[PDF] ❌ Tx error: ' + e.target.error); resolve(); };
+      // Usar cursor para encontrar y eliminar por visitaNum independiente del keyPath
+      const req = store.openCursor();
+      req.onsuccess = e => {
+        const cursor = e.target.result;
+        if (!cursor) { dlog('[PDF] Cursor fin — no encontrado: ' + visitaNum); resolve(); return; }
+        if (cursor.value.visitaNum === visitaNum) {
+          const delReq = cursor.delete();
+          delReq.onsuccess = () => dlog('[PDF] ✅ Eliminado por cursor: ' + visitaNum);
+          delReq.onerror   = e => dlog('[PDF] ❌ cursor.delete error: ' + e.target.error);
+          resolve();
+        } else {
+          cursor.continue();
+        }
+      };
+      req.onerror   = e => { dlog('[PDF] ❌ cursor error: ' + e.target.error); resolve(); };
+      tx.oncomplete = () => resolve();
+      tx.onerror    = e => { dlog('[PDF] ❌ tx error: ' + e.target.error); resolve(); };
     });
-    // Verificar que se eliminó
     const restantes = await getPdfsPendientes();
     dlog('[PDF] PDFs restantes después de delete: ' + restantes.length);
   } catch(e) {
     dlog('[PDF] ❌ eliminarPdfOffline catch: ' + e.message);
-    console.warn('eliminarPdfOffline:', e);
   }
 }
 
@@ -4754,13 +4764,13 @@ function toggleDebug() {
 
 /* ── Limpiar store de PDFs (ejecutar una sola vez via flag en localStorage) ── */
 async function limpiarPdfsStore() {
-  const FLAG = 'pdfs_store_cleared_v9';
+  const FLAG = 'pdfs_store_cleared_v10';
   if (localStorage.getItem(FLAG)) return; // ya se limpió
   try {
     const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
-      const tx = db.transaction('pdfs_pendientes', 'readwrite');
-      tx.objectStore('pdfs_pendientes').clear();
+      const tx = db.transaction('pdf_queue', 'readwrite');
+      tx.objectStore('pdf_queue').clear();
       tx.oncomplete = resolve;
       tx.onerror    = reject;
     });

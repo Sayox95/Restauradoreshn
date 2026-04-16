@@ -11,13 +11,13 @@
  *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604161300';
+const CACHE_NAME    = 'scada-202604161400';
 const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
-const DB_VERSION    = 9;
+const DB_VERSION    = 10;
 const STORE_PENDING = 'pendientes';
-const STORE_PDFS    = 'pdfs_pendientes';
+const STORE_PDFS    = 'pdf_queue';
 
 // Assets que se cachean en el install (críticos para offline)
 const STATIC_ASSETS = [
@@ -247,10 +247,9 @@ function abrirDB() {
         store.createIndex('visitaNum', 'visitaNum', { unique: false });
         store.createIndex('savedAt',   'savedAt',   { unique: false });
       }
-      // Siempre recrear para garantizar keyPath correcto
-      if (db.objectStoreNames.contains(STORE_PDFS))
-        db.deleteObjectStore(STORE_PDFS);
-      db.createObjectStore(STORE_PDFS, { keyPath: 'visitaNum' });
+      // Nuevo store limpio con keyPath correcto
+      if (!db.objectStoreNames.contains(STORE_PDFS))
+        db.createObjectStore(STORE_PDFS, { keyPath: 'visitaNum' });
       if (!db.objectStoreNames.contains('fotos_offline')) {
         db.createObjectStore('fotos_offline', { keyPath: 'visitaNum' });
       }
