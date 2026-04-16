@@ -1687,7 +1687,7 @@ const IDB_CATALOGOS_KEY = 'catalogos_v1';
 
 async function guardarCatalogosLocal(data) {
   return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
+    const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('catalogos'))
@@ -1708,7 +1708,7 @@ async function guardarCatalogosLocal(data) {
 
 async function leerCatalogosLocal() {
   return new Promise(resolve => {
-    const req = indexedDB.open('scadaDB', 1);
+    const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if (!db.objectStoreNames.contains('catalogos'))
@@ -3359,31 +3359,49 @@ window.addEventListener('offline', actualizarEstadoConexion);
 document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 
 // ── IndexedDB — contar visitas pendientes ───────────────────────
-async function contarPendientes() {
-  return new Promise(resolve => {
-    try {
-      const req = indexedDB.open('scadaDB', 2);
-      req.onupgradeneeded = e => {
-        const db = e.target.result;
-        if (!db.objectStoreNames.contains('pendientes'))
-          db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-        if (!db.objectStoreNames.contains('pdfs_pendientes'))
-          db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
-      };
-      req.onsuccess = e => {
-        try {
-          const db = e.target.result;
-          if (!db.objectStoreNames.contains('pendientes')) { resolve(0); return; }
-          const tx    = db.transaction('pendientes','readonly');
-          const count = tx.objectStore('pendientes').count();
-          count.onsuccess = () => resolve(count.result || 0);
-          count.onerror   = () => resolve(0);
-          tx.onerror      = () => resolve(0);
-        } catch(e) { resolve(0); }
-      };
-      req.onerror = () => resolve(0);
-    } catch(e) { resolve(0); }
+
+/* ── DB UNIFICADA — versión 3, todos los stores ── */
+const SCADA_DB_VERSION = 3;
+let _scadaDB = null; // cache de conexión
+
+function abrirScadaDB() {
+  if (_scadaDB) return Promise.resolve(_scadaDB);
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes')) {
+        const s = db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+        s.createIndex('visitaNum','visitaNum',{unique:false});
+        s.createIndex('savedAt','savedAt',{unique:false});
+      }
+      if (!db.objectStoreNames.contains('pdfs_pendientes'))
+        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
+      if (!db.objectStoreNames.contains('fotos_offline'))
+        db.createObjectStore('fotos_offline', { keyPath:'visitaNum' });
+    };
+    req.onsuccess  = e => { _scadaDB = e.target.result; resolve(_scadaDB); };
+    req.onerror    = e => reject(e.target.error);
+    req.onblocked  = () => { _scadaDB = null; reject(new Error('DB bloqueada')); };
   });
+}
+
+// Alias para compatibilidad
+const abrirDBSync  = abrirScadaDB;
+const abrirDBFotos = abrirScadaDB;
+
+async function contarPendientes() {
+  try {
+    const db    = await abrirScadaDB();
+    const count = await new Promise((resolve, reject) => {
+      const tx  = db.transaction('pendientes','readonly');
+      const req = tx.objectStore('pendientes').count();
+      req.onsuccess = e => resolve(e.target.result || 0);
+      req.onerror   = () => resolve(0);
+      tx.onerror    = () => resolve(0);
+    });
+    return count;
+  } catch(e) { return 0; }
 }
 
 async function actualizarBadge() {
@@ -3468,20 +3486,7 @@ function ocultarSyncOverlay() {
 }
 
 // ── Abrir IndexedDB (compatibilidad con SW) ────────────────────
-function abrirDBSync() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('scadaDB', 2);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains('pdfs_pendientes'))
-        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
-    };
-    req.onsuccess  = e => resolve(e.target.result);
-    req.onerror    = e => reject(e.target.error);
-  });
-}
+
 
 async function getPendientesDB() {
   try {
@@ -4482,22 +4487,7 @@ function limpiarFotos() {
 /* ── Fotos offline en IndexedDB ── */
 const STORE_FOTOS_OFFLINE = 'fotos_offline';
 
-async function abrirDBFotos() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('scadaDB', 2);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes'))
-        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains('pdfs_pendientes'))
-        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
-      if (!db.objectStoreNames.contains(STORE_FOTOS_OFFLINE))
-        db.createObjectStore(STORE_FOTOS_OFFLINE, { keyPath:'visitaNum' });
-    };
-    req.onsuccess  = e => resolve(e.target.result);
-    req.onerror    = e => reject(e.target.error);
-  });
-}
+
 
 // Guardar fotos de una visita offline
 async function guardarFotosPendientes(visitaNum, fotos) {
