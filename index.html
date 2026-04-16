@@ -3543,7 +3543,15 @@ async function generarPdfBase64(visita) {
 // ── Sincronizar todas las visitas pendientes ───────────────────
 async function sincronizarPendientesOnline() {
   const pendientes = await getPendientesDB();
-  if (!pendientes.length) return;
+
+  // Aunque no haya visitas pendientes, siempre sincronizar PDFs
+  if (!pendientes.length) {
+    dlog('[SYNC] No hay visitas pendientes, revisando PDFs...');
+    const n = await sincronizarPdfsPendientes();
+    if (n > 0) showToast('✅ ' + n + ' PDF(s) subido(s) a R2');
+    actualizarBadge();
+    return;
+  }
 
   mostrarSyncOverlay(
     '⬆️ Sincronizando datos',
@@ -3665,6 +3673,7 @@ async function sincronizarPendientesOnline() {
 // ── Detectar reconexión y sincronizar automáticamente ─────────
 window.addEventListener('online', async () => {
   setTimeout(async () => {
+    dlog('[ONLINE] Conexión detectada — iniciando sync...');
     await sincronizarPendientesOnline();
   }, 2000);
 });
