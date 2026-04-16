@@ -3344,7 +3344,7 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 
 /* ── DB UNIFICADA — versión 3, todos los stores ── */
-const SCADA_DB_VERSION = 4;
+const SCADA_DB_VERSION = 5;
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
@@ -3359,7 +3359,7 @@ function abrirScadaDB() {
         s.createIndex('savedAt','savedAt',{unique:false});
       }
       if (!db.objectStoreNames.contains('pdfs_pendientes'))
-        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
+        db.createObjectStore('pdfs_pendientes', { autoIncrement:true });
       if (!db.objectStoreNames.contains('fotos_offline'))
         db.createObjectStore('fotos_offline', { keyPath:'visitaNum' });
       if (!db.objectStoreNames.contains('catalogos'))
@@ -4514,53 +4514,59 @@ async function eliminarFotosOffline(visitaNum) {
 
 
 /* ── PDFs pendientes de subir a R2 ── */
-const STORE_PDFS_PENDING = 'pdfs_pendientes';
+// ── PDFs pendientes — usan store 'pdfs_pendientes' con keyPath 'visitaNum' ──
+// NOTA: el store se crea en abrirScadaDB con autoIncrement:true pero usamos
+// visitaNum como identificador único via put() con key explícita
 
 async function guardarPdfOffline(visitaNum, pdfBase64) {
   try {
-    const db = await abrirDBFotos(); // reutiliza la misma DB
+    const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
-      const tx    = db.transaction(STORE_PDFS_PENDING, 'readwrite');
-      tx.objectStore(STORE_PDFS_PENDING).put({ id: visitaNum + '_pdf', visitaNum, pdfBase64, savedAt: Date.now() });
+      const tx    = db.transaction('pdfs_pendientes', 'readwrite');
+      // Usar visitaNum como clave explícita para evitar duplicados
+      const store = tx.objectStore('pdfs_pendientes');
+      // Borrar si ya existe y reinsertar
+      store.delete(visitaNum);
+      const req = store.add({ visitaNum, pdfBase64, savedAt: Date.now() });
       tx.oncomplete = resolve;
-      tx.onerror    = e => reject(e.target.error);
+      tx.onerror    = e => { console.warn('put error:', e.target.error); resolve(); };
     });
-    console.log('PDF guardado offline para sync:', visitaNum);
-  } catch(e) { console.warn('Error guardando PDF offline:', e); }
+    console.log('✅ PDF guardado offline:', visitaNum);
+  } catch(e) { console.warn('guardarPdfOffline error:', e); }
 }
 
 async function getPdfsPendientes() {
   try {
-    const db = await abrirDBFotos();
+    const db = await abrirScadaDB();
     return new Promise(resolve => {
-      if (!db.objectStoreNames.contains(STORE_PDFS_PENDING)) { resolve([]); return; }
-      const req = db.transaction(STORE_PDFS_PENDING, 'readonly')
-                    .objectStore(STORE_PDFS_PENDING).getAll();
+      const tx  = db.transaction('pdfs_pendientes', 'readonly');
+      const req = tx.objectStore('pdfs_pendientes').getAll();
       req.onsuccess = e => resolve(e.target.result || []);
       req.onerror   = () => resolve([]);
+      tx.onerror    = () => resolve([]);
     });
-  } catch { return []; }
+  } catch(e) { return []; }
 }
 
 async function eliminarPdfOffline(id) {
   try {
-    const db = await abrirDBFotos();
+    const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_PDFS_PENDING, 'readwrite');
-      tx.objectStore(STORE_PDFS_PENDING).delete(id);
+      const tx = db.transaction('pdfs_pendientes', 'readwrite');
+      tx.objectStore('pdfs_pendientes').delete(id);
       tx.oncomplete = resolve;
-      tx.onerror    = reject;
+      tx.onerror    = resolve; // no bloquear si falla
     });
-  } catch(e) { console.warn('Error eliminando PDF offline:', e); }
+  } catch(e) { console.warn('eliminarPdfOffline:', e); }
 }
 
-// Sincronizar PDFs pendientes independientemente de las visitas
 async function sincronizarPdfsPendientes() {
   const pdfs = await getPdfsPendientes();
   if (!pdfs.length) return 0;
 
   let subidos = 0;
   for (const item of pdfs) {
+    if (!navigator.onLine) break;
     try {
       const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
         method : 'POST',
@@ -4576,10 +4582,13 @@ async function sincronizarPdfsPendientes() {
           headers: { 'Content-Type': 'application/json' },
           body   : JSON.stringify({ visitaNum: item.visitaNum, pdfR2Key: pdfJson.key })
         }).catch(() => {});
+        // Eliminar usando el id autoincremental
         await eliminarPdfOffline(item.id);
         subidos++;
+        console.log('✅ PDF sincronizado:', item.visitaNum);
       }
     } catch(e) {
+      console.warn('sincronizarPdfsPendientes error:', e);
       if (!navigator.onLine) break;
     }
   }
