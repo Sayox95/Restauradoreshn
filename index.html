@@ -3563,10 +3563,24 @@ async function sincronizarPendientesOnline() {
         'Generando y subiendo PDF ' + (visita.visitaNum || '') + '...'
       );
 
-      // Recuperar fotos guardadas offline para incluirlas en el PDF
-      const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
-      const visitaConFotos = { ...visita, fotografias: fotosOffline };
-      const pdfBase64 = await generarPdfBase64(visitaConFotos);
+      // 2b. Subir PDF a R2
+      // Primero intentar usar el PDF guardado offline (ya generado con fotos)
+      // Si no existe, regenerarlo con las fotos offline
+      let pdfBase64 = null;
+      const pdfOffline = await getPdfsPendientes();
+      const pdfGuardado = pdfOffline.find(p => p.visitaNum === visita.visitaNum);
+
+      if (pdfGuardado) {
+        // Usar el PDF que ya fue generado y guardado offline
+        pdfBase64 = pdfGuardado.pdfBase64;
+      } else {
+        // No hay PDF guardado — regenerar con fotos offline
+        await cargarJsPDF().catch(() => {});
+        const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
+        const visitaConFotos = { ...visita, fotografias: fotosOffline };
+        pdfBase64 = await generarPdfBase64(visitaConFotos);
+      }
+
       if (pdfBase64) {
         try {
           const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
@@ -3577,12 +3591,13 @@ async function sincronizarPendientesOnline() {
           if (pdfResp.ok) {
             const pdfJson = await pdfResp.json();
             if (pdfJson?.status === 'ok' && pdfJson?.key) {
-              // 3. Guardar key del PDF en D1
               await fetch(`${API_BASE}/api/save-pdf-key`, {
                 method : 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body   : JSON.stringify({ visitaNum: visita.visitaNum, pdfR2Key: pdfJson.key })
               }).catch(() => {});
+              // Eliminar PDF de IndexedDB si existía guardado
+              if (pdfGuardado) await eliminarPdfOffline(pdfGuardado.id);
             }
           }
         } catch(e) { console.warn('PDF upload failed:', e); }
@@ -3616,18 +3631,14 @@ async function sincronizarPendientesOnline() {
     );
   }
 
-  // También sincronizar PDFs pendientes independientes
-  let pdfsSincronizados = 0;
-  if (navigator.onLine) {
-    actualizarSyncOverlay('⬆️ Subiendo PDFs pendientes...', '');
-    pdfsSincronizados = await sincronizarPdfsPendientes();
-  }
+  // Sincronizar PDFs que quedaron pendientes independientes
+  // (los que el técnico descargó pero no tenían visita pendiente)
+  const pdfsSincronizados = await sincronizarPdfsPendientes();
 
   await new Promise(r => setTimeout(r, 1500));
   ocultarSyncOverlay();
   actualizarBadge();
 
-  // Mensaje final con detalle de lo sincronizado
   let msgFinal = exitosos + ' visita(s) sincronizada(s)';
   if (pdfsSincronizados > 0) msgFinal += ' · ' + pdfsSincronizados + ' PDF(s) subido(s) a R2';
   showToast('✅ ' + msgFinal);
