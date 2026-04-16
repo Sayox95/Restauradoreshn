@@ -810,6 +810,111 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   transform:translateX(-50%) translateY(0);
   pointer-events:all;
 }
+
+/* ── SECCIÓN FOTOGRAFÍAS ── */
+.fotos-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+.foto-slot{
+  border:2px dashed var(--border);
+  border-radius:12px;
+  background:var(--sec-bg);
+  min-height:140px;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:8px;position:relative;
+  overflow:hidden;cursor:pointer;
+  transition:border-color .2s, background .2s;
+}
+.foto-slot:hover{border-color:var(--blue);background:#eff6ff;}
+.foto-slot.has-foto{border-style:solid;border-color:var(--blue);cursor:default;}
+.foto-slot img{
+  width:100%;height:140px;
+  object-fit:cover;display:block;
+  border-radius:10px;
+}
+.foto-slot-label{
+  font-size:11px;font-weight:700;
+  color:var(--muted);text-transform:uppercase;
+  letter-spacing:.3px;
+}
+.foto-slot-icon{font-size:28px;}
+.foto-obs{
+  font-size:11px;color:var(--text);
+  padding:4px 8px;text-align:center;
+  max-width:100%;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap;
+}
+.foto-actions{
+  position:absolute;top:6px;right:6px;
+  display:flex;gap:4px;
+}
+.foto-del-btn{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(220,38,38,.85);border:none;
+  color:#fff;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+.foto-del-btn:active{opacity:.7;}
+.foto-edit-btn{
+  width:28px;height:28px;border-radius:50%;
+  background:rgba(21,101,192,.85);border:none;
+  color:#fff;font-size:14px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 2px 6px rgba(0,0,0,.2);
+}
+
+/* ── MODAL OBSERVACIÓN FOTO ── */
+#fotoObsModal{
+  position:fixed;inset:0;z-index:9500;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(4px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .25s,visibility .25s;
+}
+#fotoObsModal.show{opacity:1;visibility:visible;pointer-events:all;}
+.foto-obs-card{
+  background:var(--card);
+  border-radius:20px 20px 0 0;
+  width:100%;max-width:520px;
+  padding:20px 20px 32px;
+  box-shadow:0 -8px 40px rgba(0,0,0,.2);
+  animation:slideUp .25s ease;
+}
+.foto-obs-preview{
+  width:100%;height:160px;object-fit:cover;
+  border-radius:12px;margin-bottom:14px;
+}
+.foto-obs-title{
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:17px;
+  color:var(--text);margin-bottom:10px;
+}
+.foto-obs-input{
+  width:100%;border:1.5px solid var(--border);
+  border-radius:10px;padding:10px 12px;
+  font-size:14px;background:var(--inp);
+  resize:none;height:80px;
+}
+.foto-obs-input:focus{outline:none;border-color:var(--blue);}
+.foto-obs-footer{
+  display:flex;gap:8px;margin-top:12px;
+}
+.foto-obs-save{
+  flex:1;height:46px;background:var(--blue);
+  border:none;border-radius:12px;color:#fff;
+  font-family:'Barlow Condensed',sans-serif;
+  font-weight:900;font-size:17px;cursor:pointer;
+}
+.foto-obs-cancel{
+  height:46px;padding:0 18px;
+  background:var(--bg);border:1.5px solid var(--border);
+  border-radius:12px;color:var(--muted);
+  font-size:14px;cursor:pointer;
+}
 </style>
 </head>
 <body>
@@ -1431,12 +1536,57 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 
-<!-- S8: OBSERVACIONES -->
+<!-- S8: FOTOGRAFÍAS -->
 <div class="section-block" id="sec8">
   <div class="card">
     <div class="card-head">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <h2>8 · Fotografías</h2>
+    </div>
+    <div class="card-body">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Hasta 4 fotografías de la visita. Toca cada recuadro para tomar o seleccionar una foto.</p>
+      <div class="fotos-grid" id="fotosGrid">
+        <div class="foto-slot" id="fotoSlot0" onclick="seleccionarFoto(0)">
+          <span class="foto-slot-icon">📷</span>
+          <span class="foto-slot-label">Foto 1</span>
+        </div>
+        <div class="foto-slot" id="fotoSlot1" onclick="seleccionarFoto(1)">
+          <span class="foto-slot-icon">📷</span>
+          <span class="foto-slot-label">Foto 2</span>
+        </div>
+        <div class="foto-slot" id="fotoSlot2" onclick="seleccionarFoto(2)">
+          <span class="foto-slot-icon">📷</span>
+          <span class="foto-slot-label">Foto 3</span>
+        </div>
+        <div class="foto-slot" id="fotoSlot3" onclick="seleccionarFoto(3)">
+          <span class="foto-slot-icon">📷</span>
+          <span class="foto-slot-label">Foto 4</span>
+        </div>
+      </div>
+      <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="procesarFoto(this)">
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OBSERVACIÓN FOTO -->
+<div id="fotoObsModal">
+  <div class="foto-obs-card">
+    <img id="fotoObsPreview" class="foto-obs-preview" src="" alt="Foto">
+    <div class="foto-obs-title">📝 Observación de la foto</div>
+    <textarea class="foto-obs-input" id="fotoObsInput" placeholder="Describe lo que muestra esta fotografía..." maxlength="200"></textarea>
+    <div class="foto-obs-footer">
+      <button class="foto-obs-cancel" onclick="cerrarFotoObsModal(false)">Omitir</button>
+      <button class="foto-obs-save" onclick="cerrarFotoObsModal(true)">✓ Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- S9: OBSERVACIONES -->
+<div class="section-block" id="sec10">
+  <div class="card">
+    <div class="card-head">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-      <h2>8 · Observaciones</h2>
+      <h2>9 · Observaciones</h2>
     </div>
     <div class="card-body">
       <div class="field"><label>Observaciones Generales</label><textarea id="obsGenerales" rows="5" placeholder="Detalle observaciones relevantes de la visita..."></textarea></div>
@@ -1444,12 +1594,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 
-<!-- S9: PERSONAL -->
+<!-- S10: PERSONAL -->
 <div class="section-block" id="sec9">
   <div class="card">
     <div class="card-head">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-      <h2>9 · Personal de Visita</h2>
+      <h2>10 · Personal de Visita</h2>
     </div>
     <div class="card-body">
       <div id="personalContainer"></div>
@@ -1727,7 +1877,7 @@ function onPersSelect(sel, cardId) {
   if (cargoSel && opt.dataset.cargo) cargoSel.value = opt.dataset.cargo;
   if (idInput  && opt.dataset.id)    idInput.value  = opt.dataset.id;
 }
-const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Observaciones"},{id:"sec9",label:"Personal"}];
+const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Fotografías"},{id:"sec9",label:"Observaciones"},{id:"sec10",label:"Personal"}];
 const TGA=['a-si','a-no','a-on','a-off','a-ok','a-nok','a-int','a-ext','a-2g','a-3g','a-lte','a-mono','a-tri'];
 
 /* ── WIZARD ── */
@@ -2306,6 +2456,8 @@ function limpiarFormulario() {
 
   // Resetear firma
   limpFirma();
+  // Resetear fotos
+  limpiarFotos();
 
   // Nuevo número de visita con fecha actual
   const n = new Date();
@@ -2338,15 +2490,39 @@ async function guardar() {
     });
     const json = await resp.json();
 
-    if (json.status === 'ok') {
-      // saveOverlayExito abre el modal PDF; el formulario se limpia después de descargar
-      _lastData = d; // guardar referencia para el PDF
+    if (json.status === 'ok' && !json.offline) {
+      // Guardado exitoso en D1
+      _lastData = d;
+      _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
       saveOverlayExito(json.visitaNum || d.visitaNum, json.fila);
+    } else if (json.status === 'ok' && json.offline) {
+      // SW guardó offline — guardar fotos también
+      try {
+        const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
+        if (fotosActuales.length > 0) {
+          await guardarFotosPendientes(d.visitaNum, fotosActuales);
+        }
+      } catch(fe) { console.warn('Fotos offline:', fe); }
+      _lastData = d;
+      _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
+      saveOverlayExito(json.visitaNum || d.visitaNum, '—');
+      showToast('📵 Sin conexión — datos y fotos guardados localmente');
     } else {
       saveOverlayError('Error al guardar: ' + json.message + ' — visita guardada localmente');
     }
   } catch (err) {
-    saveOverlayError('Sin conexión a Cloudflare — visita guardada localmente');
+    // Sin conexión — guardar fotos en IndexedDB junto a la visita
+    // El SW ya guardó los datos de la visita, ahora guardamos las fotos
+    try {
+      const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
+      if (fotosActuales.length > 0) {
+        await guardarFotosPendientes(d.visitaNum, fotosActuales);
+      }
+    } catch(fe) { console.warn('No se pudieron guardar fotos offline:', fe); }
+    // Agregar fotos a _lastData para el PDF local
+    _lastData = d;
+    _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
+    saveOverlayError('Sin conexión — visita y fotos guardadas localmente');
   }
 }
 
@@ -3396,7 +3572,10 @@ async function sincronizarPendientesOnline() {
         'Generando y subiendo PDF ' + (visita.visitaNum || '') + '...'
       );
 
-      const pdfBase64 = await generarPdfBase64(visita);
+      // Recuperar fotos guardadas offline para incluirlas en el PDF
+      const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
+      const visitaConFotos = { ...visita, fotografias: fotosOffline };
+      const pdfBase64 = await generarPdfBase64(visitaConFotos);
       if (pdfBase64) {
         try {
           const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
@@ -3418,8 +3597,9 @@ async function sincronizarPendientesOnline() {
         } catch(e) { console.warn('PDF upload failed:', e); }
       }
 
-      // 4. Eliminar de IndexedDB
+      // 4. Eliminar visita y fotos de IndexedDB
       await eliminarPendienteDB(item.id);
+      await eliminarFotosOffline(visita.visitaNum);
       exitosos++;
 
     } catch(e) {
@@ -3878,6 +4058,51 @@ async function _generarDocPDF(d) {
 
     // ══════════════════════════════════════════════════════
     //  SECCIÓN 9: OBSERVACIONES
+
+    // ══════════════════════════════════════════════════════════
+    //  SECCIÓN FOTOGRAFÍAS en PDF
+    // ══════════════════════════════════════════════════════════
+    const fotos = (d.fotografias || []).filter(f => f && f.base64);
+    if (fotos.length > 0) {
+      checkPage(14);
+      sectionHeader('8 · FOTOGRAFÍAS');
+
+      const fotoCols  = 2;
+      const fotoW     = (CW - 4) / fotoCols;
+      const fotoH     = 55; // altura de cada foto en mm
+      const fotoObsH  = 8;  // altura para la observación
+
+      for (let i = 0; i < fotos.length; i += fotoCols) {
+        checkPage(fotoH + fotoObsH + 4);
+        for (let j = 0; j < fotoCols; j++) {
+          const foto = fotos[i + j];
+          if (!foto) continue;
+          const x = ML + j * (fotoW + 4);
+
+          try {
+            doc.addImage(foto.base64, 'JPEG', x, y, fotoW, fotoH, '', 'FAST');
+          } catch(e) {
+            // Si falla la imagen, dibujar placeholder
+            rect(x, y, fotoW, fotoH, BGROW, BORDER);
+            setFont(8,'normal',MUTED);
+            txt('Foto ' + (i+j+1), x + fotoW/2, y + fotoH/2, {align:'center'});
+          }
+
+          // Observación debajo de la foto
+          if (foto.observacion) {
+            setFont(7,'normal',MUTED);
+            const obsLines = doc.splitTextToSize(foto.observacion, fotoW - 2);
+            txt(obsLines[0] || '', x + 1, y + fotoH + 5);
+          } else {
+            setFont(7,'italic',MUTED);
+            txt('Foto ' + (i+j+1), x + 1, y + fotoH + 5);
+          }
+        }
+        y += fotoH + fotoObsH + 4;
+      }
+      y += 3;
+    }
+
     // ══════════════════════════════════════════════════════
     if(d.obsGenerales) {
       checkPage(16);
@@ -4018,12 +4243,14 @@ if ('serviceWorker' in navigator) {
     });
   }).catch(e => console.warn('SW error:', e));
 
-  // Cuando el SW toma control (después de skipWaiting), recargar
+  // Cuando el SW toma control (después de skipWaiting), recargar inmediatamente
+  // Esto garantiza que la nueva versión se aplique en la primera apertura
   let refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!refreshing) {
       refreshing = true;
-      window.location.reload();
+      // Pequeña pausa para que el SW termine de activarse
+      setTimeout(() => window.location.reload(), 100);
     }
   });
 
@@ -4068,6 +4295,220 @@ function aplicarActualizacion() {
 setInterval(() => {
   navigator.serviceWorker?.getRegistration().then(reg => reg?.update());
 }, 30 * 60 * 1000);
+
+// Verificar también cuando el usuario vuelve a la app desde background
+// Esto es clave en Android donde la app queda en memoria
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    navigator.serviceWorker?.getRegistration().then(reg => {
+      if (reg) {
+        reg.update(); // verificar si hay nueva versión
+        if (reg.waiting) {
+          // Ya hay un SW nuevo esperando — activar inmediatamente
+          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+        }
+      }
+    });
+  }
+});
+
+
+/* ══════════════════════════════════════════════════════════════
+   FOTOGRAFÍAS — captura, compresión y gestión
+   Máx 4 fotos, comprimidas a 800px / calidad 0.7
+   Cada foto tiene: base64 (comprimida) + observacion
+══════════════════════════════════════════════════════════════ */
+
+let FOTOS_DATA   = [null, null, null, null]; // {base64, observacion}
+let _fotoSlotActual = -1;
+let _fotoBase64Temp = null;
+
+// Abrir selector de cámara/galería
+function seleccionarFoto(slot) {
+  _fotoSlotActual = slot;
+  const input = document.getElementById('fotoInput');
+  input.value = ''; // limpiar para permitir misma foto
+  input.click();
+}
+
+// Procesar foto seleccionada — comprimir y abrir modal de observación
+async function procesarFoto(input) {
+  if (!input.files || !input.files[0]) return;
+  const file = input.files[0];
+
+  try {
+    const base64 = await comprimirFoto(file, 800, 0.72);
+    _fotoBase64Temp = base64;
+    // Abrir modal para ingresar observación
+    abrirFotoObsModal(base64, FOTOS_DATA[_fotoSlotActual]?.observacion || '');
+  } catch(e) {
+    console.error('Error procesando foto:', e);
+    showToast('❌ Error al procesar la foto');
+  }
+}
+
+// Comprimir imagen usando canvas
+function comprimirFoto(file, maxPx, calidad) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      // Calcular dimensiones manteniendo proporción
+      let { width, height } = img;
+      if (width > height) {
+        if (width > maxPx) { height = Math.round(height * maxPx / width); width = maxPx; }
+      } else {
+        if (height > maxPx) { width = Math.round(width * maxPx / height); height = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width  = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      // Fondo blanco para JPEGs con transparencia
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      const base64 = canvas.toDataURL('image/jpeg', calidad);
+      resolve(base64);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Error cargando imagen')); };
+    img.src = url;
+  });
+}
+
+// Abrir modal de observación
+function abrirFotoObsModal(base64, obsActual) {
+  document.getElementById('fotoObsPreview').src = base64;
+  document.getElementById('fotoObsInput').value  = obsActual || '';
+  document.getElementById('fotoObsModal').classList.add('show');
+  setTimeout(() => document.getElementById('fotoObsInput').focus(), 300);
+}
+
+// Cerrar modal — guardar o cancelar
+function cerrarFotoObsModal(guardar) {
+  document.getElementById('fotoObsModal').classList.remove('show');
+  if (_fotoSlotActual < 0 || !_fotoBase64Temp) return;
+
+  const obs = guardar
+    ? document.getElementById('fotoObsInput').value.trim()
+    : (FOTOS_DATA[_fotoSlotActual]?.observacion || '');
+
+  // Guardar en array
+  FOTOS_DATA[_fotoSlotActual] = {
+    base64      : _fotoBase64Temp,
+    observacion : obs
+  };
+
+  renderFotoSlot(_fotoSlotActual);
+  _fotoBase64Temp  = null;
+  _fotoSlotActual  = -1;
+}
+
+// Renderizar slot con la foto
+function renderFotoSlot(slot) {
+  const el   = document.getElementById('fotoSlot' + slot);
+  const data = FOTOS_DATA[slot];
+  if (!el) return;
+
+  if (!data || !data.base64) {
+    el.className = 'foto-slot';
+    el.onclick   = () => seleccionarFoto(slot);
+    el.innerHTML = `<span class="foto-slot-icon">📷</span>
+                    <span class="foto-slot-label">Foto ${slot + 1}</span>`;
+    return;
+  }
+
+  el.className = 'foto-slot has-foto';
+  el.onclick   = null;
+  el.innerHTML = `
+    <img src="${data.base64}" alt="Foto ${slot+1}">
+    <div class="foto-actions">
+      <button class="foto-edit-btn" onclick="editarFotoObs(${slot})" title="Editar observación">✏️</button>
+      <button class="foto-del-btn"  onclick="eliminarFoto(${slot})"   title="Eliminar foto">✕</button>
+    </div>
+    ${data.observacion ? `<div class="foto-obs">${data.observacion}</div>` : ''}
+  `;
+}
+
+// Editar solo la observación de una foto existente
+function editarFotoObs(slot) {
+  if (!FOTOS_DATA[slot]) return;
+  _fotoSlotActual  = slot;
+  _fotoBase64Temp  = FOTOS_DATA[slot].base64;
+  abrirFotoObsModal(FOTOS_DATA[slot].base64, FOTOS_DATA[slot].observacion);
+}
+
+// Eliminar foto
+function eliminarFoto(slot) {
+  FOTOS_DATA[slot] = null;
+  renderFotoSlot(slot);
+}
+
+// Limpiar todas las fotos
+function limpiarFotos() {
+  FOTOS_DATA = [null, null, null, null];
+  [0,1,2,3].forEach(renderFotoSlot);
+}
+
+
+/* ── Fotos offline en IndexedDB ── */
+const STORE_FOTOS_OFFLINE = 'fotos_offline';
+
+async function abrirDBFotos() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('scadaDB', 2);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pendientes'))
+        db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
+      if (!db.objectStoreNames.contains('pdfs_pendientes'))
+        db.createObjectStore('pdfs_pendientes', { keyPath:'id', autoIncrement:true });
+      if (!db.objectStoreNames.contains(STORE_FOTOS_OFFLINE))
+        db.createObjectStore(STORE_FOTOS_OFFLINE, { keyPath:'visitaNum' });
+    };
+    req.onsuccess  = e => resolve(e.target.result);
+    req.onerror    = e => reject(e.target.error);
+  });
+}
+
+// Guardar fotos de una visita offline
+async function guardarFotosPendientes(visitaNum, fotos) {
+  const db = await abrirDBFotos();
+  return new Promise((resolve, reject) => {
+    const tx    = db.transaction(STORE_FOTOS_OFFLINE, 'readwrite');
+    tx.objectStore(STORE_FOTOS_OFFLINE).put({ visitaNum, fotos, savedAt: Date.now() });
+    tx.oncomplete = resolve;
+    tx.onerror    = e => reject(e.target.error);
+  });
+}
+
+// Recuperar fotos de una visita offline
+async function recuperarFotosPendientes(visitaNum) {
+  try {
+    const db = await abrirDBFotos();
+    return new Promise((resolve) => {
+      if (!db.objectStoreNames.contains(STORE_FOTOS_OFFLINE)) { resolve([]); return; }
+      const req = db.transaction(STORE_FOTOS_OFFLINE, 'readonly')
+                    .objectStore(STORE_FOTOS_OFFLINE).get(visitaNum);
+      req.onsuccess = e => resolve(e.target.result?.fotos || []);
+      req.onerror   = () => resolve([]);
+    });
+  } catch { return []; }
+}
+
+// Eliminar fotos offline después de sincronizar
+async function eliminarFotosOffline(visitaNum) {
+  try {
+    const db = await abrirDBFotos();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_FOTOS_OFFLINE, 'readwrite');
+      tx.objectStore(STORE_FOTOS_OFFLINE).delete(visitaNum);
+      tx.oncomplete = resolve;
+      tx.onerror    = reject;
+    });
+  } catch(e) { console.warn('Error eliminando fotos offline:', e); }
+}
 
 </script>
 
