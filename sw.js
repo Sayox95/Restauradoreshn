@@ -8,14 +8,14 @@
  *   HTML/assets → Cache first (carga instantánea)
  *
  * Para forzar actualización en todos los dispositivos:
- *   Cambia CACHE_NAME por ej: 'scada-202604160901'
+ *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160700';
+const CACHE_NAME    = 'scada-202604160800';
 const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
-const DB_VERSION    = 3;
+const DB_VERSION    = 4;
 const STORE_PENDING = 'pendientes';
 const STORE_PDFS    = 'pdfs_pendientes';
 
