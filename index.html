@@ -1558,7 +1558,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </div>
 
 <!-- S9: OBSERVACIONES -->
-<div class="section-block" id="sec10">
+<div class="section-block" id="sec9">
   <div class="card">
     <div class="card-head">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
@@ -1571,7 +1571,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 </div>
 
 <!-- S10: PERSONAL -->
-<div class="section-block" id="sec9">
+<div class="section-block" id="sec10">
   <div class="card">
     <div class="card-head">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -1834,7 +1834,7 @@ function onPersSelect(sel, cardId) {
   if (cargoSel && opt.dataset.cargo) cargoSel.value = opt.dataset.cargo;
   if (idInput  && opt.dataset.id)    idInput.value  = opt.dataset.id;
 }
-const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Fotografías"},{id:"sec9",label:"Observaciones"},{id:"sec10",label:"Personal"}];
+const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Fotografías"},{id:"sec9",label:"Personal"},{id:"sec10",label:"Observaciones"}];
 const TGA=['a-si','a-no','a-on','a-off','a-ok','a-nok','a-int','a-ext','a-2g','a-3g','a-lte','a-mono','a-tri'];
 
 /* ── WIZARD ── */
@@ -4486,11 +4486,7 @@ async function eliminarFotosOffline(visitaNum) {
   } catch(e) { console.warn('Error eliminando fotos offline:', e); }
 }
 
-/* ── PDFs pendientes de subir a R2 ── */
-// ── PDFs pendientes — usan store 'pdf_queue' con keyPath 'visitaNum' ──
-// NOTA: el store se crea en abrirScadaDB con autoIncrement:true pero usamos
-// visitaNum como identificador único via put() con key explícita
-
+/* ── PDFs pendientes de subir a R2 (store: pdf_queue, keyPath: visitaNum) ── */
 async function guardarPdfOffline(visitaNum, pdfBase64) {
   try {
     const db = await abrirScadaDB();
@@ -4501,7 +4497,6 @@ async function guardarPdfOffline(visitaNum, pdfBase64) {
       tx.oncomplete = () => {
         console.log('✅ PDF guardado offline:', visitaNum);
         // Verificar inmediatamente que quedó guardado
-        getPdfsPendientes().then(pdfs => console.log('[PDF] Verificación post-save:', pdfs.length, 'PDFs en store'));
         resolve();
       };
       tx.onerror    = e => { console.warn('guardarPdfOffline tx error:', e.target.error); reject(e.target.error); };
@@ -4512,7 +4507,6 @@ async function guardarPdfOffline(visitaNum, pdfBase64) {
 async function getPdfsPendientes() {
   try {
     const db = await abrirScadaDB();
-    console.log('[PDF] DB version:', db.version, '| Stores:', [...db.objectStoreNames]);
     return new Promise(resolve => {
       if (!db.objectStoreNames.contains('pdf_queue')) {
         console.warn('[PDF] Store pdfs_pendientes NO EXISTE en la DB');
@@ -4523,11 +4517,10 @@ async function getPdfsPendientes() {
       const req = tx.objectStore('pdf_queue').getAll();
       req.onsuccess = e => {
         const items = e.target.result || [];
-        console.log('[PDF] PDFs pendientes encontrados:', items.length, items.map(i => i.visitaNum));
         resolve(items);
       };
-      req.onerror   = e => { console.warn('[PDF] getAll error:', e.target.error); resolve([]); };
-      tx.onerror    = e => { console.warn('[PDF] tx error:', e.target.error); resolve([]); };
+      req.onerror   = () => resolve([]);
+      tx.onerror    = () => resolve([]);
     });
   } catch(e) { console.warn('[PDF] getPdfsPendientes error:', e); return []; }
 }
