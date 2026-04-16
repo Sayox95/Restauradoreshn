@@ -4727,31 +4727,23 @@ function toggleDebug() {
 }
 
 
-/* ── Limpiar PDFs con formato incorrecto del IndexedDB ── */
-async function limpiarPdfsCorruptos() {
+/* ── Limpiar store de PDFs (ejecutar una sola vez via flag en localStorage) ── */
+async function limpiarPdfsStore() {
+  const FLAG = 'pdfs_store_cleared_v6';
+  if (localStorage.getItem(FLAG)) return; // ya se limpió
   try {
-    const db   = await abrirScadaDB();
-    const pdfs = await getPdfsPendientes();
-    // PDFs válidos tienen visitaNum que empieza con 'HV-'
-    const corruptos = pdfs.filter(p => !p.visitaNum || !String(p.visitaNum).startsWith('HV-'));
-    if (!corruptos.length) return;
-    console.log('[PDF] Limpiando', corruptos.length, 'PDFs con formato incorrecto...');
-    // Limpiar todo el store y re-insertar solo los válidos
+    const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction('pdfs_pendientes', 'readwrite');
       tx.objectStore('pdfs_pendientes').clear();
       tx.oncomplete = resolve;
       tx.onerror    = reject;
     });
-    // Re-insertar los válidos
-    const validos = pdfs.filter(p => p.visitaNum && String(p.visitaNum).startsWith('HV-'));
-    for (const pdf of validos) {
-      await guardarPdfOffline(pdf.visitaNum, pdf.pdfBase64);
-    }
-    console.log('[PDF] Limpieza completada. Válidos conservados:', validos.length);
-  } catch(e) { console.warn('limpiarPdfsCorruptos:', e); }
+    localStorage.setItem(FLAG, '1');
+    dlog('[PDF] Store pdfs_pendientes limpiado correctamente');
+  } catch(e) { console.warn('limpiarPdfsStore:', e); }
 }
-window.addEventListener('load', () => setTimeout(limpiarPdfsCorruptos, 3000));
+window.addEventListener('load', () => setTimeout(limpiarPdfsStore, 1000));
 
 </script>
 
