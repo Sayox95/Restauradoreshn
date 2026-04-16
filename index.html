@@ -4536,7 +4536,12 @@ async function guardarPdfOffline(visitaNum, pdfBase64) {
       const tx = db.transaction('pdfs_pendientes', 'readwrite');
       // put() reemplaza si ya existe (keyPath = visitaNum)
       tx.objectStore('pdfs_pendientes').put({ visitaNum, pdfBase64, savedAt: Date.now() });
-      tx.oncomplete = () => { console.log('✅ PDF guardado offline:', visitaNum); resolve(); };
+      tx.oncomplete = () => {
+        console.log('✅ PDF guardado offline:', visitaNum);
+        // Verificar inmediatamente que quedó guardado
+        getPdfsPendientes().then(pdfs => console.log('[PDF] Verificación post-save:', pdfs.length, 'PDFs en store'));
+        resolve();
+      };
       tx.onerror    = e => { console.warn('guardarPdfOffline tx error:', e.target.error); reject(e.target.error); };
     });
   } catch(e) { console.warn('guardarPdfOffline error:', e); }
@@ -4545,14 +4550,24 @@ async function guardarPdfOffline(visitaNum, pdfBase64) {
 async function getPdfsPendientes() {
   try {
     const db = await abrirScadaDB();
+    console.log('[PDF] DB version:', db.version, '| Stores:', [...db.objectStoreNames]);
     return new Promise(resolve => {
+      if (!db.objectStoreNames.contains('pdfs_pendientes')) {
+        console.warn('[PDF] Store pdfs_pendientes NO EXISTE en la DB');
+        resolve([]);
+        return;
+      }
       const tx  = db.transaction('pdfs_pendientes', 'readonly');
       const req = tx.objectStore('pdfs_pendientes').getAll();
-      req.onsuccess = e => resolve(e.target.result || []);
-      req.onerror   = () => resolve([]);
-      tx.onerror    = () => resolve([]);
+      req.onsuccess = e => {
+        const items = e.target.result || [];
+        console.log('[PDF] PDFs pendientes encontrados:', items.length, items.map(i => i.visitaNum));
+        resolve(items);
+      };
+      req.onerror   = e => { console.warn('[PDF] getAll error:', e.target.error); resolve([]); };
+      tx.onerror    = e => { console.warn('[PDF] tx error:', e.target.error); resolve([]); };
     });
-  } catch(e) { return []; }
+  } catch(e) { console.warn('[PDF] getPdfsPendientes error:', e); return []; }
 }
 
 async function eliminarPdfOffline(visitaNum) {
@@ -4568,7 +4583,9 @@ async function eliminarPdfOffline(visitaNum) {
 }
 
 async function sincronizarPdfsPendientes() {
+  console.log('[SYNC PDF] Iniciando sincronización de PDFs...');
   const pdfs = await getPdfsPendientes();
+  console.log('[SYNC PDF] PDFs encontrados para sincronizar:', pdfs.length);
   if (!pdfs.length) return 0;
 
   let subidos = 0;
