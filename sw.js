@@ -8,7 +8,7 @@
  *   HTML/assets → Cache first (carga instantánea)
  *
  * Para forzar actualización en todos los dispositivos:
- *   Cambia CACHE_NAME por ej: 'scada-202604160902'
+ *   Cambia CACHE_NAME por ej: 'scada-202604160903'
  */
 
 const CACHE_NAME    = 'scada-202604161005';
