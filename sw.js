@@ -11,11 +11,11 @@
  *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160300';
+const CACHE_NAME    = 'scada-202604160500';
 const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
-const DB_VERSION    = 2;
+const DB_VERSION    = 3;
 const STORE_PENDING = 'pendientes';
 const STORE_PDFS    = 'pdfs_pendientes';
 const STORE_PDFS    = 'pdfs_pendientes';
@@ -33,10 +33,11 @@ const STATIC_ASSETS = [
 //  INSTALL — cachear assets estáticos inmediatamente
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('install', event => {
+  // skipWaiting ANTES de waitUntil — activa inmediatamente
+  self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => cache.addAll(STATIC_ASSETS))
-      .then(() => self.skipWaiting())  // activar inmediatamente sin esperar
   );
 });
 
@@ -55,11 +56,12 @@ self.addEventListener('message', event => {
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('activate', event => {
   event.waitUntil(
-    caches.keys()
+    // clients.claim() PRIMERO — tomar control de todas las tabs inmediatamente
+    self.clients.claim()
+      .then(() => caches.keys())
       .then(keys => Promise.all(
         keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       ))
-      .then(() => self.clients.claim())
       .then(async () => {
         // Notificar a todas las tabs que hay nueva versión
         const clients = await self.clients.matchAll({ includeUncontrolled: true });
@@ -248,6 +250,9 @@ function abrirDB() {
       }
       if (!db.objectStoreNames.contains(STORE_PDFS)) {
         db.createObjectStore(STORE_PDFS, { keyPath: 'id', autoIncrement: true });
+      }
+      if (!db.objectStoreNames.contains('fotos_offline')) {
+        db.createObjectStore('fotos_offline', { keyPath: 'visitaNum' });
       }
       if (!db.objectStoreNames.contains(STORE_PDFS)) {
         db.createObjectStore(STORE_PDFS, {
