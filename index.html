@@ -3362,7 +3362,7 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 
 /* ── DB UNIFICADA — versión 3, todos los stores ── */
-const SCADA_DB_VERSION = 7;
+const SCADA_DB_VERSION = 8;
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
@@ -4745,7 +4745,7 @@ function toggleDebug() {
 
 /* ── Limpiar store de PDFs (ejecutar una sola vez via flag en localStorage) ── */
 async function limpiarPdfsStore() {
-  const FLAG = 'pdfs_store_cleared_v7';
+  const FLAG = 'pdfs_store_cleared_v8';
   if (localStorage.getItem(FLAG)) return; // ya se limpió
   try {
     const db = await abrirScadaDB();
