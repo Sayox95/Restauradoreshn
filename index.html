@@ -3366,6 +3366,11 @@ const SCADA_DB_VERSION = 6;
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
+  // Si la DB cacheada es de versión anterior, descartarla
+  if (_scadaDB && _scadaDB.version < SCADA_DB_VERSION) {
+    _scadaDB.close();
+    _scadaDB = null;
+  }
   if (_scadaDB) return Promise.resolve(_scadaDB);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
@@ -4617,13 +4622,24 @@ async function getPdfsPendientes() {
 async function eliminarPdfOffline(visitaNum) {
   try {
     const db = await abrirScadaDB();
+    dlog('[PDF] Eliminando PDF: ' + visitaNum + ' | keyPath store: ' + db.objectStoreNames.contains('pdfs_pendientes'));
     await new Promise((resolve, reject) => {
-      const tx = db.transaction('pdfs_pendientes', 'readwrite');
-      tx.objectStore('pdfs_pendientes').delete(visitaNum);
-      tx.oncomplete = resolve;
-      tx.onerror    = resolve;
+      const tx    = db.transaction('pdfs_pendientes', 'readwrite');
+      const store = tx.objectStore('pdfs_pendientes');
+      dlog('[PDF] Store keyPath: ' + store.keyPath);
+      const req   = store.delete(visitaNum);
+      req.onsuccess = () => dlog('[PDF] ✅ Delete request OK para: ' + visitaNum);
+      req.onerror   = e => dlog('[PDF] ❌ Delete error: ' + e.target.error);
+      tx.oncomplete = () => { dlog('[PDF] ✅ Transacción delete completa: ' + visitaNum); resolve(); };
+      tx.onerror    = e => { dlog('[PDF] ❌ Tx error: ' + e.target.error); resolve(); };
     });
-  } catch(e) { console.warn('eliminarPdfOffline:', e); }
+    // Verificar que se eliminó
+    const restantes = await getPdfsPendientes();
+    dlog('[PDF] PDFs restantes después de delete: ' + restantes.length);
+  } catch(e) {
+    dlog('[PDF] ❌ eliminarPdfOffline catch: ' + e.message);
+    console.warn('eliminarPdfOffline:', e);
+  }
 }
 
 async function sincronizarPdfsPendientes() {
