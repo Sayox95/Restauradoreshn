@@ -3547,9 +3547,15 @@ async function sincronizarPendientesOnline() {
   // Aunque no haya visitas pendientes, siempre sincronizar PDFs
   if (!pendientes.length) {
     dlog('[SYNC] No hay visitas pendientes, revisando PDFs...');
-    const n = await sincronizarPdfsPendientes();
-    if (n > 0) showToast('✅ ' + n + ' PDF(s) subido(s) a R2');
-    actualizarBadge();
+    const pdfs = await getPdfsPendientes();
+    if (pdfs.length > 0) {
+      mostrarSyncOverlay('⬆️ Subiendo PDFs pendientes...', pdfs.length + ' PDF(s) por subir');
+      const n = await sincronizarPdfsPendientes();
+      await new Promise(r => setTimeout(r, 1000));
+      ocultarSyncOverlay();
+      actualizarBadge();
+      if (n > 0) showToast('✅ ' + n + ' PDF(s) subido(s) a R2');
+    }
     return;
   }
 
@@ -3558,8 +3564,9 @@ async function sincronizarPendientesOnline() {
     pendientes.length + ' visita(s) pendiente(s) de subir'
   );
 
-  let exitosos = 0;
-  let errores  = 0;
+  let exitosos    = 0;
+  let errores     = 0;
+  let pdfsSubidos = 0;
 
   for (let i = 0; i < pendientes.length; i++) {
     const item    = pendientes[i];
@@ -3624,6 +3631,7 @@ async function sincronizarPendientesOnline() {
               }).catch(() => {});
               // Eliminar PDF de IndexedDB si existía guardado
               if (pdfGuardado) await eliminarPdfOffline(pdfGuardado.visitaNum);
+              pdfsSubidos++;
             }
           }
         } catch(e) { console.warn('PDF upload failed:', e); }
@@ -3659,14 +3667,16 @@ async function sincronizarPendientesOnline() {
 
   // Sincronizar PDFs que quedaron pendientes independientes
   // (los que el técnico descargó pero no tenían visita pendiente)
-  const pdfsSincronizados = await sincronizarPdfsPendientes();
+  // Sincronizar PDFs independientes (sin visita asociada)
+  const pdfsExtra = await sincronizarPdfsPendientes();
+  const totalPdfs = pdfsSubidos + pdfsExtra;
 
   await new Promise(r => setTimeout(r, 1500));
   ocultarSyncOverlay();
   actualizarBadge();
 
   let msgFinal = exitosos + ' visita(s) sincronizada(s)';
-  if (pdfsSincronizados > 0) msgFinal += ' · ' + pdfsSincronizados + ' PDF(s) subido(s) a R2';
+  if (totalPdfs > 0) msgFinal += ' · ' + totalPdfs + ' PDF(s) subido(s) a R2';
   showToast('✅ ' + msgFinal);
 }
 
