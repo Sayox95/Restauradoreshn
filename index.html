@@ -1496,7 +1496,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="sdiv">Bypass</div>
       <div class="g2">
         <div class="field"><label>Tipo Cuchilla</label>
-          <select id="tipoCuchilla"><option value="">— Tipo —</option><option>Abierta</option><option>Cerrada</option><option>No aplica</option></select>
+          <select id="tipoCuchilla"><option value="">— Tipo —</option><option>Cortacircuito Rompearco</option><option>Cortacircuito Sencillo</option><option>Cuchilla Monopolar</option><option>Cuchilla Tripolar</option></select>
         </div>
         <div class="field"><label>Estado Cuchillas</label><div class="tg" id="tg-cuch"><button class="tg-btn" onclick="tg(this,'tg-cuch','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-cuch','a-nok')">NOK</button></div></div>
         <div class="field"><label># Cuchillas</label><input type="number" id="numCuchillas" min="0" inputmode="numeric" placeholder="Cant."></div>
@@ -4224,47 +4224,83 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chip) chip.textContent = 'v' + APP_VERSION;
 });
 
-// Detectar cuando hay un nuevo SW esperando (nueva versión disponible)
+// ── Registro del SW + detección de actualizaciones ────────────
+let _swReg = null; // referencia global al registro del SW
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').then(reg => {
 
-    // SW nuevo esperando activación = nueva versión lista
-    if (reg.waiting) {
-      mostrarUpdateToast();
-    }
-
-    reg.addEventListener('updatefound', () => {
-      const newSW = reg.installing;
-      newSW.addEventListener('statechange', () => {
-        if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-          mostrarUpdateToast();
-        }
-      });
-    });
-  }).catch(e => console.warn('SW error:', e));
-
-  // Cuando el SW toma control (después de skipWaiting), recargar inmediatamente
-  // Esto garantiza que la nueva versión se aplique en la primera apertura
-  let refreshing = false;
+  // Recargar automáticamente cuando el SW toma control
+  // Esto ocurre tras skipWaiting() — garantiza que se aplique la nueva versión
+  let _refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
-      refreshing = true;
-      // Pequeña pausa para que el SW termine de activarse
-      setTimeout(() => window.location.reload(), 100);
+    if (!_refreshing) {
+      _refreshing = true;
+      window.location.reload();
     }
   });
 
-  // Escuchar mensajes del SW
+  // Registrar SW y guardar referencia global
+  navigator.serviceWorker.register('/sw.js')
+    .then(reg => {
+      _swReg = reg;
+
+      // Si ya hay un SW nuevo esperando al cargar → activar inmediatamente
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      // Cuando se instala un SW nuevo → activarlo inmediatamente
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed') {
+            // Activar sin esperar — el controllerchange recargará la página
+            newSW.postMessage({ type: 'SKIP_WAITING' });
+          }
+        });
+      });
+    })
+    .catch(e => console.warn('SW registro falló:', e));
+
+  // Mensajes del SW
   navigator.serviceWorker.addEventListener('message', event => {
     if (event.data?.type === 'SYNC_COMPLETE') {
       actualizarBadge();
       showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
     }
-    if (event.data?.type === 'NEW_VERSION') {
-      mostrarUpdateToast(event.data.version);
-    }
   });
 }
+
+// ── Verificar actualizaciones al volver desde background ───────
+// Clave en Android — la PWA instalada nunca se "cierra" realmente
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible') return;
+  if (!('serviceWorker' in navigator)) return;
+
+  try {
+    const reg = _swReg || await navigator.serviceWorker.getRegistration();
+    if (!reg) return;
+
+    // Pedir al navegador que verifique si hay nueva versión del SW
+    await reg.update();
+
+    // Si ya hay un SW nuevo esperando → activar inmediatamente
+    if (reg.waiting) {
+      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  } catch(e) { /* ignorar errores de red */ }
+});
+
+// Verificar actualizaciones cada 10 minutos
+setInterval(async () => {
+  try {
+    const reg = _swReg || await navigator.serviceWorker?.getRegistration();
+    if (reg) {
+      await reg.update();
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+    }
+  } catch(e) {}
+}, 60 * 60 * 1000); // cada 60 min — estándar recomendado
 
 let _updateToastTimer = null;
 function mostrarUpdateToast(version) {
@@ -4274,14 +4310,12 @@ function mostrarUpdateToast(version) {
     (version ? ' (v' + version + ')' : '') +
     ' — toca para actualizar';
   t.classList.add('show');
-  // Auto-ocultar después de 15 segundos si no toca
   clearTimeout(_updateToastTimer);
   _updateToastTimer = setTimeout(() => t.classList.remove('show'), 15000);
 }
 
 function aplicarActualizacion() {
   document.getElementById('updateToast').classList.remove('show');
-  // Decirle al SW en espera que tome control
   navigator.serviceWorker.getRegistration().then(reg => {
     if (reg?.waiting) {
       reg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4290,27 +4324,6 @@ function aplicarActualizacion() {
     }
   });
 }
-
-// Verificar actualizaciones cada 30 minutos en segundo plano
-setInterval(() => {
-  navigator.serviceWorker?.getRegistration().then(reg => reg?.update());
-}, 30 * 60 * 1000);
-
-// Verificar también cuando el usuario vuelve a la app desde background
-// Esto es clave en Android donde la app queda en memoria
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    navigator.serviceWorker?.getRegistration().then(reg => {
-      if (reg) {
-        reg.update(); // verificar si hay nueva versión
-        if (reg.waiting) {
-          // Ya hay un SW nuevo esperando — activar inmediatamente
-          reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-        }
-      }
-    });
-  }
-});
 
 
 /* ══════════════════════════════════════════════════════════════
