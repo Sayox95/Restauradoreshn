@@ -11,7 +11,7 @@
  *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160601';
+const CACHE_NAME    = 'scada-202604160602';
 const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
