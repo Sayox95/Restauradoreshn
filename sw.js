@@ -8,14 +8,14 @@
  *   HTML/assets → Cache first (carga instantánea)
  *
  * Para forzar actualización en todos los dispositivos:
- *   Cambia CACHE_NAME por ej: 'scada-202604160901'
+ *   Cambia CACHE_NAME por ej: 'scada-202604160900'
  */
 
-const CACHE_NAME    = 'scada-202604160900';
+const CACHE_NAME    = 'scada-202604161000';
 const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
 const SYNC_TAG      = 'scada-sync-visitas';
 const DB_NAME       = 'scadaDB';
-const DB_VERSION    = 5;
+const DB_VERSION    = 6;
 const STORE_PENDING = 'pendientes';
 const STORE_PDFS    = 'pdfs_pendientes';
 
@@ -248,7 +248,7 @@ function abrirDB() {
         store.createIndex('savedAt',   'savedAt',   { unique: false });
       }
       if (!db.objectStoreNames.contains(STORE_PDFS)) {
-        db.createObjectStore(STORE_PDFS, { autoIncrement: true });
+        db.createObjectStore(STORE_PDFS, { keyPath: 'visitaNum' });
       }
       if (!db.objectStoreNames.contains('fotos_offline')) {
         db.createObjectStore('fotos_offline', { keyPath: 'visitaNum' });
