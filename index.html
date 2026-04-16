@@ -3362,11 +3362,10 @@ document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 // ── IndexedDB — contar visitas pendientes ───────────────────────
 
 /* ── DB UNIFICADA — versión 3, todos los stores ── */
-const SCADA_DB_VERSION = 8;
+const SCADA_DB_VERSION = 9;
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
-  // Si la DB cacheada es de versión anterior, descartarla
   if (_scadaDB && _scadaDB.version < SCADA_DB_VERSION) {
     _scadaDB.close();
     _scadaDB = null;
@@ -3374,7 +3373,13 @@ function abrirScadaDB() {
   if (_scadaDB) return Promise.resolve(_scadaDB);
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
+    req.onblocked = () => {
+      // SW tiene la DB abierta — esperar y reintentar
+      dlog('[DB] Upgrade bloqueado por SW, reintentando en 1s...');
+      setTimeout(() => { _scadaDB = null; abrirScadaDB().then(resolve).catch(reject); }, 1000);
+    };
     req.onupgradeneeded = e => {
+      dlog('[DB] onupgradeneeded v' + e.oldVersion + ' → v' + e.newVersion);
       const db = e.target.result;
       if (!db.objectStoreNames.contains('pendientes')) {
         const s = db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
@@ -3388,9 +3393,13 @@ function abrirScadaDB() {
       if (!db.objectStoreNames.contains('catalogos'))
         db.createObjectStore('catalogos');
     };
-    req.onsuccess  = e => { _scadaDB = e.target.result; resolve(_scadaDB); };
+    req.onsuccess  = e => {
+      _scadaDB = e.target.result;
+      // Si SW pide upgrade, cerrar para no bloquear
+      _scadaDB.onversionchange = () => { _scadaDB.close(); _scadaDB = null; dlog('[DB] versionchange — conexión cerrada'); };
+      resolve(_scadaDB);
+    };
     req.onerror    = e => reject(e.target.error);
-    req.onblocked  = () => { _scadaDB = null; reject(new Error('DB bloqueada')); };
   });
 }
 
@@ -4745,7 +4754,7 @@ function toggleDebug() {
 
 /* ── Limpiar store de PDFs (ejecutar una sola vez via flag en localStorage) ── */
 async function limpiarPdfsStore() {
-  const FLAG = 'pdfs_store_cleared_v8';
+  const FLAG = 'pdfs_store_cleared_v9';
   if (localStorage.getItem(FLAG)) return; // ya se limpió
   try {
     const db = await abrirScadaDB();
