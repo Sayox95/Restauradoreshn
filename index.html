@@ -551,7 +551,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .adm-badge.ok{background:var(--ok-l);color:var(--ok);}
 .adm-badge.nok{background:var(--nok-l);color:var(--nok);}
 
-
 /* ── ADMIN OPERATION OVERLAY ── */
 #admOpOverlay{
   position:fixed;inset:0;z-index:9800;
@@ -791,25 +790,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   display:inline-block;
 }
 
-/* ── UPDATE TOAST ── */
-#updateToast{
-  position:fixed;bottom:80px;left:50%;
-  transform:translateX(-50%) translateY(20px);
-  background:var(--blue);color:#fff;
-  padding:12px 20px;border-radius:14px;
-  font-size:13px;font-weight:600;
-  z-index:9700;opacity:0;
-  transition:all .3s;white-space:nowrap;
-  pointer-events:none;
-  box-shadow:0 4px 20px rgba(21,101,192,.4);
-  display:flex;align-items:center;gap:8px;
-  cursor:pointer;
-}
-#updateToast.show{
-  opacity:1;
-  transform:translateX(-50%) translateY(0);
-  pointer-events:all;
-}
 
 /* ── SECCIÓN FOTOGRAFÍAS ── */
 .fotos-grid{
@@ -916,27 +896,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   font-size:14px;cursor:pointer;
 }
 
-/* ── DEBUG LOG VISUAL ── */
-#debugLog{
-  position:fixed;bottom:30px;left:0;right:0;
-  background:rgba(0,0,0,.92);color:#0f0;
-  font-size:11px;font-family:monospace;
-  padding:6px 8px;z-index:99999;
-  height:0px;overflow-y:auto;
-  transition:height .3s;
-}
-#debugToggle{
-  position:fixed;bottom:0;right:0;
-  background:#1a1a1a;color:#0f0;
-  font-size:11px;font-weight:bold;
-  padding:4px 10px;z-index:99999;
-  border:1px solid #0f0;cursor:pointer;
-  border-radius:4px 0 0 0;
-}
 </style>
 </head>
 <body>
-
 
 <!-- ═══ SAVE OVERLAY ═══ -->
 <div id="saveOverlay">
@@ -947,7 +909,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="so-sub"   id="soSub">Guardando información en Cloudflare</div>
   <button class="so-btn" id="soBtn" onclick="cerrarSaveOverlay()">✔ Nueva Inspección</button>
 </div>
-
 
 <!-- ═══ PDF DOWNLOAD MODAL ═══ -->
 <div id="pdfModal">
@@ -981,7 +942,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="lo-bar-wrap"><div class="lo-bar" id="loBar"></div></div>
   <div class="lo-msg" id="loMsg">Conectando con la base de datos...</div>
 </div>
-
 
 <header class="topbar">
   <div style="display:flex;align-items:center;gap:8px;">
@@ -1065,7 +1025,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </div>
 </div>
 
-
 <!-- ═══ ADMIN OPERATION OVERLAY ═══ -->
 <div id="admOpOverlay">
   <div class="adm-op-icon loading" id="admOpIcon">
@@ -1074,7 +1033,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="adm-op-title" id="admOpTitle">Procesando...</div>
   <div class="adm-op-sub"  id="admOpSub"></div>
 </div>
-
 
 <!-- ═══ ADMIN TABLERO MODAL ═══ -->
 <div id="admTableroModal">
@@ -1669,8 +1627,6 @@ const WEBAPP_URL = API_BASE; // alias para compatibilidad
 let RESTS = [];
 let MATS  = [];
 let PERS_LIST = [];
-
-
 
 // Datos desde D1 (catálogos de tipos, marcas y tableros)
 let TIPOS_LIST  = [];   // [{tipo:'NOVA 15'}, ...]
@@ -2446,8 +2402,6 @@ function limpiarFormulario() {
   limpiarTabliero();
   Object.keys(SS).forEach(k => SS[k] = null);
 
-
-
   // Limpiar materiales y personal
   document.getElementById('matContainer').innerHTML = '';
   mc = 0;
@@ -2540,7 +2494,6 @@ function exportarJSON() {
   a.click();
   showToast('📥 JSON exportado · ' + (d.visitaNum || ''));
 }
-
 
 /* ══════════════════════════════════════════════════════════════
    PDF MODAL + GENERADOR DE FICHA TÉCNICA
@@ -2678,7 +2631,6 @@ async function descargarFichaPDF() {
     btn.disabled = false;
   }
 }
-
 
 /* ══════════════════════════════════════════════════════════════
    PANEL DE ADMINISTRACIÓN — CRUD completo via Pages Functions
@@ -3071,14 +3023,11 @@ function admToast(msg) {
 // Alias para compatibilidad (tab anterior ya no existe)
 function admTab(sec, btn) { admAbrirPagina(sec, btn); }
 
-
 /* ══════════════════════════════════════════════════════════════
    TABLERO DINÁMICO — se renderiza según marca del reconectador
    TABLEROS_LIST: [{marca, campos:[{campo,orden,activo}]}] — cargado desde D1
    Datos precargados (fallback) + desde D1
 ══════════════════════════════════════════════════════════════ */
-
-
 
 // ID seguro para un campo (slug sin espacios ni caracteres especiales)
 function campoId(campo) {
@@ -3159,7 +3108,6 @@ function limpiarTabliero() {
   document.getElementById('tablero-dinamico').style.display = 'none';
   document.getElementById('tablero-campos').innerHTML = '';
 }
-
 
 /* ══════════════════════════════════════════════════════════════
    MODAL ESPECIAL DE TABLEROS
@@ -3324,7 +3272,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   updP();
 });
 
-
 /* ══════════════════════════════════════════════════════════════
    PWA — Service Worker + Offline + Background Sync
    - Cachea el HTML y catálogos para uso sin internet
@@ -3375,11 +3322,9 @@ function abrirScadaDB() {
     const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
     req.onblocked = () => {
       // SW tiene la DB abierta — esperar y reintentar
-      dlog('[DB] Upgrade bloqueado por SW, reintentando en 1s...');
       setTimeout(() => { _scadaDB = null; abrirScadaDB().then(resolve).catch(reject); }, 1000);
     };
     req.onupgradeneeded = e => {
-      dlog('[DB] onupgradeneeded v' + e.oldVersion + ' → v' + e.newVersion);
       const db = e.target.result;
       if (!db.objectStoreNames.contains('pendientes')) {
         const s = db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
@@ -3396,7 +3341,7 @@ function abrirScadaDB() {
     req.onsuccess  = e => {
       _scadaDB = e.target.result;
       // Si SW pide upgrade, cerrar para no bloquear
-      _scadaDB.onversionchange = () => { _scadaDB.close(); _scadaDB = null; dlog('[DB] versionchange — conexión cerrada'); };
+      _scadaDB.onversionchange = () => { _scadaDB.close(); _scadaDB = null; };
       resolve(_scadaDB);
     };
     req.onerror    = e => reject(e.target.error);
@@ -3441,7 +3386,6 @@ document.addEventListener('DOMContentLoaded', () => {
 // Revisar badge al cargar y cada 30 segundos
 window.addEventListener('load', () => setTimeout(actualizarBadge, 2000));
 setInterval(actualizarBadge, 30000);
-
 
 /* ── LOGO: precargar en segundo plano para PDF ── */
 let _logoBase64Cached = null;
@@ -3504,7 +3448,6 @@ function ocultarSyncOverlay() {
 
 // ── Abrir IndexedDB (compatibilidad con SW) ────────────────────
 
-
 async function getPendientesDB() {
   try {
     const db = await abrirDBSync();
@@ -3560,7 +3503,6 @@ async function sincronizarPendientesOnline() {
 
   // Aunque no haya visitas pendientes, siempre sincronizar PDFs
   if (!pendientes.length) {
-    dlog('[SYNC] No hay visitas pendientes, revisando PDFs...');
     const pdfs = await getPdfsPendientes();
     if (pdfs.length > 0) {
       mostrarSyncOverlay('⬆️ Subiendo PDFs pendientes...', pdfs.length + ' PDF(s) por subir');
@@ -3697,14 +3639,11 @@ async function sincronizarPendientesOnline() {
 // ── Detectar reconexión y sincronizar automáticamente ─────────
 window.addEventListener('online', async () => {
   setTimeout(async () => {
-    dlog('[ONLINE] Conexión detectada — revisando pendientes...');
     const visitas = await getPendientesDB();
     const pdfs    = await getPdfsPendientes();
-    dlog('[ONLINE] Visitas: ' + visitas.length + ' | PDFs: ' + pdfs.length);
     if (visitas.length > 0 || pdfs.length > 0) {
       await sincronizarPendientesOnline();
     } else {
-      dlog('[ONLINE] Nada pendiente, no se sincroniza');
     }
   }, 2000);
 });
@@ -3720,7 +3659,6 @@ navigator.serviceWorker?.addEventListener('message', event => {
     showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
   }
 });
-
 
 /* ── Generador interno de PDF (reutilizable para sync offline) ── */
 async function _generarDocPDF(d) {
@@ -4286,7 +4224,6 @@ async function _generarDocPDF(d) {
   }
 }
 
-
 /* ══════════════════════════════════════════════════════════════
    VERSIONADO — detección de actualización disponible
 ══════════════════════════════════════════════════════════════ */
@@ -4297,37 +4234,30 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chip) chip.textContent = 'v' + APP_VERSION;
 });
 
-// ── Registro del SW + detección de actualizaciones ────────────
-let _swReg = null; // referencia global al registro del SW
+// ── Registro del SW + actualización automática ────────────────
+let _swReg = null;
 
 if ('serviceWorker' in navigator) {
 
   // Recargar automáticamente cuando el SW toma control
-  // Esto ocurre tras skipWaiting() — garantiza que se aplique la nueva versión
   let _refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!_refreshing) {
-      _refreshing = true;
-      window.location.reload();
-    }
+    if (!_refreshing) { _refreshing = true; window.location.reload(); }
   });
 
-  // Registrar SW y guardar referencia global
+  // Registrar SW
   navigator.serviceWorker.register('/sw.js')
     .then(reg => {
       _swReg = reg;
 
-      // Si ya hay un SW nuevo esperando al cargar → activar inmediatamente
-      if (reg.waiting) {
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-      }
+      // SW nuevo esperando → activar inmediatamente
+      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
 
-      // Cuando se instala un SW nuevo → activarlo inmediatamente
+      // SW nuevo instalado → activar inmediatamente
       reg.addEventListener('updatefound', () => {
         const newSW = reg.installing;
         newSW.addEventListener('statechange', () => {
           if (newSW.state === 'installed') {
-            // Activar sin esperar — el controllerchange recargará la página
             newSW.postMessage({ type: 'SKIP_WAITING' });
           }
         });
@@ -4375,28 +4305,6 @@ setInterval(async () => {
   } catch(e) {}
 }, 60 * 60 * 1000); // cada 60 min — estándar recomendado
 
-let _updateToastTimer = null;
-function mostrarUpdateToast(version) {
-  const t = document.getElementById('updateToast');
-  if (!t) return;
-  t.innerHTML = '🔄 Nueva versión disponible' +
-    (version ? ' (v' + version + ')' : '') +
-    ' — toca para actualizar';
-  t.classList.add('show');
-  clearTimeout(_updateToastTimer);
-  _updateToastTimer = setTimeout(() => t.classList.remove('show'), 15000);
-}
-
-function aplicarActualizacion() {
-  document.getElementById('updateToast').classList.remove('show');
-  navigator.serviceWorker.getRegistration().then(reg => {
-    if (reg?.waiting) {
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    } else {
-      window.location.reload();
-    }
-  });
-}
 
 
 /* ══════════════════════════════════════════════════════════════
@@ -4537,11 +4445,8 @@ function limpiarFotos() {
   [0,1,2,3].forEach(renderFotoSlot);
 }
 
-
 /* ── Fotos offline en IndexedDB ── */
 const STORE_FOTOS_OFFLINE = 'fotos_offline';
-
-
 
 // Guardar fotos de una visita offline
 async function guardarFotosPendientes(visitaNum, fotos) {
@@ -4580,7 +4485,6 @@ async function eliminarFotosOffline(visitaNum) {
     });
   } catch(e) { console.warn('Error eliminando fotos offline:', e); }
 }
-
 
 /* ── PDFs pendientes de subir a R2 ── */
 // ── PDFs pendientes — usan store 'pdf_queue' con keyPath 'visitaNum' ──
@@ -4631,40 +4535,34 @@ async function getPdfsPendientes() {
 async function eliminarPdfOffline(visitaNum) {
   try {
     const db = await abrirScadaDB();
-    dlog('[PDF] Eliminando PDF por cursor: ' + visitaNum);
     await new Promise((resolve, reject) => {
       const tx    = db.transaction('pdf_queue', 'readwrite');
       const store = tx.objectStore('pdf_queue');
-      dlog('[PDF] Store keyPath: ' + store.keyPath);
       // Usar cursor para encontrar y eliminar por visitaNum independiente del keyPath
       const req = store.openCursor();
       req.onsuccess = e => {
         const cursor = e.target.result;
-        if (!cursor) { dlog('[PDF] Cursor fin — no encontrado: ' + visitaNum); resolve(); return; }
+        if (!cursor) { resolve(); return; }
         if (cursor.value.visitaNum === visitaNum) {
           const delReq = cursor.delete();
-          delReq.onsuccess = () => dlog('[PDF] ✅ Eliminado por cursor: ' + visitaNum);
-          delReq.onerror   = e => dlog('[PDF] ❌ cursor.delete error: ' + e.target.error);
+          delReq.onsuccess = () =>
+          delReq.onerror   = e =>
           resolve();
         } else {
           cursor.continue();
         }
       };
-      req.onerror   = e => { dlog('[PDF] ❌ cursor error: ' + e.target.error); resolve(); };
+      req.onerror   = e => { resolve(); };
       tx.oncomplete = () => resolve();
-      tx.onerror    = e => { dlog('[PDF] ❌ tx error: ' + e.target.error); resolve(); };
+      tx.onerror    = e => { resolve(); };
     });
     const restantes = await getPdfsPendientes();
-    dlog('[PDF] PDFs restantes después de delete: ' + restantes.length);
   } catch(e) {
-    dlog('[PDF] ❌ eliminarPdfOffline catch: ' + e.message);
   }
 }
 
 async function sincronizarPdfsPendientes() {
-  console.log('[SYNC PDF] Iniciando sincronización de PDFs...');
   const pdfs = await getPdfsPendientes();
-  console.log('[SYNC PDF] PDFs encontrados para sincronizar:', pdfs.length);
   if (!pdfs.length) return 0;
 
   let subidos = 0;
@@ -4688,7 +4586,6 @@ async function sincronizarPdfsPendientes() {
         // Eliminar usando el id autoincremental
         await eliminarPdfOffline(item.visitaNum);
         subidos++;
-        console.log('✅ PDF sincronizado:', item.visitaNum);
       }
     } catch(e) {
       console.warn('sincronizarPdfsPendientes error:', e);
@@ -4698,88 +4595,6 @@ async function sincronizarPdfsPendientes() {
   return subidos;
 }
 
-
-/* ── DEBUG VISUAL ── */
-// Inicializar inmediatamente antes que cualquier otro código
-(function() {
-  const _logs = [];
-
-  window.dlog = function(msg, color) {
-    const t = new Date().toLocaleTimeString();
-    const entry = { t, msg, color: color||'#0f0' };
-    _logs.push(entry);
-    renderLog();
-  };
-
-  function renderLog() {
-    const el = document.getElementById('debugLog');
-    if (!el) return;
-    el.innerHTML = _logs.slice(-30).map(e =>
-      `<div style="color:${e.color};border-bottom:1px solid #333;padding:2px 0">
-        <span style="color:#888">${e.t}</span> ${e.msg}
-      </div>`
-    ).join('');
-    el.scrollTop = el.scrollHeight;
-  }
-
-  // Interceptar console.log y console.warn desde el inicio
-  const _ol = console.log.bind(console);
-  console.log = function(...args) {
-    _ol(...args);
-    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    if (msg.includes('[PDF]') || msg.includes('[SYNC]') || msg.includes('✅') || msg.includes('visita')) {
-      window.dlog(msg, '#0f0');
-    }
-  };
-
-  const _ow = console.warn.bind(console);
-  console.warn = function(...args) {
-    _ow(...args);
-    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    window.dlog('⚠️ ' + msg, '#ff0');
-  };
-
-  const _oe = console.error.bind(console);
-  console.error = function(...args) {
-    _oe(...args);
-    const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
-    window.dlog('❌ ' + msg, '#f00');
-  };
-
-  // Log de inicio
-  window.addEventListener('load', () => {
-    window.dlog('App iniciada — ' + navigator.onLine ? 'online' : 'offline');
-    window.dlog('SW: ' + ('serviceWorker' in navigator ? 'disponible' : 'NO'));
-  });
-})();
-
-function toggleDebug() {
-  const el = document.getElementById('debugLog');
-  const isVisible = el.style.height !== '0px' && el.style.height !== '';
-  el.style.height = isVisible ? '0px' : '200px';
-  el.style.display = 'block';
-  if (!isVisible) el.scrollTop = el.scrollHeight;
-}
-
-
-/* ── Limpiar store de PDFs (ejecutar una sola vez via flag en localStorage) ── */
-async function limpiarPdfsStore() {
-  const FLAG = 'pdfs_store_cleared_v10';
-  if (localStorage.getItem(FLAG)) return; // ya se limpió
-  try {
-    const db = await abrirScadaDB();
-    await new Promise((resolve, reject) => {
-      const tx = db.transaction('pdf_queue', 'readwrite');
-      tx.objectStore('pdf_queue').clear();
-      tx.oncomplete = resolve;
-      tx.onerror    = reject;
-    });
-    localStorage.setItem(FLAG, '1');
-    dlog('[PDF] Store pdfs_pendientes limpiado correctamente');
-  } catch(e) { console.warn('limpiarPdfsStore:', e); }
-}
-window.addEventListener('load', () => setTimeout(limpiarPdfsStore, 1000));
-
 </script>
 
 <!-- ═══ OFFLINE BANNER + SYNC BADGE ═══ -->
@@ -4788,22 +4603,12 @@ window.addEventListener('load', () => setTimeout(limpiarPdfsStore, 1000));
   ⬆️ <span id="syncCount">0</span> visita(s) pendiente(s)
 </div>
 
-
-<!-- ═══ UPDATE TOAST ═══ -->
-<div id="updateToast" onclick="aplicarActualizacion()">
-  🔄 Nueva versión disponible — toca para actualizar
-</div>
-
 <!-- ═══ SYNC OVERLAY ═══ -->
 <div id="syncOverlay">
   <div class="sync-spinner"></div>
   <div class="sync-title" id="syncOverlayTitle">Sincronizando...</div>
   <div class="sync-sub"   id="syncOverlaySub">Subiendo visita y PDF al servidor</div>
 </div>
-
-
-<div id="debugLog"></div>
-<button id="debugToggle" onclick="toggleDebug()">🐛</button>
 
 </body>
 </html>
