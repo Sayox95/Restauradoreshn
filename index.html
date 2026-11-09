@@ -451,7 +451,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   border-radius: 4px;
 }
 .field-err .field-err-msg { display: block; }
-#sec1-val-banner {
+.val-banner, #sec1-val-banner {
   display: none;
   background: #fee2e2;
   border: 1.5px solid var(--nok);
@@ -464,7 +464,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   gap: 8px;
   align-items: flex-start;
 }
-#sec1-val-banner.show { display: flex; }
+.val-banner.show, #sec1-val-banner.show { display: flex; }
+.sec-tab.err .tn{background:var(--nok);color:#fff}
+.fotos-grid.field-err{outline:2px solid var(--nok);outline-offset:4px;border-radius:12px}
 
 /* ── HAMBURGER BUTTON ── */
 .hbg-btn{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.1);border:none;color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background .15s;flex-direction:column;gap:5px;padding:10px;}
@@ -1205,9 +1207,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     </div>
     <div class="card-body">
       <!-- Banner de validación -->
-      <div id="sec1-val-banner">
+      <div id="sec1-val-banner" class="val-banner">
         <span>⚠️</span>
-        <span id="sec1-val-txt">Completa los campos obligatorios antes de continuar.</span>
+        <span class="val-txt">Completa los campos obligatorios antes de continuar.</span>
       </div>
 
       <div class="g2">
@@ -1688,8 +1690,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.1.1';            // versión funcional de la app
-const BUILD_ID    = 'dev-202611092200'; // lo reemplaza build.mjs en cada deploy
+const APP_VERSION = '2.2.0';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611100100'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -2011,16 +2013,17 @@ const TGA=['a-si','a-no','a-on','a-off','a-ok','a-nok','a-int','a-ext','a-2g','a
 /* ── WIZARD ── */
 let cur=0;
 function buildNav(){
-  document.getElementById('sni').innerHTML=SECS.map((s,i)=>`<button class="sec-tab${i===0?' active':''}" id="nt${i}" onclick="jumpSec(${i})"><span class="tn">${i+1}</span>${s.label}</button>`).join('');
+  document.getElementById('sni').innerHTML=SECS.map((s,i)=>`<button class="sec-tab${i===0?' active':''}" id="nt${i}" onclick="irASeccion(${i})"><span class="tn">${i+1}</span>${s.label}</button>`).join('');
 }
 function goSec(d){
-  // Validar sección 1 antes de avanzar
-  if(d>0 && cur===0 && !validarSec1()) return;
+  // Validar la sección actual antes de avanzar
+  if(d>0 && !validarSeccion(cur)) return;
   const n=cur+d;
   if(n<0||n>=SECS.length)return;
   jumpSec(n);
 }
 function jumpSec(idx){
+  if (typeof _seccionesVisitadas !== 'undefined') { _seccionesVisitadas.add(idx); updP(); }
   document.getElementById(SECS[cur].id).classList.remove('active');
   document.getElementById('nt'+cur).classList.remove('active');
   cur=idx;
@@ -2216,46 +2219,271 @@ function clearErr(fieldId) {
   if (el) el.classList.remove('field-err');
 }
 
-function validarSec1() {
-  // Definición de campos obligatorios: {fieldWrap, inputId, label}
-  const campos = [
-    { wrap:'f-fechaVisita',       id:'fechaVisita',        label:'Fecha de Visita'   },
-    { wrap:'f-tipoVisita',        id:'tipoVisita',         label:'Tipo de Visita'    },
-    { wrap:'f-codigoEnergis',     id:'codigoEnergis',      label:'Código Energis'    },
-    { wrap:'f-genDistribuida',    id:'tg-genDist',         label:'Generación Distribuida', isTg:true },
-  ];
-  const pendientes = [];
-  campos.forEach(campo => {
-    let val = '';
-    if (campo.isTg) {
-      const activo = document.getElementById(campo.id)?.querySelector('.tg-btn.a-si,.tg-btn.a-no');
-      val = activo ? activo.textContent : '';
-    } else {
-      val = (document.getElementById(campo.id)?.value || '').trim();
-    }
-    const wrap = document.getElementById(campo.wrap);
-    if (!val) {
-      if (wrap) wrap.classList.add('field-err');
-      pendientes.push(campo.label);
-    } else {
-      if (wrap) wrap.classList.remove('field-err');
-    }
-  });
-  const banner = document.getElementById('sec1-val-banner');
-  if (pendientes.length > 0) {
-    banner.classList.add('show');
-    document.getElementById('sec1-val-txt').textContent =
-      '⚠️ Completa los siguientes campos: ' + pendientes.join(', ');
-    // Scroll al banner
-    banner.scrollIntoView({ behavior:'smooth', block:'center' });
-    return false;
-  }
-  banner.classList.remove('show');
-  return true;
+/* ══════════════════════════════════════════════════════════════
+   VALIDACIÓN Y PORCENTAJE DE AVANCE
+   Una sola lista de reglas alimenta: la validación al avanzar de sección,
+   la validación completa al guardar y el porcentaje de avance.
+   Regla general: todo campo visible es obligatorio, salvo observaciones,
+   descripción de fotos y "Aterrizaje Otros". Los campos condicionales solo
+   se exigen cuando se muestran. `alGuardar`: se exige solo al guardar.
+══════════════════════════════════════════════════════════════ */
+function tgElegido(gid) {
+  const g = document.getElementById(gid);
+  return !!(g && g.querySelector(TGA.map(c => '.tg-btn.' + c).join(',')));
 }
 
-/* Sobrescribir goSec para interceptar avance desde sec1 */
-const _goSecOrig = goSec;
+function reglasValidacion() {
+  const val = id => (document.getElementById(id)?.value || '').trim();
+  const R = [];
+  const req = (sec, label, ok, el, opts = {}) => R.push({ sec, label, ok: !!ok, el, ...opts });
+  // Selects que dependen de un catálogo: solo se exigen si el catálogo trae opciones
+  // (si está vacío, el técnico no podría elegir nada y quedaría bloqueado)
+  const reqCat = (sec, label, id) => {
+    const sel = document.getElementById(id);
+    if (sel && [...sel.options].some(o => o.value)) req(sec, label, val(id), id);
+  };
+
+  // 1 · Datos generales
+  req(0, 'Fecha de visita',        val('fechaVisita'),   'fechaVisita');
+  req(0, 'Tipo de visita',         val('tipoVisita'),    'tipoVisita');
+  req(0, 'Hora de llegada',        val('horaLlegada'),   'horaLlegada');
+  req(0, 'Hora de salida',         val('horaSalida'),    'horaSalida', { alGuardar: true });
+  req(0, 'Código Energis',         val('codigoEnergis'), 'codigoEnergis');
+  req(0, 'Generación distribuida', tgElegido('tg-genDist'), 'tg-genDist');
+
+  // 2 · Reconectador
+  reqCat(1, 'Tipo de reconectador', 'tipoRecon');
+  reqCat(1, 'Marca',                'marcaReconectador');
+  reqCat(1, 'Modelo',               'modeloRecon');
+  req(1, 'Serie del reconectador', val('serieRecon'),       'serieRecon');
+  req(1, 'Medio de extinción',   val('medioExtincion'),     'medioExtincion');
+  reqCat(1, 'Tipo de control',      'tipoControl');
+  req(1, 'Serie del control',    val('serieControl'),       'serieControl');
+  if (esMarcaCooper()) {
+    req(1, 'Firmware / Proview',     val('proviewControl'),        'proviewControl');
+    req(1, 'Terminal p/Sensores V',  tgElegido('tg-termSensV'),    'tg-termSensV');
+    req(1, 'Manguera Sensores V',    tgElegido('tg-manguSensV'),   'tg-manguSensV');
+    req(1, 'Terminal Manguera Aux',  tgElegido('tg-termManguAux'), 'tg-termManguAux');
+    req(1, 'Manguera Auxiliar',      tgElegido('tg-manguAux'),     'tg-manguAux');
+  }
+
+  // 3 · Módems
+  [1, 2].forEach(n => {
+    req(2, `¿Tiene módem ${n}?`, tgElegido('tg-hasModem' + n), 'tg-hasModem' + n);
+    if (tgValor('tg-hasModem' + n) === 'SI') {
+      req(2, `Tipo módem ${n}`,       val('tipoModem' + n),   'tipoModem' + n);
+      reqCat(2, `Marca módem ${n}`,  'marcaModem' + n);
+      reqCat(2, `Modelo módem ${n}`, 'modeloModem' + n);
+      req(2, `Serie módem ${n}`,      val('serieModem' + n),  'serieModem' + n);
+      req(2, `Antena módem ${n}`,     tgElegido('tg-ant' + n), 'tg-ant' + n);
+      if (document.querySelector(`#tg-ant${n} .tg-btn.a-ext`))
+        req(2, `Tipo de antena ${n}`, val('tipoAntena' + n),  'tipoAntena' + n);
+      req(2, `Tecnología módem ${n}`, SS['tec' + n],          'tg-tec' + n);
+    }
+  });
+
+  // 4 · Tablero, alarma y batería
+  document.querySelectorAll('#tablero-campos .tg').forEach(g =>
+    req(3, g.closest('.field')?.querySelector('label')?.textContent.trim() || 'Campo del tablero', tgElegido(g.id), g.id));
+  if (document.getElementById('grupoActivo'))
+    req(3, 'Grupo activo', val('grupoActivo'), 'grupoActivo');
+  req(3, 'Alarma presente', tgElegido('tg-alarm'), 'tg-alarm');
+  if (tgValor('tg-alarm') === 'SI') req(3, 'Descripción de la alarma', val('descAlarma'), 'descAlarma');
+  req(3, 'Medición AC',        val('medicionAC'),       'medicionAC');
+  req(3, 'Medición baterías',  val('medicionBat'),      'medicionBat');
+  req(3, 'Medición cargador',  val('medicionCargador'), 'medicionCargador');
+  req(3, 'Battery test',       tgElegido('tg-batt'),    'tg-batt');
+  req(3, 'Cambio de baterías', tgElegido('tg-cbat'),    'tg-cbat');
+  if (tgValor('tg-cbat') === 'SI') req(3, 'Tipo de batería instalada', val('tipoBateria'), 'tipoBateria');
+
+  // 5 · Corrientes (IB e IC no aplican a reconectadores monofásicos)
+  const monofasico = /^1/.test(val('tipoRecon'));
+  req(4, 'Corriente IA', val('corrIA'), 'corrIA');
+  if (!monofasico) {
+    req(4, 'Corriente IB', val('corrIB'), 'corrIB');
+    req(4, 'Corriente IC', val('corrIC'), 'corrIC');
+  }
+  req(4, 'Corriente IN', val('corrIN'), 'corrIN');
+
+  // 6 · Estado físico
+  req(5, 'Gabinete', tgElegido('tg-gab'), 'tg-gab');
+  req(5, 'Borneras', tgElegido('tg-bor'), 'tg-bor');
+  if (tgValor('tg-gab') === 'NOK' || tgValor('tg-bor') === 'NOK')
+    req(5, 'Observación del estado físico (hay un NOK)', val('obsEstadoFisico'), 'obsEstadoFisico');
+  req(5, 'Aterrizaje restaurador', tgElegido('tg-atR'), 'tg-atR');
+  req(5, 'Aterrizaje control',     tgElegido('tg-atC'), 'tg-atC');
+  req(5, 'Cable de tierra',        tgElegido('tg-ct'),  'tg-ct');
+  req(5, '# Varillas',             val('numVarillas'),  'numVarillas');
+  req(5, 'Medición aterrizaje control (Ω)',     val('aterControl'),     'aterControl');
+  req(5, 'Medición aterrizaje restaurador (Ω)', val('aterRestaurador'), 'aterRestaurador');
+  req(5, 'Tipo de cuchilla',   val('tipoCuchilla'),     'tipoCuchilla');
+  req(5, 'Estado cuchillas',   tgElegido('tg-cuch'),    'tg-cuch');
+  req(5, '# Cuchillas',        val('numCuchillas'),     'numCuchillas');
+  req(5, 'Pararrayos',         tgElegido('tg-parr'),    'tg-parr');
+  req(5, '# Pararrayos',       val('numPararrayos'),    'numPararrayos');
+  req(5, '¿Tiene potencial?',  tgElegido('tg-tienePot'), 'tg-tienePot');
+  if (tgValor('tg-tienePot') === 'SI') {
+    req(5, 'Aterrizaje potencial',  tgElegido('tg-atP'), 'tg-atP');
+    req(5, 'Cantidad de potencial', val('potCantidad'),  'potCantidad');
+    req(5, 'Pararrayos potencial',  tgElegido('tg-pP'),  'tg-pP');
+    req(5, 'Cuchilla potencial',    tgElegido('tg-pC'),  'tg-pC');
+    req(5, 'Fase de conexión',      val('faseConexion'), 'faseConexion');
+  } else if (tgValor('tg-tienePot') === 'NO') {
+    req(5, 'Alimentado por acometida', tgElegido('tg-acometida'), 'tg-acometida');
+  }
+
+  // 7 · Materiales (opcionales; si se agrega uno, debe estar completo)
+  document.querySelectorAll('#matContainer .mat-card').forEach((c, i) => {
+    const id = c.id.replace('mt', '');
+    req(6, `Descripción material #${i + 1}`, val('md' + id), 'md' + id);
+    req(6, `Cantidad material #${i + 1}`,    parseFloat(val('mq' + id)) > 0, 'mq' + id);
+  });
+
+  // 8 · Fotografías
+  req(7, 'Al menos 1 fotografía', FOTOS_DATA.filter(Boolean).length > 0, 'fotosGrid');
+
+  // 10 · Personal y firma
+  const cards = [...document.querySelectorAll('#personalContainer .pers-card')];
+  cards.forEach((c, i) => {
+    const el = c.querySelector('.pers-nombre-select')?.value === 'OTRO'
+      ? c.querySelector('.pers-nombre-manual')
+      : (c.querySelector('.pers-nombre-select') || c.querySelector('input[type="text"]'));
+    req(9, `Nombre del técnico #${i + 1}`, nombreDeTarjeta(c), el);
+  });
+  if (!cards.length) req(9, 'Al menos un técnico', false, 'personalContainer');
+  req(9, 'Nombre del responsable', val('firmaResponsable'), 'firmaResponsable');
+  req(9, 'Firma del responsable',  hasFirma, 'firmaCanvas');
+
+  return R;
+}
+
+let _seccionesConError = new Set();
+let _seccionesVisitadas = new Set([0]);
+
+function _elDeRegla(r) {
+  const el = typeof r.el === 'string' ? document.getElementById(r.el) : r.el;
+  if (!el) return null;
+  if (el.id === 'fotosGrid') return el;
+  return el.closest('.field') || el;
+}
+
+function _bannerSeccion(i) {
+  const secEl = document.getElementById(SECS[i].id);
+  if (!secEl) return null;
+  let b = secEl.querySelector('.val-banner');
+  if (!b) {
+    b = document.createElement('div');
+    b.className = 'val-banner';
+    b.innerHTML = '<span>⚠️</span><span class="val-txt"></span>';
+    const body = secEl.querySelector('.card-body');
+    if (body) body.prepend(b);
+  }
+  return b;
+}
+
+// Marca los campos faltantes de una sección. Devuelve true si está completa.
+function validarSeccion(i, { final = false, mostrar = true } = {}) {
+  const reglas = reglasValidacion().filter(r => r.sec === i && (final || !r.alGuardar));
+  const faltan = reglas.filter(r => !r.ok);
+  if (mostrar) {
+    reglas.forEach(r => _elDeRegla(r)?.classList.toggle('field-err', !r.ok));
+    const banner = _bannerSeccion(i);
+    if (banner) {
+      banner.classList.toggle('show', faltan.length > 0);
+      banner.querySelector('.val-txt').textContent =
+        'Completa los siguientes campos: ' + faltan.map(r => r.label).join(', ');
+    }
+    if (faltan.length) {
+      _seccionesConError.add(i);
+      const primero = _elDeRegla(faltan[0]);
+      (banner || primero)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    } else {
+      _seccionesConError.delete(i);
+    }
+    actualizarPestanas();
+  }
+  return faltan.length === 0;
+}
+
+// Al corregir un campo, quitar su marca roja (solo en secciones ya revisadas)
+function refrescarErrores() {
+  if (!_seccionesConError.size) return;
+  const reglas = reglasValidacion();
+  _seccionesConError.forEach(i => {
+    const deSec = reglas.filter(r => r.sec === i);
+    deSec.forEach(r => { if (r.ok) _elDeRegla(r)?.classList.remove('field-err'); });
+    const faltan = deSec.filter(r => !r.ok && !r.alGuardar);
+    const banner = _bannerSeccion(i);
+    if (banner) {
+      if (!faltan.length) banner.classList.remove('show');
+      else banner.querySelector('.val-txt').textContent =
+        'Completa los siguientes campos: ' + faltan.map(r => r.label).join(', ');
+    }
+    if (!deSec.some(r => !r.ok)) _seccionesConError.delete(i);
+  });
+}
+
+// Asterisco (*) en la etiqueta de cada campo obligatorio, según las reglas vigentes
+function marcarObligatorios(reglas) {
+  const requeridos = new Set();
+  reglas.forEach(r => {
+    const el = typeof r.el === 'string' ? document.getElementById(r.el) : r.el;
+    const lab = el?.closest('.field')?.querySelector(':scope > label');
+    if (lab) requeridos.add(lab);
+  });
+  document.querySelectorAll('#sw .field > label').forEach(lab => {
+    const tieneFijo = lab.querySelector('.req:not(.req-auto)');
+    const auto = lab.querySelector('.req-auto');
+    if (requeridos.has(lab) && !tieneFijo && !auto) {
+      lab.insertAdjacentHTML('beforeend', ' <span class="req req-auto">*</span>');
+    } else if (!requeridos.has(lab) && auto) {
+      auto.remove();
+    }
+  });
+}
+
+// Pestañas: verde si la sección está completa, roja si se revisó y falta algo
+function actualizarPestanas(reglas = reglasValidacion()) {
+  SECS.forEach((s, i) => {
+    const tab = document.getElementById('nt' + i);
+    if (!tab) return;
+    const deSec = reglas.filter(r => r.sec === i);
+    // Sin campos obligatorios (p. ej. Observaciones): completa una vez visitada
+    const completa = deSec.length > 0 ? deSec.every(r => r.ok) : _seccionesVisitadas.has(i);
+    tab.classList.toggle('done', completa);
+    tab.classList.toggle('err', !completa && _seccionesConError.has(i));
+  });
+}
+
+// Pestañas superiores: hacia atrás libre; hacia adelante valida cada sección intermedia
+function irASeccion(idx) {
+  if (idx > cur) {
+    for (let i = cur; i < idx; i++) {
+      if (!validarSeccion(i, { mostrar: false })) {
+        if (i !== cur) jumpSec(i);
+        setTimeout(() => validarSeccion(i), i !== cur ? 350 : 0);
+        return;
+      }
+    }
+  }
+  jumpSec(idx);
+}
+
+// Validación completa antes de guardar. Devuelve true si todo está completo.
+async function validarTodo() {
+  for (let i = 0; i < SECS.length; i++) {
+    if (!validarSeccion(i, { final: true, mostrar: false })) {
+      const faltan = reglasValidacion().filter(r => r.sec === i && !r.ok).map(r => r.label);
+      await uiAlert('Faltan datos en la sección ' + (i + 1) + ' · ' + SECS[i].label + ':\n\n• ' + faltan.join('\n• '), {
+        title: 'Formulario incompleto', icon: '📋', warn: true, okText: 'Ir a completar'
+      });
+      jumpSec(i);
+      setTimeout(() => validarSeccion(i, { final: true }), 350);
+      return false;
+    }
+  }
+  return true;
+}
 
 /* ── MATERIALES ── */
 let mc=0;
@@ -2329,19 +2557,36 @@ let _firmaDataURL = null;
 function draw(e){if(!drw)return;const[x,y]=gxy(e);ctx.beginPath();ctx.moveTo(lx,ly);ctx.lineTo(x,y);ctx.strokeStyle='#0b1f3a';ctx.lineWidth=2.5;ctx.lineCap='round';ctx.lineJoin='round';ctx.stroke();[lx,ly]=[x,y];hasFirma=true;document.getElementById('firmaHint').style.display='none';}
 canvas.addEventListener('mousemove',draw);
 canvas.addEventListener('touchmove',e=>{e.preventDefault();draw(e);},{passive:false});
+canvas.addEventListener('mouseup',()=>updP());
+canvas.addEventListener('touchend',()=>updP());
 canvas.addEventListener('mouseup',()=>{drw=false;if(hasFirma){try{_firmaDataURL=canvas.toDataURL('image/png');}catch(e){}}});
 canvas.addEventListener('touchend',()=>{drw=false;if(hasFirma){try{_firmaDataURL=canvas.toDataURL('image/png');}catch(e){}}});
-function limpFirma(){ctx.clearRect(0,0,canvas.width,canvas.height);hasFirma=false;_firmaDataURL=null;document.getElementById('firmaHint').style.display='';}
+function limpFirma(){ctx.clearRect(0,0,canvas.width,canvas.height);hasFirma=false;_firmaDataURL=null;document.getElementById('firmaHint').style.display='';if(typeof updP==='function')updP();}
 
 /* ── PROGRESS ── */
+// Porcentaje de avance = campos obligatorios completos / total de obligatorios
+// (el total cambia según lo que aplique: módems, potencial, COOPER, etc.)
+let _updPTimer = null;
 function updP(){
-  const fs=[document.getElementById('fechaVisita').value,document.getElementById('tipoVisita').value,document.getElementById('codigoEnergis').value,document.getElementById('codigoCircuito').value,document.getElementById('tipoControl').value,document.getElementById('marcaReconectador').value,document.getElementById('tipoRecon').value,document.getElementById('modeloRecon').value];
-  const n=fs.filter(v=>v&&v.trim()).length;
-  const p=Math.round(n/fs.length*100);
-  document.getElementById('pf').style.width=p+'%';
-  document.getElementById('pp').textContent=p+'%';
-  if(document.getElementById('codigoEnergis').value)document.getElementById('nt0').classList.add('done');
+  clearTimeout(_updPTimer);
+  _updPTimer = setTimeout(() => {
+    const reglas = reglasValidacion();
+    const ok = reglas.filter(r => r.ok).length;
+    const p = reglas.length ? Math.floor(ok / reglas.length * 100) : 0;
+    document.getElementById('pf').style.width = p + '%';
+    document.getElementById('pp').textContent = p + '%';
+    actualizarPestanas(reglas);
+    marcarObligatorios(reglas);
+    refrescarErrores();
+  }, 60);
 }
+// Recalcular con cualquier cambio en el formulario
+['input','change'].forEach(ev => document.addEventListener(ev, e => {
+  if (e.target.closest && e.target.closest('#sw')) updP();
+}));
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('#sw .tg-btn, #sw .mat-rm, #sw .firma-clear, #sw .add-btn')) updP();
+});
 
 /* ── STATUS CHIPS ── */
 const CM={op:'c-op',warn:'c-warn',mant:'c-mant',fs:'c-fs'};
@@ -2630,6 +2875,12 @@ function limpiarFormulario() {
   jumpSec(0);
   updP();
 
+  // Reiniciar marcas de validación
+  _seccionesConError.clear();
+  _seccionesVisitadas = new Set([0]);
+  document.querySelectorAll('#sw .field-err').forEach(e => e.classList.remove('field-err'));
+  document.querySelectorAll('#sw .val-banner').forEach(b => b.classList.remove('show'));
+
   // Formulario vacío: ya se puede aplicar una actualización pendiente
   marcarFormularioLimpio();
 }
@@ -2680,15 +2931,9 @@ async function guardar() {
     return;
   }
 
-  // Fotografía obligatoria
+  // Validar todo el formulario (incluye la fotografía obligatoria)
+  if (!await validarTodo()) return;
   const fotos = FOTOS_DATA.filter(Boolean);
-  if (fotos.length === 0) {
-    await uiAlert('Agrega al menos 1 fotografía de la visita antes de guardar.', {
-      title:'Falta la fotografía', icon:'📷', warn:true, okText:'Ir a Fotografías'
-    });
-    jumpSec(SECS.findIndex(x => x.id === 'sec8'));
-    return;
-  }
 
   respaldoLocal(d);
   mostrarSaveOverlay();
@@ -4804,6 +5049,7 @@ function renderFotos() {
     </div>`;
   }
   grid.innerHTML = html;
+  updP();
 }
 
 function editarFotoObs(slot) {
