@@ -4,6 +4,7 @@ import {
   methodNotAllowed,
   serverError,
 } from "../_lib/response.js";
+import { cleanVisitaNum, registroExiste } from "../_lib/visita.js";
 
 export async function onRequest(context) {
   if (context.request.method !== "POST") {
@@ -14,8 +15,21 @@ export async function onRequest(context) {
     const { request, env } = context;
     const v = await request.json();
 
-    if (!v || !v.visitaNum) {
+    if (!v || typeof v !== "object" || !cleanVisitaNum(v.visitaNum)) {
       return badRequest("visitaNum es requerido");
+    }
+    v.visitaNum = cleanVisitaNum(v.visitaNum);
+
+    // Idempotencia: si la visita ya existe (reintento de sync, doble envío)
+    // no se inserta de nuevo.
+    const existente = await registroExiste(env, v.visitaNum);
+    if (existente) {
+      return json({
+        status: "ok",
+        id: existente,
+        visitaNum: v.visitaNum,
+        duplicate: true,
+      });
     }
 
     const matsResumen = (v.materialesUtilizados || [])
@@ -265,7 +279,21 @@ export async function onRequest(context) {
       VALUES (${placeholders})
     `);
 
-    const r = await stmt.bind(...values).run();
+    let r;
+    try {
+      r = await stmt.bind(...values).run();
+    } catch (err) {
+      // Carrera entre dos envíos simultáneos con índice UNIQUE(visita_num)
+      if (/UNIQUE/i.test(String(err?.message))) {
+        return json({
+          status: "ok",
+          id: await registroExiste(env, v.visitaNum),
+          visitaNum: v.visitaNum,
+          duplicate: true,
+        });
+      }
+      throw err;
+    }
 
     return json({
       status: "ok",

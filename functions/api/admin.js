@@ -5,11 +5,15 @@ import {
   serverError,
 } from "../_lib/response.js";
 import { adminInsert, adminUpdate, adminDelete } from "../_lib/admin.js";
+import { requireAdmin } from "../_lib/auth.js";
 
 export async function onRequest(context) {
   const { request, env } = context;
 
   try {
+    const denied = requireAdmin(request, env);
+    if (denied) return denied;
+
     if (request.method === "GET") {
       return await handleGet(request, env);
     }
@@ -101,4 +105,3 @@ async function handlePost(request, env) {
 
   return badRequest("Acción no reconocida");
 }
- 

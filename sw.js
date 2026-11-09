@@ -1,74 +1,69 @@
 /**
- * SCADA Distribución — Service Worker v202604151810
- * 
+ * SCADA Distribución — Service Worker
+ *
  * Estrategias:
  *   /api/data   → Network first + cache fallback (catálogos offline)
- *   /api/save   → Network first + IndexedDB fallback (visitas offline)
+ *   /api/save   → Network first; solo si NO hay red (o 502/503/504) se
+ *                 guarda en IndexedDB para sincronizar después
  *   resto API   → Network only
- *   HTML/assets → Cache first (carga instantánea)
+ *   HTML/assets → Cache first + actualización en segundo plano
+ *
+ * Actualizaciones: el SW nuevo queda en espera (no hace skipWaiting solo).
+ * La página decide cuándo activarlo (si el formulario está vacío, o cuando
+ * el usuario pulsa "Actualizar"), para no perder una visita a medio llenar.
  *
  * Para forzar actualización en todos los dispositivos:
- *   Cambia CACHE_NAME por ej: 'scada-202604160900'
+ *   Cambia CACHE_NAME, ej: 'scada-202611091200'
  */
 
-const CACHE_NAME    = 'scada-202604161407';
-const APP_VERSION   = '1.0.0'; // debe coincidir con el HTML
-const SYNC_TAG      = 'scada-sync-visitas';
-const DB_NAME       = 'scadaDB';
-const DB_VERSION    = 10;
-const STORE_PENDING = 'pendientes';
-const STORE_PDFS    = 'pdf_queue';
+importScripts('/idb.js');
+
+const CACHE_NAME  = 'scada-202611091200';
+const APP_VERSION = '1.1.0'; // debe coincidir con el HTML
+const SYNC_TAG    = 'scada-sync-visitas';
+
+// Respuestas del servidor que se consideran "temporalmente sin servicio"
+const RETRY_STATUS = [502, 503, 504];
 
 // Assets que se cachean en el install (críticos para offline)
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/idb.js',
   '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
+  '/logo.png',
 ];
 
 // ══════════════════════════════════════════════════════════════════
-//  INSTALL — cachear assets estáticos inmediatamente
+//  INSTALL — cachear assets estáticos
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('install', event => {
-  // skipWaiting ANTES de waitUntil — activa inmediatamente
-  self.skipWaiting();
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(STATIC_ASSETS))
+    caches.open(CACHE_NAME).then(cache => cache.addAll(STATIC_ASSETS))
   );
 });
 
 // ══════════════════════════════════════════════════════════════════
-//  MESSAGE — responder a mensajes de la app
+//  MESSAGE — la app pide activar el SW nuevo
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('message', event => {
-  // La app pide activar el nuevo SW inmediatamente
   if (event.data?.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
 });
 
 // ══════════════════════════════════════════════════════════════════
-//  ACTIVATE — limpiar caches viejos y tomar control de inmediato
+//  ACTIVATE — limpiar caches viejos y tomar control
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('activate', event => {
   event.waitUntil(
-    // clients.claim() PRIMERO — tomar control de todas las tabs inmediatamente
-    self.clients.claim()
-      .then(() => caches.keys())
+    caches.keys()
       .then(keys => Promise.all(
         keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
       ))
-      .then(async () => {
-        // Notificar a todas las tabs que hay nueva versión
-        const clients = await self.clients.matchAll({ includeUncontrolled: true });
-        clients.forEach(client => client.postMessage({
-          type   : 'NEW_VERSION',
-          version: APP_VERSION
-        }));
-      })
+      .then(() => self.clients.claim())
   );
 });
 
@@ -84,22 +79,19 @@ self.addEventListener('fetch', event => {
   const path   = url.pathname;
   const method = event.request.method;
 
-  // ── /api/data → catálogos: network first, caché como fallback ──
   if (path === '/api/data' && method === 'GET') {
     event.respondWith(networkFirstCache(event.request));
     return;
   }
 
-  // ── /api/save → guardar visita: network first, IndexedDB si falla ──
   if (path === '/api/save' && method === 'POST') {
     event.respondWith(saveConFallback(event.request));
     return;
   }
 
-  // ── Resto de /api/* → network only (admin, pdf, etc.) ──
-  if (path.startsWith('/api/')) return;
+  // Resto de /api/* y cualquier no-GET → red directa
+  if (path.startsWith('/api/') || method !== 'GET') return;
 
-  // ── HTML y assets estáticos → cache first ──
   event.respondWith(cacheFirst(event.request));
 });
 
@@ -108,28 +100,17 @@ async function networkFirstCache(request) {
   const cache = await caches.open(CACHE_NAME);
   try {
     const response = await fetch(request, { cache: 'no-cache' });
-    if (response.ok) {
-      cache.put(request, response.clone());
-    }
+    if (response.ok) cache.put(request, response.clone());
     return response;
   } catch {
     const cached = await cache.match(request);
     if (cached) return cached;
     // Sin red y sin caché → devolver estructura vacía válida
     return new Response(JSON.stringify({
-      status        : 'ok',
-      offline       : true,
-      updated       : new Date().toISOString(),
-      restauradores : [],
-      materiales    : [],
-      personal      : [],
-      tipos         : [],
-      marcas        : [],
-      modems        : [],
-      tableros      : []
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+      status: 'ok', offline: true, updated: new Date().toISOString(),
+      restauradores: [], materiales: [], personal: [],
+      tipos: [], marcas: [], modems: [], tableros: []
+    }), { headers: { 'Content-Type': 'application/json' } });
   }
 }
 
@@ -137,7 +118,6 @@ async function networkFirstCache(request) {
 async function cacheFirst(request) {
   const cached = await caches.match(request);
   if (cached) {
-    // Actualizar caché en segundo plano (stale-while-revalidate)
     fetch(request).then(response => {
       if (response.ok) {
         caches.open(CACHE_NAME).then(cache => cache.put(request, response));
@@ -145,7 +125,6 @@ async function cacheFirst(request) {
     }).catch(() => {});
     return cached;
   }
-  // No está en caché → fetch normal
   try {
     const response = await fetch(request);
     if (response.ok) {
@@ -154,124 +133,131 @@ async function cacheFirst(request) {
     }
     return response;
   } catch {
-    // Fallback al index.html para navegación SPA
-    const fallback = await caches.match('/index.html');
-    return fallback || new Response('Sin conexión', { status: 503 });
+    // Fallback al index.html solo para navegación
+    if (request.mode === 'navigate') {
+      const fallback = await caches.match('/index.html');
+      if (fallback) return fallback;
+    }
+    return new Response('Sin conexión', { status: 503 });
   }
 }
 
-// ── Save con fallback: intenta red, si falla guarda en IndexedDB ─
+// ── Save con fallback ────────────────────────────────────────────
+// Solo se encola si NO hay red o el servidor está temporalmente caído.
+// Errores de validación/servidor (400, 500…) se devuelven tal cual a la
+// app, para que el técnico vea el error en vez de un falso "guardado".
 async function saveConFallback(request) {
+  let response;
   try {
-    const response = await fetch(request.clone(), { cache: 'no-cache' });
-    if (response.ok) return response;
-    throw new Error('HTTP ' + response.status);
+    response = await fetch(request.clone(), { cache: 'no-cache' });
   } catch {
-    // Sin conexión → guardar en IndexedDB como pendiente
-    let body = {};
-    try { body = await request.json(); } catch {}
-
-    await guardarPendiente(body);
-
-    // Registrar Background Sync para subir cuando haya internet
-    try {
-      await self.registration.sync.register(SYNC_TAG);
-    } catch(e) {
-      console.warn('Background Sync no soportado:', e.message);
-    }
-
-    return new Response(JSON.stringify({
-      status    : 'ok',
-      offline   : true,
-      visitaNum : body.visitaNum || '',
-      message   : 'Guardado localmente. Se sincronizará al recuperar conexión.'
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+    return encolarOffline(request);
   }
+  if (RETRY_STATUS.includes(response.status)) return encolarOffline(request);
+  return response;
+}
+
+async function encolarOffline(request) {
+  let body = {};
+  try { body = await request.json(); } catch {}
+
+  try {
+    await guardarPendiente(body);
+  } catch (e) {
+    return new Response(JSON.stringify({
+      status: 'error',
+      message: 'No se pudo guardar localmente: ' + (e?.message || e)
+    }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+  }
+
+  try {
+    await self.registration.sync.register(SYNC_TAG);
+  } catch (e) {
+    console.warn('Background Sync no soportado:', e.message);
+  }
+
+  return new Response(JSON.stringify({
+    status   : 'ok',
+    offline  : true,
+    visitaNum: body.visitaNum || '',
+    message  : 'Guardado localmente. Se sincronizará al recuperar conexión.'
+  }), { headers: { 'Content-Type': 'application/json' } });
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  BACKGROUND SYNC — subir visitas pendientes
+//  BACKGROUND SYNC
+//  - Si la app está abierta, se le pide a ella que sincronice (puede
+//    generar y subir el PDF con fotos).
+//  - Si está cerrada, el SW sube solo los datos de la visita y la marca
+//    como `subido`; la app generará y subirá el PDF al abrirse.
 // ══════════════════════════════════════════════════════════════════
 self.addEventListener('sync', event => {
   if (event.tag === SYNC_TAG) {
-    event.waitUntil(sincronizarPendientes());
+    event.waitUntil(manejarSync());
   }
 });
 
+async function manejarSync() {
+  const clients = await self.clients.matchAll({ type: 'window' });
+  if (clients.length) {
+    clients.forEach(c => c.postMessage({ type: 'SYNC_REQUEST' }));
+    return;
+  }
+  await scadaWithSyncLock(sincronizarPendientes);
+}
+
 async function sincronizarPendientes() {
-  const pendientes = await getPendientes();
+  const pendientes = (await getPendientes()).filter(p => !p.subido);
   if (!pendientes.length) return;
 
-  const subidos = [];
+  let subidos   = 0;
+  let falloRed  = false;
 
   for (const item of pendientes) {
+    let resp;
     try {
-      const resp = await fetch('/api/save', {
-        method  : 'POST',
-        headers : { 'Content-Type': 'application/json' },
-        body    : JSON.stringify(item.data)
+      resp = await fetch('/api/save', {
+        method : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body   : JSON.stringify(item.data)
       });
-      if (resp.ok) {
-        subidos.push(item.id);
-      }
     } catch {
-      break; // Sin internet, intentar en el próximo sync
+      falloRed = true;
+      break; // sin internet: el navegador reintentará el sync
+    }
+    if (resp.ok) {
+      await marcarSubido(item);
+      subidos++;
+    } else if (RETRY_STATUS.includes(resp.status)) {
+      falloRed = true;
+      break;
+    } else {
+      // Error permanente (validación, etc.): se conserva en la cola para
+      // que la app lo muestre; no se reintenta en bucle aquí.
+      console.warn('Visita rechazada por el servidor:', item.visitaNum, resp.status);
     }
   }
 
-  if (subidos.length) {
-    await eliminarPendientes(subidos);
-    // Notificar a todas las tabs abiertas
+  if (subidos) {
     const clients = await self.clients.matchAll({ includeUncontrolled: true });
-    clients.forEach(client => client.postMessage({
-      type  : 'SYNC_COMPLETE',
-      count : subidos.length
-    }));
+    clients.forEach(c => c.postMessage({ type: 'SYNC_COMPLETE', count: subidos }));
   }
+
+  // Lanzar error hace que el navegador reprograme el sync
+  if (falloRed) throw new Error('Sin conexión — sync reprogramado');
 }
 
 // ══════════════════════════════════════════════════════════════════
-//  IndexedDB helpers
+//  IndexedDB helpers (esquema en /idb.js)
 // ══════════════════════════════════════════════════════════════════
-function abrirDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains(STORE_PENDING)) {
-        const store = db.createObjectStore(STORE_PENDING, {
-          keyPath: 'id', autoIncrement: true
-        });
-        store.createIndex('visitaNum', 'visitaNum', { unique: false });
-        store.createIndex('savedAt',   'savedAt',   { unique: false });
-      }
-      // Nuevo store limpio con keyPath correcto
-      if (!db.objectStoreNames.contains(STORE_PDFS))
-        db.createObjectStore(STORE_PDFS, { keyPath: 'visitaNum' });
-      if (!db.objectStoreNames.contains('fotos_offline')) {
-        db.createObjectStore('fotos_offline', { keyPath: 'visitaNum' });
-      }
-    };
-    req.onsuccess = e => {
-      const db = e.target.result;
-      db.onversionchange = () => { db.close(); };
-      resolve(db);
-    };
-    req.onerror   = e => reject(e.target.error);
-  });
-}
-
 async function guardarPendiente(data) {
-  const db = await abrirDB();
+  const db = await scadaOpenDB();
   return new Promise((resolve, reject) => {
-    const tx    = db.transaction(STORE_PENDING, 'readwrite');
-    const store = tx.objectStore(STORE_PENDING);
-    store.add({
-      visitaNum : data.visitaNum || '',
-      data      : data,
-      savedAt   : Date.now()
+    const tx = db.transaction('pendientes', 'readwrite');
+    tx.objectStore('pendientes').add({
+      visitaNum: data.visitaNum || '',
+      data     : data,
+      savedAt  : Date.now()
     });
     tx.oncomplete = resolve;
     tx.onerror    = e => reject(e.target.error);
@@ -279,21 +265,19 @@ async function guardarPendiente(data) {
 }
 
 async function getPendientes() {
-  const db = await abrirDB();
+  const db = await scadaOpenDB();
   return new Promise((resolve, reject) => {
-    const tx    = db.transaction(STORE_PENDING, 'readonly');
-    const req   = tx.objectStore(STORE_PENDING).getAll();
+    const req = db.transaction('pendientes', 'readonly').objectStore('pendientes').getAll();
     req.onsuccess = e => resolve(e.target.result || []);
     req.onerror   = e => reject(e.target.error);
   });
 }
 
-async function eliminarPendientes(ids) {
-  const db = await abrirDB();
+async function marcarSubido(item) {
+  const db = await scadaOpenDB();
   return new Promise((resolve, reject) => {
-    const tx    = db.transaction(STORE_PENDING, 'readwrite');
-    const store = tx.objectStore(STORE_PENDING);
-    ids.forEach(id => store.delete(id));
+    const tx = db.transaction('pendientes', 'readwrite');
+    tx.objectStore('pendientes').put({ ...item, subido: true });
     tx.oncomplete = resolve;
     tx.onerror    = e => reject(e.target.error);
   });

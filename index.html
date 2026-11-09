@@ -10,9 +10,9 @@
   <link rel="manifest" href="/manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="dns-prefetch" href="https://raw.githubusercontent.com"> 
 <title>Inspección Restauradores SCADA</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="/idb.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
@@ -741,6 +741,21 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   animation:syncPulse 2s infinite;
 }
 #syncBadge.hidden{display:none!important;}
+#updateBanner{
+  display:none;position:fixed;left:12px;right:12px;bottom:16px;
+  background:#0b1f3a;color:#fff;border:1.5px solid var(--accent,#f59e0b);
+  border-radius:12px;padding:10px 12px;z-index:7001;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);
+  align-items:center;gap:10px;font-size:13px;font-weight:600;
+}
+#updateBanner.show{display:flex;}
+#updateBanner span{flex:1;}
+#updateBanner button{
+  border:0;border-radius:8px;padding:8px 12px;font-weight:800;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-size:14px;min-height:36px;
+}
+#updateBanner .ub-ok{background:var(--accent,#f59e0b);color:#0b1f3a;}
+#updateBanner .ub-later{background:transparent;color:#cbd5e1;}
 @keyframes syncPulse{
   0%,100%{box-shadow:0 4px 16px rgba(245,158,11,.4);}
   50%{box-shadow:0 4px 28px rgba(245,158,11,.75);}
@@ -997,6 +1012,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </button>
   <button class="adm-nav-item" onclick="admAbrirPagina('tableros',this)">
     <span class="nav-icon">🎛️</span> Tableros
+  </button>
+
+  <div class="adm-nav-section">Sesión</div>
+  <button class="adm-nav-item" onclick="cerrarAdmin();admCerrarSesion()">
+    <span class="nav-icon">🔒</span> Cerrar sesión admin
   </button>
 
   <div class="adm-nav-footer">
@@ -1620,8 +1640,15 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '1.0.0'; // ← Cambiar en cada deploy importante
+const APP_VERSION = '1.1.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
+
+/* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
+function esc(value) {
+  return String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  })[c]);
+}
 
 /* ── DATOS EN MEMORIA (se pueblan desde D1 o fallback) ── */
 let RESTS = [];
@@ -1816,7 +1843,7 @@ function poblarSelectorPersonal() {
     const currentVal = sel.value;
     sel.innerHTML = '<option value="">— Seleccionar técnico —</option>' +
       PERS_LIST.map(p =>
-        `<option value="${p.nombre}" data-cargo="${p.cargo}" data-id="${p.id}">${p.nombre}${p.cargo ? ' · ' + p.cargo : ''}</option>`
+        `<option value="${esc(p.nombre)}" data-cargo="${esc(p.cargo)}" data-id="${esc(p.id)}">${esc(p.nombre)}${p.cargo ? ' · ' + esc(p.cargo) : ''}</option>`
       ).join('') +
       '<option value="OTRO">Otro (manual)</option>';
     sel.value = currentVal;
@@ -1892,7 +1919,7 @@ function acSearch(inp,type){
   if(!q){l.classList.remove('open');return;}
   const res=RESTS.filter(r=>String(r.energis).includes(q)||(r.circuito||'').toLowerCase().includes(q)||(r.ubicacion||'').toLowerCase().includes(q)||(r.sector||'').toLowerCase().includes(q)).slice(0,8);
   if(!res.length){l.classList.remove('open');return;}
-  l.innerHTML=res.map(r=>`<div class="ac-item" data-i="${RESTS.indexOf(r)}" ontouchstart="acSel(${RESTS.indexOf(r)},'${type}')" onmousedown="acSel(${RESTS.indexOf(r)},'${type}')"><strong>${r.energis} — ${r.ubicacion}</strong><small>${r.circuito} · ${r.sector} · ${r.subestacion}</small></div>`).join('');
+  l.innerHTML=res.map(r=>`<div class="ac-item" data-i="${RESTS.indexOf(r)}" ontouchstart="acSel(${RESTS.indexOf(r)},'${type}')" onmousedown="acSel(${RESTS.indexOf(r)},'${esc(type)}')"><strong>${esc(r.energis)} — ${esc(r.ubicacion)}</strong><small>${esc(r.circuito)} · ${esc(r.sector)} · ${esc(r.subestacion)}</small></div>`).join('');
   l.classList.add('open');ach=-1;
 }
 function acKeydown(e,type){
@@ -1928,7 +1955,7 @@ function poblarTipos() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Tipo —</option>' +
-    TIPOS_LIST.map(t => `<option value="${t}">${t}</option>`).join('');
+    TIPOS_LIST.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
   if (cur) sel.value = cur;
 }
 
@@ -1938,7 +1965,7 @@ function poblarMarcas() {
   if (!sel) return;
   const cur = sel.value;
   sel.innerHTML = '<option value="">— Marca —</option>' +
-    MARCAS_LIST.map(m => `<option value="${m.marca}">${m.marca}</option>`).join('');
+    MARCAS_LIST.map(m => `<option value="${esc(m.marca)}">${esc(m.marca)}</option>`).join('');
   if (cur) sel.value = cur;
 }
 
@@ -1950,10 +1977,10 @@ function updMarcaModelos() {
   const found = MARCAS_LIST.find(m => m.marca === marca);
 
   selMod.innerHTML = '<option value="">— Modelo —</option>' +
-    (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
+    (found ? found.modelos.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') : '');
 
   selCtrl.innerHTML = '<option value="">— Control —</option>' +
-    (found ? found.controles.map(ct => `<option value="${ct}">${ct}</option>`).join('') : '');
+    (found ? found.controles.map(ct => `<option value="${esc(ct)}">${esc(ct)}</option>`).join('') : '');
 }
 function updMarcaControles() { /* incluido en updMarcaModelos */ }
 
@@ -1963,7 +1990,7 @@ function poblarMarcasModems() {
     const sel = document.getElementById('marcaModem' + n);
     if (!sel) return;
     sel.innerHTML = '<option value="">— Marca —</option>' +
-      MODEMS_LIST.map(m => `<option value="${m.marca}">${m.marca}</option>`).join('');
+      MODEMS_LIST.map(m => `<option value="${esc(m.marca)}">${esc(m.marca)}</option>`).join('');
   });
 }
 
@@ -1976,7 +2003,7 @@ function updModelosModem(n) {
 
   // Actualizar modelos
   selMod.innerHTML = '<option value="">— Modelo —</option>' +
-    (found ? found.modelos.map(m => `<option value="${m}">${m}</option>`).join('') : '');
+    (found ? found.modelos.map(m => `<option value="${esc(m)}">${esc(m)}</option>`).join('') : '');
 
   // Autosugerir tipo según el elemento de la marca en D1
   // MODEMS_LIST incluye el campo 'elemento' que viene de la API
@@ -2068,7 +2095,7 @@ const _goSecOrig = goSec;
 let mc=0;
 function agregarMat(){
   mc++;const id=mc;
-  const opts=MATS.map(m=>`<option value="${m.codigo}" data-n="${m.nombre}" data-u="${m.unidad}" data-s="${m.stock}">${m.codigo} – ${m.nombre.slice(0,44)}</option>`).join('');
+  const opts=MATS.map(m=>`<option value="${esc(m.codigo)}" data-n="${esc(m.nombre)}" data-u="${esc(m.unidad)}" data-s="${esc(m.stock)}">${esc(m.codigo)} – ${esc(String(m.nombre||'').slice(0,44))}</option>`).join('');
   const d=document.createElement('div');d.className='mat-card';d.id='mt'+id;
   d.innerHTML=`<div class="mat-card-head"><span class="mat-num">Material #${id}</span><button class="mat-rm" onclick="document.getElementById('mt${id}').remove()">✕</button></div>
 <div class="field"><label>Seleccionar del Catálogo</label><select onchange="fillMt(this,${id})"><option value="">— Buscar material —</option>${opts}<option value="OTRO">Otro (manual)</option></select></div>
@@ -2084,7 +2111,7 @@ function fillMt(sel,id){
   document.getElementById('md'+id).value=o.dataset.n||'';
   document.getElementById('mu'+id).value=o.dataset.u||'';
   const s=parseFloat(o.dataset.s);
-  document.getElementById('mst'+id).innerHTML=`<span class="mat-stock ${s>0?'st-ok':'st-nok'}">Stock disponible: ${s} ${o.dataset.u||''}</span>`;
+  document.getElementById('mst'+id).innerHTML=`<span class="mat-stock ${s>0?'st-ok':'st-nok'}">Stock disponible: ${esc(s)} ${esc(o.dataset.u||'')}</span>`;
 }
 function chkSt(id){
   const c=parseFloat(document.getElementById('mq'+id).value)||0;
@@ -2101,7 +2128,7 @@ function agregarPers(){
   const hasPersonal = PERS_LIST.length > 0;
   const persOpts = hasPersonal
     ? '<option value="">— Seleccionar técnico —</option>' +
-      PERS_LIST.map(p=>`<option value="${p.nombre}" data-cargo="${p.cargo}" data-id="${p.id}">${p.nombre}${p.cargo?' · '+p.cargo:''}</option>`).join('') +
+      PERS_LIST.map(p=>`<option value="${esc(p.nombre)}" data-cargo="${esc(p.cargo)}" data-id="${esc(p.id)}">${esc(p.nombre)}${p.cargo?' · '+esc(p.cargo):''}</option>`).join('') +
       '<option value="OTRO">Otro (manual)</option>'
     : null;
 
@@ -2423,63 +2450,79 @@ function limpiarFormulario() {
   // Volver a sección 1 y resetear progreso
   jumpSec(0);
   updP();
+
+  // Formulario vacío: ya se puede aplicar una actualización pendiente
+  marcarFormularioLimpio();
 }
 
 /* ── GUARDAR: local + Cloudflare ── */
+// Respaldo local de las últimas visitas (se conservan solo las más recientes)
+const MAX_RESPALDOS_LOCALES = 10;
+function respaldoLocal(d) {
+  try {
+    localStorage.setItem('vis_' + Date.now(), JSON.stringify(d));
+    const claves = Object.keys(localStorage).filter(k => k.startsWith('vis_')).sort();
+    claves.slice(0, Math.max(0, claves.length - MAX_RESPALDOS_LOCALES))
+          .forEach(k => localStorage.removeItem(k));
+  } catch(e) { /* cuota llena o storage bloqueado: no es crítico */ }
+}
+
+async function guardarOfflineExito(d, guardarVisitaLocal) {
+  if (guardarVisitaLocal) await guardarPendienteDB(d);
+  try {
+    const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
+    if (fotosActuales.length > 0) await guardarFotosPendientes(d.visitaNum, fotosActuales);
+  } catch(fe) { console.warn('Fotos offline:', fe); }
+  _lastData = d;
+  _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
+  saveOverlayExito(d.visitaNum, '—');
+  showToast('📵 Sin conexión — datos y fotos guardados localmente');
+  setTimeout(actualizarBadge, 500);
+}
+
 async function guardar() {
   const d = getData();
+  if (!d.visitaNum) {
+    showToast('⚠️ Falta el número de visita');
+    return;
+  }
 
-  // Respaldo local siempre
-  try { localStorage.setItem('vis_' + Date.now(), JSON.stringify(d)); } catch(e) {}
-
-  // Mostrar overlay bloqueante
+  respaldoLocal(d);
   mostrarSaveOverlay();
 
+  let resp;
   try {
-    // PDF se sube a R2 después del guardado exitoso desde descargarFichaPDF()
-
-    const resp = await fetch(`${API_BASE}/api/save`, {
+    resp = await fetch(`${API_BASE}/api/save`, {
       method  : 'POST',
       body    : JSON.stringify(d),
       headers : { 'Content-Type': 'application/json' }
     });
-    const json = await resp.json();
-
-    if (json.status === 'ok' && !json.offline) {
-      // Guardado exitoso en D1
-      _lastData = d;
-      _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
-      saveOverlayExito(json.visitaNum || d.visitaNum, json.fila);
-    } else if (json.status === 'ok' && json.offline) {
-      // SW guardó offline — guardar fotos también
-      try {
-        const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
-        if (fotosActuales.length > 0) {
-          await guardarFotosPendientes(d.visitaNum, fotosActuales);
-        }
-      } catch(fe) { console.warn('Fotos offline:', fe); }
-      _lastData = d;
-      _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
-      saveOverlayExito(json.visitaNum || d.visitaNum, '—');
-      showToast('📵 Sin conexión — datos y fotos guardados localmente');
-      setTimeout(actualizarBadge, 500); // mostrar badge de pendiente
-    } else {
-      saveOverlayError('Error al guardar: ' + json.message + ' — visita guardada localmente');
-    }
   } catch (err) {
-    // Sin conexión — guardar fotos en IndexedDB junto a la visita
-    // El SW ya guardó los datos de la visita, ahora guardamos las fotos
+    // Sin red y sin Service Worker que lo intercepte → encolar desde la página
     try {
-      const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
-      if (fotosActuales.length > 0) {
-        await guardarFotosPendientes(d.visitaNum, fotosActuales);
-      }
-    } catch(fe) { console.warn('No se pudieron guardar fotos offline:', fe); }
-    // Agregar fotos a _lastData para el PDF local
+      await guardarOfflineExito(d, true);
+    } catch (e) {
+      saveOverlayError('Sin conexión y no se pudo guardar localmente: ' + (e?.message || e));
+    }
+    return;
+  }
+
+  let json = null;
+  try { json = await resp.json(); } catch {}
+
+  if (resp.ok && json?.status === 'ok' && !json.offline) {
+    // Guardado en D1 (o ya existía: reintento idempotente)
     _lastData = d;
     _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
-    saveOverlayError('Sin conexión — visita y fotos guardadas localmente');
-    setTimeout(actualizarBadge, 500); // mostrar badge de pendiente
+    saveOverlayExito(json.visitaNum || d.visitaNum, json.id || '—');
+  } else if (json?.status === 'ok' && json.offline) {
+    // El Service Worker guardó la visita offline
+    await guardarOfflineExito(d, false);
+  } else {
+    // Error del servidor: NO se encola; el formulario se conserva para corregir y reintentar
+    const msg = json?.message || ('HTTP ' + resp.status);
+    saveOverlayError('El servidor rechazó la visita: ' + msg +
+      '. El formulario se conserva; corrige y vuelve a guardar.');
   }
 }
 
@@ -2503,7 +2546,7 @@ function exportarJSON() {
 function abrirModalPDF(visitaNum, fila) {
   const d = _lastData || {};
   document.getElementById('pdfModalNum').textContent =
-    visitaNum + ' · ' + (d.codigoCircuito || '—') + ' · Fila ' + fila;
+    visitaNum + ' · ' + (d.codigoCircuito || '—') + (fila && fila !== '—' ? ' · ID ' + fila : '');
 
   // Preview de datos clave
   const rows = [
@@ -2515,7 +2558,7 @@ function abrirModalPDF(visitaNum, fila) {
     ['Fecha Visita', d.fechaVisita      || '—'],
   ];
   document.getElementById('pdfPreview').innerHTML = rows.map(r =>
-    `<div class="pdf-preview-row"><span>${r[0]}</span><strong>${r[1]}</strong></div>`
+    `<div class="pdf-preview-row"><span>${esc(r[0])}</span><strong>${esc(r[1])}</strong></div>`
   ).join('');
 
   document.getElementById('pdfModal').classList.add('show');
@@ -2532,39 +2575,8 @@ async function descargarFichaPDF() {
   btn.textContent = '⏳ Generando PDF...';
   btn.disabled = true;
 
-  // Usar logo precargado en memoria (o intentar cargar si no está listo)
-  let logoBase64 = _logoBase64Cached;
-  if (!logoBase64) {
-    try {
-      const logoResp = await fetch(
-        'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png',
-        { cache: 'force-cache' }
-      );
-      if (logoResp.ok) {
-        const blob = await logoResp.blob();
-        const raw  = await new Promise(res => {
-          const reader = new FileReader();
-          reader.onloadend = () => res(reader.result);
-          reader.readAsDataURL(blob);
-        });
-        logoBase64 = await new Promise(res => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => {
-            const cv = document.createElement('canvas');
-            cv.width = img.width; cv.height = img.height;
-            const ctx = cv.getContext('2d');
-            ctx.filter = 'brightness(0) invert(1)';
-            ctx.drawImage(img, 0, 0);
-            res(cv.toDataURL('image/png'));
-          };
-          img.onerror = () => res(raw);
-          img.src = raw;
-        });
-        _logoBase64Cached = logoBase64;
-      }
-    } catch(e) { console.warn('Logo no disponible:', e.message); }
-  }
+  // Logo precargado en memoria (o cargarlo ahora si no está listo)
+  if (!_logoBase64Cached) await precargarLogo();
 
   try {
     const d = _lastData || {};
@@ -2587,23 +2599,7 @@ async function descargarFichaPDF() {
 
       if (navigator.onLine) {
         try {
-          const pdfUploadResp = await fetch(`${API_BASE}/api/pdf`, {
-            method : 'POST',
-            body   : JSON.stringify({ visitaNum: d.visitaNum, pdfBase64 }),
-            headers: { 'Content-Type': 'application/json' }
-          });
-
-          if (pdfUploadResp.ok) {
-            const pdfUploadJson = await pdfUploadResp.json();
-            if (pdfUploadJson?.status === 'ok' && pdfUploadJson?.key) {
-              await fetch(`${API_BASE}/api/save-pdf-key`, {
-                method : 'POST',
-                body   : JSON.stringify({ visitaNum: d.visitaNum, pdfR2Key: pdfUploadJson.key }),
-                headers: { 'Content-Type': 'application/json' }
-              }).catch(() => {});
-              pdfSubido = true;
-            }
-          }
+          pdfSubido = await subirPdfVisita(d.visitaNum, pdfBase64);
         } catch(uploadErr) {
           console.warn('PDF upload falló:', uploadErr);
         }
@@ -2704,6 +2700,46 @@ const ADM_VISIBLE = {
   tableros:      ['Marca','Campo','Orden','Activo'],
 };
 
+/* ── Autenticación del panel de administración ──
+   El servidor exige el header X-Admin-Token (= secret ADMIN_TOKEN en Cloudflare). */
+const ADM_TOKEN_KEY = 'scada_admin_token';
+function admGetToken() { try { return localStorage.getItem(ADM_TOKEN_KEY) || ''; } catch { return ''; } }
+function admSetToken(t) { try { t ? localStorage.setItem(ADM_TOKEN_KEY, t) : localStorage.removeItem(ADM_TOKEN_KEY); } catch {} }
+function admPedirToken(msg) {
+  const t = prompt(msg || 'Clave de administrador:');
+  if (t === null) return '';
+  admSetToken(t.trim());
+  return t.trim();
+}
+
+// fetch a /api/admin con token; pide la clave si falta o es inválida
+async function admFetch(url, opts = {}) {
+  let token = admGetToken() || admPedirToken();
+  if (!token) throw new Error('Se requiere la clave de administrador');
+  const doFetch = tk => fetch(url, {
+    ...opts,
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}), 'X-Admin-Token': tk }
+  });
+  let resp = await doFetch(token);
+  if (resp.status === 401) {
+    admSetToken('');
+    token = admPedirToken('Clave incorrecta. Ingresa la clave de administrador:');
+    if (!token) throw new Error('Se requiere la clave de administrador');
+    resp = await doFetch(token);
+    if (resp.status === 401) { admSetToken(''); }
+  }
+  let json = null;
+  try { json = await resp.json(); } catch {}
+  if (!json) throw new Error('HTTP ' + resp.status);
+  return json;
+}
+
+function admCerrarSesion() {
+  admSetToken('');
+  cerrarAdminPage();
+  admToast('🔒 Sesión de administrador cerrada');
+}
+
 /* ── Abrir / cerrar menú lateral ── */
 function toggleAdmin() {
   const nav     = document.getElementById('adminNav');
@@ -2752,14 +2788,13 @@ function cerrarAdminPage() {
 /* ── Cargar datos desde Cloudflare D1 ── */
 async function admCargarTabla(seccion) {
   try {
-    const resp = await fetch(`${API_BASE}/api/admin?section=${seccion}&raw=1`, { cache:'no-cache' });
-    const json = await resp.json();
+    const json = await admFetch(`${API_BASE}/api/admin?section=${encodeURIComponent(seccion)}&raw=1`, { cache:'no-cache' });
     if (json.status !== 'ok') throw new Error(json.message);
     admCurrentData = json.rows || [];
     admRenderTabla(seccion, admCurrentData, '');   // admOpHide() se llama dentro
   } catch(err) {
     document.getElementById('admTableWrap').innerHTML =
-      '<div class="adm-empty">❌ ' + err.message + '</div>';
+      '<div class="adm-empty">❌ ' + esc(err.message) + '</div>';
     admOpHide();
   }
 }
@@ -2782,7 +2817,7 @@ function admRenderTabla(seccion, rows, filtro) {
     <table class="adm-table">
       <thead><tr>
         <th style="width:40px">#</th>
-        ${visCols.map(col=>`<th>${col.label}</th>`).join('')}
+        ${visCols.map(col=>`<th>${esc(col.label)}</th>`).join('')}
         <th style="width:120px;text-align:center">Acciones</th>
       </tr></thead>
       <tbody>
@@ -2800,7 +2835,7 @@ function admRenderTabla(seccion, rows, filtro) {
                   if (col.key==='Estado') {
                     const isActive = v.toUpperCase()==='ACTIVO'; return `<td><span class="adm-badge ${isActive?'ok':'nok'}">${isActive?'✓ Activo':'✗ Inactivo'}</span></td>`;
                   }
-                  return `<td title="${v}">${v.slice(0,50)}</td>`;
+                  return `<td title="${esc(v)}">${esc(v.slice(0,50))}</td>`;
                 }).join('')}
                 <td style="text-align:center">
                   <div class="adm-act" style="justify-content:center">
@@ -2842,12 +2877,12 @@ function admAbrirForm(idx) {
     (isEdit ? '✏️ Editar' : '＋ Nuevo') + ' · ' + meta.label;
 
   document.getElementById('admFormBody').innerHTML = cols.map(col => {
-    const val  = isEdit ? (row[col.key]||'') : '';
+    const val  = isEdit ? String(row[col.key] ?? '') : '';
     const full = col.full ? ' full' : '';
     let input  = '';
     if (col.type === 'select') {
       input = `<select id="adf_${col.key.replace(/\s/g,'_')}">
-        ${col.opts.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}
+        ${col.opts.map(o=>`<option value="${esc(o)}"${val===o?' selected':''}>${esc(o)}</option>`).join('')}
       </select>`;
     } else if (col.type === 'dynamic-select') {
       // Poblar opciones desde datos en memoria según la fuente indicada
@@ -2858,19 +2893,19 @@ function admAbrirForm(idx) {
       }
       if (!dynOpts.length) {
         // Si aún no cargaron, mostrar input de texto como fallback
-        input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${val.replace(/"/g,'&quot;')}" placeholder="${col.label}">`;
+        input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${esc(val)}" placeholder="${esc(col.label)}">`;
       } else {
         input = `<select id="adf_${col.key.replace(/\s/g,'_')}">
           <option value="">— Seleccionar —</option>
-          ${dynOpts.map(o=>`<option value="${o}"${val===o?' selected':''}>${o}</option>`).join('')}
+          ${dynOpts.map(o=>`<option value="${esc(o)}"${val===o?' selected':''}>${esc(o)}</option>`).join('')}
         </select>`;
       }
     } else if (col.type === 'number') {
-      input = `<input type="number" id="adf_${col.key.replace(/\s/g,'_')}" value="${val}" step="0.01">`;
+      input = `<input type="number" id="adf_${col.key.replace(/\s/g,'_')}" value="${esc(val)}" step="0.01">`;
     } else {
-      input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${val.replace(/"/g,'&quot;')}" placeholder="${col.label}">`;
+      input = `<input type="text" id="adf_${col.key.replace(/\s/g,'_')}" value="${esc(val)}" placeholder="${esc(col.label)}">`;
     }
-    return `<div class="adm-form-field${full}"><label>${col.label}</label>${input}</div>`;
+    return `<div class="adm-form-field${full}"><label>${esc(col.label)}</label>${input}</div>`;
   }).join('');
 
   document.getElementById('admFormModal').classList.add('show');
@@ -2922,11 +2957,9 @@ async function guardarAdmForm() {
       id      : admEditRowNum,
       data    : rowData
     };
-    const resp = await fetch(`${API_BASE}/api/admin`, {
-      method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'application/json'}
+    const json = await admFetch(`${API_BASE}/api/admin`, {
+      method:'POST', body:JSON.stringify(payload)
     });
-    const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
 
     admOpSuccess(
@@ -2959,11 +2992,9 @@ async function admEliminar(idx) {
 
   try {
     const payload = { action:'delete', section:admCurrentTab, id:row._rowNum };
-    const resp = await fetch(`${API_BASE}/api/admin`, {
-      method:'POST', body:JSON.stringify(payload),
-      headers:{'Content-Type':'application/json'}
+    const json = await admFetch(`${API_BASE}/api/admin`, {
+      method:'POST', body:JSON.stringify(payload)
     });
-    const json = await resp.json();
     if (json.status !== 'ok') throw new Error(json.message);
 
     admOpSuccess('✓ Registro eliminado', 'El registro fue eliminado correctamente');
@@ -3052,7 +3083,7 @@ function renderTabliero(marca) {
   const tablero = fuente.find(t => t.marca.toUpperCase() === marca.toUpperCase());
 
   if (!tablero) {
-    sinMarca.innerHTML = `⚠️ No hay tablero configurado para la marca <strong>${marca}</strong>. Puedes agregarlo en Administración → Tableros.`;
+    sinMarca.innerHTML = `⚠️ No hay tablero configurado para la marca <strong>${esc(marca)}</strong>. Puedes agregarlo en Administración → Tableros.`;
     sinMarca.style.display = '';
     dinBlk.style.display   = 'none';
     return;
@@ -3070,7 +3101,7 @@ function renderTabliero(marca) {
   campos.innerHTML = ordenados.map(f => {
     const id = campoId(f.campo);
     return `<div class="field">
-      <label>${f.campo}</label>
+      <label>${esc(f.campo)}</label>
       <div class="tg" id="${id}">
         <button class="tg-btn" onclick="tg(this,'${id}','a-on')">ON</button>
         <button class="tg-btn" onclick="tg(this,'${id}','a-off')">OFF</button>
@@ -3129,7 +3160,7 @@ function admAbrirTableroModal(idx) {
   // Poblar selector de marca
   const selMarca = document.getElementById('adf_tablero_marca');
   selMarca.innerHTML = '<option value="">— Seleccionar —</option>' +
-    MARCAS_LIST.map(m => `<option value="${m.marca}"${isEdit && row.Marca===m.marca?' selected':''}>${m.marca}</option>`).join('');
+    MARCAS_LIST.map(m => `<option value="${esc(m.marca)}"${isEdit && row.Marca===m.marca?' selected':''}>${esc(m.marca)}</option>`).join('');
 
   // Activo
   document.getElementById('adf_tablero_activo').value = isEdit ? (row.Activo || 'TRUE') : 'TRUE';
@@ -3178,8 +3209,8 @@ function admAgregarCampoTablero(nombre='', orden=null) {
   row.className = 'adm-campo-row';
   row.id = 'campo-row-' + id;
   row.innerHTML = `
-    <input type="text" placeholder="Nombre del campo" value="${nombre}" class="campo-nombre-inp">
-    <input type="number" placeholder="#" value="${ord}" min="1" class="orden-inp campo-orden-inp">
+    <input type="text" placeholder="Nombre del campo" value="${esc(nombre)}" class="campo-nombre-inp">
+    <input type="number" placeholder="#" value="${esc(ord)}" min="1" class="orden-inp campo-orden-inp">
     <button class="adm-campo-del" onclick="admEliminarCampoRow('campo-row-${id}')">✕</button>
   `;
   list.appendChild(row);
@@ -3223,22 +3254,20 @@ async function guardarTableroModal() {
     if (isEdit) {
       // Eliminar filas existentes de esa marca y reinsertar
       for (const rn of admTableroRowNums) {
-        await fetch(`${API_BASE}/api/admin`, {
+        const del = await admFetch(`${API_BASE}/api/admin`, {
           method:'POST',
-          body:JSON.stringify({ action:'delete', section:'tableros', id:rn }),
-          headers:{'Content-Type':'application/json'}
+          body:JSON.stringify({ action:'delete', section:'tableros', id:rn })
         });
+        if (del.status !== 'ok') throw new Error(del.message);
       }
     }
 
     // Insertar todas las filas nuevas
     for (const fila of filas) {
-      const resp = await fetch(`${API_BASE}/api/admin`, {
+      const json = await admFetch(`${API_BASE}/api/admin`, {
         method:'POST',
-        body:JSON.stringify({ action:'insert', section:'tableros', data:fila }),
-        headers:{'Content-Type':'application/json'}
+        body:JSON.stringify({ action:'insert', section:'tableros', data:fila })
       });
-      const json = await resp.json();
       if (json.status !== 'ok') throw new Error(json.message);
     }
 
@@ -3279,22 +3308,7 @@ window.addEventListener('DOMContentLoaded',()=>{
    - Sube automáticamente cuando recupera internet
 ══════════════════════════════════════════════════════════════ */
 
-// ── Registrar Service Worker ────────────────────────────────────
-if ('serviceWorker' in navigator) {
-  window.addEventListener('load', async () => {
-    try {
-      await navigator.serviceWorker.register('/sw.js');
-    } catch(e) { console.warn('SW error:', e); }
-  });
-
-  // Escuchar sincronización completada desde el SW
-  navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'SYNC_COMPLETE') {
-      showToast(`✅ ${event.data.count} visita(s) sincronizada(s) con Cloudflare`);
-      actualizarBadge();
-    }
-  });
-}
+// (El registro del Service Worker está en la sección VERSIONADO, más abajo)
 
 // ── Detectar online/offline ─────────────────────────────────────
 function actualizarEstadoConexion() {
@@ -3306,45 +3320,22 @@ window.addEventListener('online',  actualizarEstadoConexion);
 window.addEventListener('offline', actualizarEstadoConexion);
 document.addEventListener('DOMContentLoaded', actualizarEstadoConexion);
 
-// ── IndexedDB — contar visitas pendientes ───────────────────────
-
-/* ── DB UNIFICADA — versión 3, todos los stores ── */
-const SCADA_DB_VERSION = 10;
+/* ── DB UNIFICADA — el esquema vive en /idb.js (compartido con el SW) ── */
 let _scadaDB = null; // cache de conexión
 
 function abrirScadaDB() {
-  if (_scadaDB && _scadaDB.version < SCADA_DB_VERSION) {
-    _scadaDB.close();
-    _scadaDB = null;
-  }
   if (_scadaDB) return Promise.resolve(_scadaDB);
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('scadaDB', SCADA_DB_VERSION);
-    req.onblocked = () => {
-      // SW tiene la DB abierta — esperar y reintentar
-      setTimeout(() => { _scadaDB = null; abrirScadaDB().then(resolve).catch(reject); }, 1000);
-    };
-    req.onupgradeneeded = e => {
-      const db = e.target.result;
-      if (!db.objectStoreNames.contains('pendientes')) {
-        const s = db.createObjectStore('pendientes', { keyPath:'id', autoIncrement:true });
-        s.createIndex('visitaNum','visitaNum',{unique:false});
-        s.createIndex('savedAt','savedAt',{unique:false});
-      }
-      if (!db.objectStoreNames.contains('pdf_queue'))
-        db.createObjectStore('pdf_queue', { autoIncrement:true });
-      if (!db.objectStoreNames.contains('fotos_offline'))
-        db.createObjectStore('fotos_offline', { keyPath:'visitaNum' });
-      if (!db.objectStoreNames.contains('catalogos'))
-        db.createObjectStore('catalogos');
-    };
-    req.onsuccess  = e => {
+    const req = indexedDB.open(SCADA_DB_NAME, SCADA_DB_VERSION);
+    req.onupgradeneeded = e => scadaUpgradeDB(e.target.result, e.target.transaction);
+    req.onblocked = () => console.warn('[IDB] esperando a que otra conexión cierre scadaDB...');
+    req.onsuccess = e => {
       _scadaDB = e.target.result;
-      // Si SW pide upgrade, cerrar para no bloquear
+      // Si el SW (u otra pestaña) pide una versión nueva, cerrar para no bloquearlo
       _scadaDB.onversionchange = () => { _scadaDB.close(); _scadaDB = null; };
       resolve(_scadaDB);
     };
-    req.onerror    = e => reject(e.target.error);
+    req.onerror = e => reject(e.target.error);
   });
 }
 
@@ -3391,11 +3382,9 @@ setInterval(actualizarBadge, 30000);
 let _logoBase64Cached = null;
 async function precargarLogo() {
   try {
-    const logoResp = await fetch(
-      'https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png',
-      { cache: 'force-cache' }
-    );
-    if (!logoResp.ok) return;
+    // Logo servido desde el mismo origen (y cacheado por el SW para uso offline)
+    const logoResp = await fetch('/logo.png');
+    if (!logoResp.ok) return null;
     const blob = await logoResp.blob();
     const raw  = await new Promise(res => {
       const r = new FileReader();
@@ -3416,13 +3405,14 @@ async function precargarLogo() {
       img.src = raw;
     });
   } catch(e) { console.warn('Logo precarga:', e.message); }
+  return _logoBase64Cached;
 }
 window.addEventListener('load', () => setTimeout(precargarLogo, 2000));
 
 /* ══════════════════════════════════════════════════════════════
    SINCRONIZACIÓN OFFLINE — visitas + PDF
    Flujo:
-   1. Sin internet → SW guarda visita en IndexedDB via /api/save
+   1. Sin internet → SW (o la página) guarda la visita en IndexedDB
    2. Al detectar internet → sincronizarPendientesOnline()
    3. Para cada visita: POST /api/save, genera PDF, sube a R2
    4. Overlay bloquea la app durante todo el proceso
@@ -3458,6 +3448,16 @@ async function getPendientesDB() {
       req.onerror   = () => resolve([]);
     });
   } catch { return []; }
+}
+
+async function guardarPendienteDB(data) {
+  const db = await abrirDBSync();
+  await new Promise((resolve, reject) => {
+    const tx = db.transaction('pendientes','readwrite');
+    tx.objectStore('pendientes').add({ visitaNum: data.visitaNum || '', data, savedAt: Date.now() });
+    tx.oncomplete = resolve;
+    tx.onerror    = e => reject(e.target.error);
+  });
 }
 
 async function eliminarPendienteDB(id) {
@@ -3498,13 +3498,43 @@ async function generarPdfBase64(visita) {
 }
 
 // ── Sincronizar todas las visitas pendientes ───────────────────
+// Usa un bloqueo compartido con el SW: nunca suben la misma cola a la vez.
+let _syncEnCurso = false;
 async function sincronizarPendientesOnline() {
+  if (_syncEnCurso) return;
+  _syncEnCurso = true;
+  try {
+    await scadaWithSyncLock(_sincronizarPendientes);
+  } finally {
+    _syncEnCurso = false;
+  }
+}
+
+// Sube un PDF a R2 y lo asocia a la visita. Devuelve true si quedó subido.
+async function subirPdfVisita(visitaNum, pdfBase64) {
+  const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ visitaNum, pdfBase64 })
+  });
+  if (!pdfResp.ok) return false;
+  const pdfJson = await pdfResp.json();
+  if (pdfJson?.status !== 'ok' || !pdfJson?.key) return false;
+  await fetch(`${API_BASE}/api/save-pdf-key`, {
+    method : 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body   : JSON.stringify({ visitaNum, pdfR2Key: pdfJson.key })
+  }).catch(() => {});
+  return true;
+}
+
+async function _sincronizarPendientes() {
   const pendientes = await getPendientesDB();
 
   // Aunque no haya visitas pendientes, siempre sincronizar PDFs
   if (!pendientes.length) {
     const pdfs = await getPdfsPendientes();
-    if (pdfs.length > 0) {
+    if (pdfs.length > 0 && navigator.onLine) {
       mostrarSyncOverlay('⬆️ Subiendo PDFs pendientes...', pdfs.length + ' PDF(s) por subir');
       const n = await sincronizarPdfsPendientes();
       await new Promise(r => setTimeout(r, 1000));
@@ -3523,12 +3553,13 @@ async function sincronizarPendientesOnline() {
   let exitosos    = 0;
   let errores     = 0;
   let pdfsSubidos = 0;
+  const pdfOffline = await getPdfsPendientes();
 
   for (let i = 0; i < pendientes.length; i++) {
-    const item    = pendientes[i];
-    const visita  = item.data;
-    const num     = i + 1;
-    const total   = pendientes.length;
+    const item   = pendientes[i];
+    const visita = item.data || {};
+    const num    = i + 1;
+    const total  = pendientes.length;
 
     actualizarSyncOverlay(
       `⬆️ Sincronizando ${num}/${total}`,
@@ -3536,64 +3567,57 @@ async function sincronizarPendientesOnline() {
     );
 
     try {
-      // 1. Subir visita a D1
-      const saveResp = await fetch(`${API_BASE}/api/save`, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify(visita)
-      });
-      if (!saveResp.ok) throw new Error('HTTP ' + saveResp.status);
-      const saveJson = await saveResp.json();
-      if (saveJson.status !== 'ok') throw new Error(saveJson.message);
+      // 1. Subir visita a D1 (si el SW ya la subió, `subido` = true;
+      //    igual se reenvía porque el servidor es idempotente)
+      let saveResp;
+      try {
+        saveResp = await fetch(`${API_BASE}/api/save`, {
+          method : 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body   : JSON.stringify(visita)
+        });
+      } catch (netErr) {
+        errores++;
+        break; // sin internet: no tiene sentido continuar
+      }
+      let saveJson = null;
+      try { saveJson = await saveResp.json(); } catch {}
+      if (!saveResp.ok || saveJson?.status !== 'ok' || saveJson?.offline) {
+        // Rechazada por el servidor: se conserva en la cola y se sigue con la siguiente
+        console.warn('Visita no sincronizada:', visita.visitaNum, saveJson?.message || saveResp.status);
+        errores++;
+        continue;
+      }
 
-      // 2. Generar PDF y subir a R2
+      // 2. PDF: usar el guardado offline (ya tiene fotos) o regenerarlo
       actualizarSyncOverlay(
         `⬆️ Sincronizando ${num}/${total}`,
         'Generando y subiendo PDF ' + (visita.visitaNum || '') + '...'
       );
 
-      // 2b. Subir PDF a R2
-      // Primero intentar usar el PDF guardado offline (ya generado con fotos)
-      // Si no existe, regenerarlo con las fotos offline
       let pdfBase64 = null;
-      const pdfOffline = await getPdfsPendientes();
       const pdfGuardado = pdfOffline.find(p => p.visitaNum === visita.visitaNum);
-
       if (pdfGuardado) {
-        // Usar el PDF que ya fue generado y guardado offline
         pdfBase64 = pdfGuardado.pdfBase64;
       } else {
-        // No hay PDF guardado — regenerar con fotos offline
-        await cargarJsPDF().catch(() => {});
         const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
-        const visitaConFotos = { ...visita, fotografias: fotosOffline };
-        pdfBase64 = await generarPdfBase64(visitaConFotos);
+        pdfBase64 = await generarPdfBase64({ ...visita, fotografias: fotosOffline });
       }
 
       if (pdfBase64) {
-        try {
-          const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
-            method : 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body   : JSON.stringify({ visitaNum: visita.visitaNum, pdfBase64 })
-          });
-          if (pdfResp.ok) {
-            const pdfJson = await pdfResp.json();
-            if (pdfJson?.status === 'ok' && pdfJson?.key) {
-              await fetch(`${API_BASE}/api/save-pdf-key`, {
-                method : 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body   : JSON.stringify({ visitaNum: visita.visitaNum, pdfR2Key: pdfJson.key })
-              }).catch(() => {});
-              // Eliminar PDF de IndexedDB si existía guardado
-              if (pdfGuardado) await eliminarPdfOffline(pdfGuardado.visitaNum);
-              pdfsSubidos++;
-            }
-          }
-        } catch(e) { console.warn('PDF upload failed:', e); }
+        let ok = false;
+        try { ok = await subirPdfVisita(visita.visitaNum, pdfBase64); }
+        catch(e) { console.warn('PDF upload failed:', e); }
+        if (ok) {
+          if (pdfGuardado) await eliminarPdfOffline(pdfGuardado.visitaNum);
+          pdfsSubidos++;
+        } else if (!pdfGuardado) {
+          // No se pudo subir: conservarlo para reintentar (no perder las fotos)
+          await guardarPdfOffline(visita.visitaNum, pdfBase64);
+        }
       }
 
-      // 4. Eliminar visita y fotos de IndexedDB
+      // 3. Eliminar visita y fotos de IndexedDB
       await eliminarPendienteDB(item.id);
       await eliminarFotosOffline(visita.visitaNum);
       exitosos++;
@@ -3601,30 +3625,20 @@ async function sincronizarPendientesOnline() {
     } catch(e) {
       console.warn('Error sincronizando visita:', e);
       errores++;
-      // Si es error de red, parar — no tiene sentido continuar sin internet
       if (!navigator.onLine) break;
     }
   }
 
-  // Resultado final
   if (errores === 0) {
-    actualizarSyncOverlay(
-      '✅ Sincronización completa',
-      exitosos + ' visita(s) subida(s) correctamente',
-      'ok'
-    );
+    actualizarSyncOverlay('✅ Sincronización completa',
+      exitosos + ' visita(s) subida(s) correctamente', 'ok');
   } else {
-    actualizarSyncOverlay(
-      '⚠️ Sincronización parcial',
-      exitosos + ' exitosa(s), ' + errores + ' con error',
-      'err'
-    );
+    actualizarSyncOverlay('⚠️ Sincronización parcial',
+      exitosos + ' exitosa(s), ' + errores + ' con error (quedan en cola)', 'err');
   }
 
-  // Sincronizar PDFs que quedaron pendientes independientes
-  // (los que el técnico descargó pero no tenían visita pendiente)
-  // Sincronizar PDFs independientes (sin visita asociada)
-  const pdfsExtra = await sincronizarPdfsPendientes();
+  // PDFs independientes (descargados por el técnico sin visita en cola)
+  const pdfsExtra = navigator.onLine ? await sincronizarPdfsPendientes() : 0;
   const totalPdfs = pdfsSubidos + pdfsExtra;
 
   await new Promise(r => setTimeout(r, 1500));
@@ -3633,38 +3647,23 @@ async function sincronizarPendientesOnline() {
 
   let msgFinal = exitosos + ' visita(s) sincronizada(s)';
   if (totalPdfs > 0) msgFinal += ' · ' + totalPdfs + ' PDF(s) subido(s) a R2';
-  showToast('✅ ' + msgFinal);
+  showToast((errores ? '⚠️ ' : '✅ ') + msgFinal);
 }
 
 // ── Detectar reconexión y sincronizar automáticamente ─────────
-window.addEventListener('online', async () => {
-  setTimeout(async () => {
-    const visitas = await getPendientesDB();
-    const pdfs    = await getPdfsPendientes();
-    if (visitas.length > 0 || pdfs.length > 0) {
-      await sincronizarPendientesOnline();
-    } else {
-    }
-  }, 2000);
+window.addEventListener('online', () => {
+  setTimeout(() => sincronizarPendientesOnline(), 2000);
 });
 // Al cargar la app con internet, revisar si hay pendientes
 window.addEventListener('load', () => {
   if (navigator.onLine) setTimeout(() => sincronizarPendientesOnline(), 4000);
 });
 
-// También escuchar mensaje del SW cuando completa sync
-navigator.serviceWorker?.addEventListener('message', event => {
-  if (event.data?.type === 'SYNC_COMPLETE') {
-    actualizarBadge();
-    showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
-  }
-});
-
 /* ── Generador interno de PDF (reutilizable para sync offline) ── */
 async function _generarDocPDF(d) {
   if (!window.jspdf) return null;
   // Usar logo precargado
-  let logoBase64 = _logoBase64Cached;
+  let logoBase64 = _logoBase64Cached || await precargarLogo();
   try {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'letter' });
@@ -4234,76 +4233,120 @@ document.addEventListener('DOMContentLoaded', () => {
   if (chip) chip.textContent = 'v' + APP_VERSION;
 });
 
-// ── Registro del SW + actualización automática ────────────────
+// ── Estado del formulario: ¿hay datos sin guardar? ─────────────
+// Mientras haya una visita a medio llenar NO se recarga la app por
+// actualizaciones; se muestra un aviso para que el técnico decida.
+let _formDirty = false;
+let _recargaPorActualizacion = false;
+
+function marcarFormularioSucio(e) {
+  if (e.target && e.target.closest && e.target.closest('#sw')) _formDirty = true;
+}
+document.addEventListener('input',  marcarFormularioSucio, true);
+document.addEventListener('change', marcarFormularioSucio, true);
+document.addEventListener('click', e => {
+  if (e.target.closest && e.target.closest('#sw .tg-btn')) _formDirty = true;
+}, true);
+
+function marcarFormularioLimpio() {
+  _formDirty = false;
+  if (_swReg && _swReg.waiting) aplicarActualizacion();
+}
+
+window.addEventListener('beforeunload', e => {
+  if (_formDirty && !_recargaPorActualizacion) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+
+// ── Registro del SW + actualización controlada ────────────────
 let _swReg = null;
 
-if ('serviceWorker' in navigator) {
+function aplicarActualizacion() {
+  if (!_swReg || !_swReg.waiting) return;
+  _recargaPorActualizacion = true;
+  _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
+}
 
-  // Recargar automáticamente cuando el SW toma control
+function mostrarBannerActualizacion() {
+  document.getElementById('updateBanner')?.classList.add('show');
+}
+function ocultarBannerActualizacion() {
+  document.getElementById('updateBanner')?.classList.remove('show');
+}
+function actualizarAhora() {
+  if (_formDirty && !confirm('Hay una visita sin guardar. Si actualizas ahora se perderán los datos del formulario. ¿Continuar?')) return;
+  ocultarBannerActualizacion();
+  aplicarActualizacion();
+}
+
+// Hay un SW nuevo esperando: activar ya si el formulario está vacío,
+// si no, avisar y esperar a que el técnico termine.
+function onActualizacionDisponible() {
+  if (!_formDirty) aplicarActualizacion();
+  else mostrarBannerActualizacion();
+}
+
+if ('serviceWorker' in navigator) {
+  // Solo recargar si es una ACTUALIZACIÓN (no en la primera instalación)
+  const _teniaController = !!navigator.serviceWorker.controller;
   let _refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!_refreshing) { _refreshing = true; window.location.reload(); }
+    if (!_teniaController || _refreshing) return;
+    _refreshing = true;
+    _recargaPorActualizacion = true;
+    window.location.reload();
   });
 
-  // Registrar SW
-  navigator.serviceWorker.register('/sw.js')
-    .then(reg => {
-      _swReg = reg;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        _swReg = reg;
+        if (reg.waiting && navigator.serviceWorker.controller) onActualizacionDisponible();
 
-      // SW nuevo esperando → activar inmediatamente
-      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-
-      // SW nuevo instalado → activar inmediatamente
-      reg.addEventListener('updatefound', () => {
-        const newSW = reg.installing;
-        newSW.addEventListener('statechange', () => {
-          if (newSW.state === 'installed') {
-            newSW.postMessage({ type: 'SKIP_WAITING' });
-          }
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          if (!newSW) return;
+          newSW.addEventListener('statechange', () => {
+            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              onActualizacionDisponible();
+            }
+          });
         });
-      });
-    })
-    .catch(e => console.warn('SW registro falló:', e));
+      })
+      .catch(e => console.warn('SW registro falló:', e));
+  });
 
-  // Mensajes del SW
+  // Mensajes del SW (un único listener)
   navigator.serviceWorker.addEventListener('message', event => {
-    if (event.data?.type === 'SYNC_COMPLETE') {
+    const type = event.data?.type;
+    if (type === 'SYNC_COMPLETE') {
       actualizarBadge();
       showToast('✅ ' + event.data.count + ' visita(s) sincronizada(s)');
+    } else if (type === 'SYNC_REQUEST') {
+      if (navigator.onLine) sincronizarPendientesOnline();
     }
   });
 }
 
-// ── Verificar actualizaciones al volver desde background ───────
-// Clave en Android — la PWA instalada nunca se "cierra" realmente
-document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState !== 'visible') return;
-  if (!('serviceWorker' in navigator)) return;
-
-  try {
-    const reg = _swReg || await navigator.serviceWorker.getRegistration();
-    if (!reg) return;
-
-    // Pedir al navegador que verifique si hay nueva versión del SW
-    await reg.update();
-
-    // Si ya hay un SW nuevo esperando → activar inmediatamente
-    if (reg.waiting) {
-      reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    }
-  } catch(e) { /* ignorar errores de red */ }
-});
-
-// Verificar actualizaciones cada 10 minutos
-setInterval(async () => {
+async function buscarActualizacion() {
   try {
     const reg = _swReg || await navigator.serviceWorker?.getRegistration();
-    if (reg) {
-      await reg.update();
-      if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' });
-    }
-  } catch(e) {}
-}, 60 * 60 * 1000); // cada 60 min — estándar recomendado
+    if (!reg) return;
+    await reg.update();
+    if (reg.waiting && navigator.serviceWorker.controller) onActualizacionDisponible();
+  } catch(e) { /* ignorar errores de red */ }
+}
+
+// Verificar actualizaciones al volver desde background
+// (clave en Android: la PWA instalada nunca se "cierra" realmente)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') buscarActualizacion();
+});
+
+// Verificar actualizaciones cada 60 minutos
+setInterval(buscarActualizacion, 60 * 60 * 1000);
 
 
 
@@ -4421,7 +4464,7 @@ function renderFotoSlot(slot) {
       <button class="foto-edit-btn" onclick="editarFotoObs(${slot})" title="Editar observación">✏️</button>
       <button class="foto-del-btn"  onclick="eliminarFoto(${slot})"   title="Eliminar foto">✕</button>
     </div>
-    ${data.observacion ? `<div class="foto-obs">${data.observacion}</div>` : ''}
+    ${data.observacion ? `<div class="foto-obs">${esc(data.observacion)}</div>` : ''}
   `;
 }
 
@@ -4509,7 +4552,7 @@ async function getPdfsPendientes() {
     const db = await abrirScadaDB();
     return new Promise(resolve => {
       if (!db.objectStoreNames.contains('pdf_queue')) {
-        console.warn('[PDF] Store pdfs_pendientes NO EXISTE en la DB');
+        console.warn('[PDF] Store pdf_queue no existe en la DB');
         resolve([]);
         return;
       }
@@ -4529,29 +4572,12 @@ async function eliminarPdfOffline(visitaNum) {
   try {
     const db = await abrirScadaDB();
     await new Promise((resolve, reject) => {
-      const tx    = db.transaction('pdf_queue', 'readwrite');
-      const store = tx.objectStore('pdf_queue');
-      // Usar cursor para encontrar y eliminar por visitaNum independiente del keyPath
-      const req = store.openCursor();
-      req.onsuccess = e => {
-        const cursor = e.target.result;
-        if (!cursor) { resolve(); return; }
-        if (cursor.value.visitaNum === visitaNum) {
-          const delReq = cursor.delete();
-          delReq.onsuccess = () =>
-          delReq.onerror   = e =>
-          resolve();
-        } else {
-          cursor.continue();
-        }
-      };
-      req.onerror   = e => { resolve(); };
-      tx.oncomplete = () => resolve();
-      tx.onerror    = e => { resolve(); };
+      const tx = db.transaction('pdf_queue', 'readwrite');
+      tx.objectStore('pdf_queue').delete(visitaNum); // keyPath = visitaNum
+      tx.oncomplete = resolve;
+      tx.onerror    = e => reject(e.target.error);
     });
-    const restantes = await getPdfsPendientes();
-  } catch(e) {
-  }
+  } catch(e) { console.warn('eliminarPdfOffline error:', e); }
 }
 
 async function sincronizarPdfsPendientes() {
@@ -4562,21 +4588,7 @@ async function sincronizarPdfsPendientes() {
   for (const item of pdfs) {
     if (!navigator.onLine) break;
     try {
-      const pdfResp = await fetch(`${API_BASE}/api/pdf`, {
-        method : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body   : JSON.stringify({ visitaNum: item.visitaNum, pdfBase64: item.pdfBase64 })
-      });
-      if (!pdfResp.ok) throw new Error('HTTP ' + pdfResp.status);
-      const pdfJson = await pdfResp.json();
-
-      if (pdfJson?.status === 'ok' && pdfJson?.key) {
-        await fetch(`${API_BASE}/api/save-pdf-key`, {
-          method : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body   : JSON.stringify({ visitaNum: item.visitaNum, pdfR2Key: pdfJson.key })
-        }).catch(() => {});
-        // Eliminar usando el id autoincremental
+      if (await subirPdfVisita(item.visitaNum, item.pdfBase64)) {
         await eliminarPdfOffline(item.visitaNum);
         subidos++;
       }
@@ -4592,6 +4604,11 @@ async function sincronizarPdfsPendientes() {
 
 <!-- ═══ OFFLINE BANNER + SYNC BADGE ═══ -->
 <div id="offlineBanner">📵 SIN CONEXIÓN — Las visitas se guardarán localmente y se sincronizarán al reconectar</div>
+<div id="updateBanner" role="status">
+  <span>🔄 Hay una nueva versión de la app. Se aplicará al terminar la visita.</span>
+  <button class="ub-later" onclick="ocultarBannerActualizacion()">Luego</button>
+  <button class="ub-ok" onclick="actualizarAhora()">Actualizar</button>
+</div>
 <div id="syncBadge" class="hidden">
   ⬆️ <span id="syncCount">0</span> visita(s) pendiente(s)
 </div>
