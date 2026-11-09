@@ -272,16 +272,44 @@ export async function onRequest(context) {
       );
     }
 
-    const placeholders = columns.map(() => "?").join(", ");
+    // Campos agregados en migrations/0002_campos_formulario_v2.sql
+    const nuevos = [
+      ["term_sens_v", s(v.termSensV)],
+      ["mangu_sens_v", s(v.manguSensV)],
+      ["term_mangu_aux", s(v.termManguAux)],
+      ["mangu_aux", s(v.manguAux)],
+      ["tipo_bateria", s(v.tipoBateria)],
+      ["tiene_potencial", s(v.tienePotencial)],
+      ["alimentado_acometida", s(v.alimentadoAcometida)],
+      ["obs_potencial", s(v.obsPotencial)],
+      ["num_fotos", i(v.numFotos)],
+    ];
 
-    const stmt = env.DB.prepare(`
-      INSERT INTO registros (${columns.join(", ")})
-      VALUES (${placeholders})
-    `);
+    const insertar = (cols, vals) =>
+      env.DB.prepare(
+        `INSERT INTO registros (${cols.join(", ")})
+         VALUES (${cols.map(() => "?").join(", ")})`
+      )
+        .bind(...vals)
+        .run();
 
     let r;
     try {
-      r = await stmt.bind(...values).run();
+      try {
+        r = await insertar(
+          [...columns, ...nuevos.map((n) => n[0])],
+          [...values, ...nuevos.map((n) => n[1])]
+        );
+      } catch (err) {
+        // Si la migración 0002 aún no se ejecutó, guardar sin los campos nuevos
+        // para no perder la visita.
+        if (/no such column|has no column named/i.test(String(err?.message))) {
+          console.warn("Faltan columnas nuevas en registros (ejecutar migración 0002):", err.message);
+          r = await insertar(columns, values);
+        } else {
+          throw err;
+        }
+      }
     } catch (err) {
       // Carrera entre dos envíos simultáneos con índice UNIQUE(visita_num)
       if (/UNIQUE/i.test(String(err?.message))) {

@@ -779,8 +779,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .adm-campos-hint{font-size:11px;color:var(--muted);text-align:center;padding:8px;}
 
 /* ── BATTERY TEST ROW ── */
-.batt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end;}
-.batt-row .tg{width:100%;}
 
 /* ── OFFLINE BANNER + SYNC BADGE ── */
 #offlineBanner{
@@ -1279,7 +1277,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
         <div class="field" id="f-marcaReconectador">
           <label>Marca <span class="req">*</span></label>
-          <select id="marcaReconectador" onchange="updMarcaModelos();updMarcaControles();clearErr('f-marcaReconectador');updP();renderTabliero(this.value)">
+          <select id="marcaReconectador" onchange="updMarcaModelos();updMarcaControles();clearErr('f-marcaReconectador');updP();renderTabliero(this.value);actualizarCondicionales()">
             <option value="">— Marca —</option>
           </select>
           <div class="field-err-msg">Campo obligatorio</div>
@@ -1295,7 +1293,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="field"><label>Medio Extinción</label>
           <select id="medioExtincion">
             <option value="">— Tipo —</option>
-            <option>Vacío</option><option>Aceite (VWE)</option><option>SF6</option><option>Aire</option>
+            <option>Vacío</option><option>Aceite (VWE)</option><option>SF6</option>
           </select>
         </div>
         <div class="field" id="f-tipoControl">
@@ -1307,9 +1305,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         </div>
         <div class="field"><label>Serie Control</label><input type="text" id="serieControl" placeholder="N° serie"></div>
       </div>
-      <div class="field"><label>Firmware / Proview</label><input type="text" id="proviewControl" placeholder="Ej: 4.0.1, 5.1, RC10"></div>
+      <div class="field" id="f-proview" style="display:none"><label>Firmware / Proview</label><input type="text" id="proviewControl" placeholder="Ej: 4.0.1, 5.1, RC10"></div>
 
-      <div class="sdiv">Conectividad</div>
+      <!-- Solo para marca COOPER -->
+      <div id="blk-mangueras" style="display:none">
+      <div class="sdiv">Mangueras Extras</div>
       <div class="g2">
         <div class="field"><label>Terminal p/Sensores V</label>
           <div class="tg" id="tg-termSensV"><button class="tg-btn" onclick="tg(this,'tg-termSensV','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-termSensV','a-no')">NO</button></div>
@@ -1323,6 +1323,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="field"><label>Manguera Auxiliar</label>
           <div class="tg" id="tg-manguAux"><button class="tg-btn" onclick="tg(this,'tg-manguAux','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-manguAux','a-no')">NO</button></div>
         </div>
+      </div>
       </div>
     </div>
   </div>
@@ -1473,7 +1474,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="sdiv">Alarma</div>
       <div class="g2">
         <div class="field"><label>Alarma Presente</label><div class="tg" id="tg-alarm"><button class="tg-btn" onclick="tg(this,'tg-alarm','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-alarm','a-no')">NO</button></div></div>
-        <div class="field"><label>Reset Alarma</label><div class="tg" id="tg-rst"><button class="tg-btn" onclick="tg(this,'tg-rst','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-rst','a-no')">NO</button></div></div>
       </div>
       <div class="field"><label>Descripción Alarma</label><textarea id="descAlarma" placeholder="Describir si hay alarma presente..."></textarea></div>
 
@@ -1486,12 +1486,12 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
       <div class="field">
         <label>Battery Test</label>
-        <div class="batt-row">
-          <div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div>
-          <input type="number" id="batteryTestMedicion" placeholder="Medición Test (V)" inputmode="decimal" step="0.01">
-        </div>
+        <div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div>
       </div>
       <div class="field"><label>Cambio Baterías</label><div class="tg" id="tg-cbat"><button class="tg-btn" onclick="tg(this,'tg-cbat','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-cbat','a-no')">NO</button></div></div>
+      <div class="field" id="f-tipoBateria" style="display:none"><label>Tipo de Batería Instalada</label>
+        <select id="tipoBateria"><option value="">— Tipo de batería —</option><option>12V/ 12AH</option><option>12V/ 17AH</option><option>12V/ 26AH</option></select>
+      </div>
     </div>
   </div>
 </div>
@@ -1501,7 +1501,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   <div class="card">
     <div class="card-head">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-      <h2>5 · Corrientes y Ajustes</h2>
+      <h2>5 · Corrientes</h2>
     </div>
     <div class="card-body">
       <div class="mbox">
@@ -1512,12 +1512,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <div class="field"><label>IC</label><input type="number" id="corrIC" placeholder="A" inputmode="decimal" step="0.1"></div>
           <div class="field"><label>IN Neutro</label><input type="number" id="corrIN" placeholder="A" inputmode="decimal" step="0.1"></div>
         </div>
-      </div>
-      <div class="sdiv">Ajustes de Disparo</div>
-      <div class="field"><label>Ajuste Activo</label><select id="ajusteActivo"><option value="">— Grupo —</option><option>Grupo 1</option><option>Grupo 2</option><option>Grupo 3</option></select></div>
-      <div class="g2">
-        <div class="field"><label>C. Apertura Fase (A)</label><input type="number" id="cApertFase" placeholder="A" inputmode="decimal" step="0.1"></div>
-        <div class="field"><label>C. Apertura Neutro (A)</label><input type="number" id="cApertNeutro" placeholder="A" inputmode="decimal" step="0.1"></div>
       </div>
 
     </div>
@@ -1563,7 +1557,16 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
         <div class="field"><label># Pararrayos</label><input type="number" id="numPararrayos" min="0" inputmode="numeric" placeholder="Cant."></div>
       </div>
       <div class="sdiv">Potencial</div>
-      <div class="g2">
+      <div class="field"><label>¿Tiene Potencial?</label>
+        <div class="tg" id="tg-tienePot"><button class="tg-btn" onclick="tg(this,'tg-tienePot','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-tienePot','a-no')">NO</button></div>
+      </div>
+      <div id="blk-potNo" style="display:none">
+        <div class="field"><label>Alimentado por Acometida</label>
+          <div class="tg" id="tg-acometida"><button class="tg-btn" onclick="tg(this,'tg-acometida','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-acometida','a-no')">NO</button></div>
+        </div>
+        <div class="field"><label>Observaciones</label><textarea id="obsPotencial" rows="3" placeholder="Observaciones sobre la alimentación del equipo..."></textarea></div>
+      </div>
+      <div class="g2" id="blk-potSi" style="display:none">
         <div class="field"><label>Cantidad</label><input type="number" id="potCantidad" min="0" inputmode="numeric" placeholder="Cant."></div>
         <div class="field"><label>Pararrayos</label><div class="tg" id="tg-pP"><button class="tg-btn" onclick="tg(this,'tg-pP','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pP','a-no')">NO</button></div></div>
         <div class="field"><label>Cuchilla</label><div class="tg" id="tg-pC"><button class="tg-btn" onclick="tg(this,'tg-pC','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pC','a-no')">NO</button></div></div>
@@ -1603,25 +1606,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <h2>8 · Fotografías</h2>
     </div>
     <div class="card-body">
-      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">Hasta 4 fotografías de la visita. Toca cada recuadro para tomar o seleccionar una foto.</p>
-      <div class="fotos-grid" id="fotosGrid">
-        <div class="foto-slot" id="fotoSlot0" onclick="seleccionarFoto(0)">
-          <span class="foto-slot-icon">📷</span>
-          <span class="foto-slot-label">Foto 1</span>
-        </div>
-        <div class="foto-slot" id="fotoSlot1" onclick="seleccionarFoto(1)">
-          <span class="foto-slot-icon">📷</span>
-          <span class="foto-slot-label">Foto 2</span>
-        </div>
-        <div class="foto-slot" id="fotoSlot2" onclick="seleccionarFoto(2)">
-          <span class="foto-slot-icon">📷</span>
-          <span class="foto-slot-label">Foto 3</span>
-        </div>
-        <div class="foto-slot" id="fotoSlot3" onclick="seleccionarFoto(3)">
-          <span class="foto-slot-icon">📷</span>
-          <span class="foto-slot-label">Foto 4</span>
-        </div>
-      </div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:14px;">1 fotografía obligatoria y hasta 3 adicionales. Las fotos se guardan en su resolución original.</p>
+      <div class="fotos-grid" id="fotosGrid"></div>
       <input type="file" id="fotoInput" accept="image/*" capture="environment" style="display:none" onchange="procesarFoto(this)">
     </div>
   </div>
@@ -1665,7 +1651,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <button class="add-btn" onclick="agregarPers()" style="margin-bottom:14px;">＋ Agregar Persona</button>
 
       <div class="sdiv">Firma del Responsable</div>
-      <div class="field"><label>Nombre del Responsable</label><input type="text" id="firmaResponsable" placeholder="Nombre completo" autocomplete="name"></div>
+      <div class="field"><label>Nombre del Responsable</label><input type="text" id="firmaResponsable" placeholder="Se llena con el Técnico #1" autocomplete="name"></div>
       <div class="field"><label>Firma Digital</label>
         <div class="firma-wrap" id="firmaWrap">
           <canvas id="firmaCanvas" height="120"></canvas>
@@ -1673,7 +1659,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           <button class="firma-clear" onclick="limpFirma()">Limpiar</button>
         </div>
       </div>
-      <div class="field"><label>Observaciones del Responsable</label><textarea id="obsResponsable" rows="3" placeholder="Comentarios o validaciones..."></textarea></div>
     </div>
   </div>
   <div style="padding:14px 12px 4px;">
@@ -1703,7 +1688,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '1.3.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
+const APP_VERSION = '2.0.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -1974,8 +1959,40 @@ function onPersSelect(sel, cardId) {
   const idInput   = card.querySelector('.pers-id-input');
   if (cargoSel && opt.dataset.cargo) cargoSel.value = opt.dataset.cargo;
   if (idInput  && opt.dataset.id)    idInput.value  = opt.dataset.id;
+  autollenarResponsable();
 }
-const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Fotografías"},{id:"sec9",label:"Personal"},{id:"sec10",label:"Observaciones"}];
+
+/* ── Nombre del responsable = Técnico #1 ──
+   Se actualiza mientras el usuario no lo haya escrito a mano. */
+let _respAuto = '';
+function nombreTecnico1() {
+  const card = document.querySelector('#personalContainer .pers-card');
+  if (!card) return '';
+  const sel = card.querySelector('.pers-nombre-select');
+  const inp = card.querySelector('input[type="text"]:not(.pers-id-input)');
+  const v = sel ? sel.value : inp ? inp.value : '';
+  return (v && v !== 'OTRO') ? v.trim() : '';
+}
+function autollenarResponsable() {
+  const campo = document.getElementById('firmaResponsable');
+  if (!campo) return;
+  const actual = campo.value.trim();
+  if (actual && actual !== _respAuto) return; // escrito a mano: respetar
+  const nombre = nombreTecnico1();
+  campo.value = nombre;
+  _respAuto = nombre;
+}
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('personalContainer')?.addEventListener('input', e => {
+    if (e.target.matches('input[type="text"]:not(.pers-id-input)')) autollenarResponsable();
+  });
+  document.getElementById('personalContainer')?.addEventListener('change', e => {
+    if (e.target.matches('.pers-nombre-select')) autollenarResponsable();
+  });
+  renderFotos();
+  actualizarCondicionales();
+});
+const SECS=[{id:"sec1",label:"Datos Generales"},{id:"sec2",label:"Reconectador"},{id:"sec3",label:"Módems"},{id:"sec4",label:"Tablero"},{id:"sec5",label:"Corrientes"},{id:"sec6",label:"Estado Físico"},{id:"sec7",label:"Materiales"},{id:"sec8",label:"Fotografías"},{id:"sec9",label:"Observaciones"},{id:"sec10",label:"Personal"}];
 const TGA=['a-si','a-no','a-on','a-off','a-ok','a-nok','a-int','a-ext','a-2g','a-3g','a-lte','a-mono','a-tri'];
 
 /* ── WIZARD ── */
@@ -2015,7 +2032,29 @@ function jumpSec(idx){
 /* ── TOGGLES ── */
 function tg(btn,gid,cls){
   document.getElementById(gid).querySelectorAll('.tg-btn').forEach(b=>b.classList.remove(...TGA));
-  btn.classList.add(cls);updP();
+  btn.classList.add(cls);updP();actualizarCondicionales();
+}
+
+/* ── CAMPOS CONDICIONALES ──
+   - Firmware/Proview y Mangueras Extras: solo marca COOPER
+   - Tipo de batería: solo si Cambio Baterías = SI
+   - Potencial: SI → datos del potencial; NO → acometida + observaciones */
+function tgValor(gid){
+  const a=document.getElementById(gid)?.querySelector('.tg-btn.a-si,.tg-btn.a-no,.tg-btn.a-ok,.tg-btn.a-nok');
+  return a?a.textContent.trim():'';
+}
+function esMarcaCooper(){
+  return (document.getElementById('marcaReconectador')?.value||'').toUpperCase().includes('COOPER');
+}
+function actualizarCondicionales(){
+  const show=(id,on)=>{const el=document.getElementById(id);if(el)el.style.display=on?'':'none';};
+  const cooper=esMarcaCooper();
+  show('f-proview',cooper);
+  show('blk-mangueras',cooper);
+  show('f-tipoBateria',tgValor('tg-cbat')==='SI');
+  const pot=tgValor('tg-tienePot');
+  show('blk-potSi',pot==='SI');
+  show('blk-potNo',pot==='NO');
 }
 const SS={};
 function tgS(key,val,btn){
@@ -2055,7 +2094,7 @@ function acSel(idx,type){
   for(const[k,v]of Object.entries({NOVA:'NOVA',NOJA:'NOJA',COOPER:'COOPER','G&W':'G&W'}))if(t.includes(k)){document.getElementById('marcaReconectador').value=v;break;}
   document.getElementById('modeloRecon').value=t;
   document.getElementById('ac-energis').classList.remove('open');
-  updP();renderTabliero(document.getElementById('marcaReconectador').value);showToast('✅ '+r.ubicacion+' — '+r.circuito);
+  updP();renderTabliero(document.getElementById('marcaReconectador').value);actualizarCondicionales();showToast('✅ '+r.ubicacion+' — '+r.circuito);
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.ac-wrap'))document.querySelectorAll('.ac-list').forEach(l=>l.classList.remove('open'));});
 
@@ -2388,8 +2427,14 @@ function getData() {
     medioExtincion    : v('medioExtincion'),
     tipoControl       : v('tipoControl'),
     serieControl      : v('serieControl'),
-    proviewControl    : v('proviewControl'),
+    proviewControl    : esMarcaCooper() ? v('proviewControl') : '',
     tarjetaRed        : tg('tg-tarjetaRed'),
+
+    // Mangueras Extras (solo COOPER)
+    termSensV         : esMarcaCooper() ? tg('tg-termSensV')    : '',
+    manguSensV        : esMarcaCooper() ? tg('tg-manguSensV')   : '',
+    termManguAux      : esMarcaCooper() ? tg('tg-termManguAux') : '',
+    manguAux          : esMarcaCooper() ? tg('tg-manguAux')     : '',
 
     // Módems
     hasModem1         : (()=>{ const a=document.getElementById('tg-hasModem1')?.querySelector('.tg-btn.a-si'); return !!a; })(),
@@ -2415,11 +2460,10 @@ function getData() {
 
     // Alarma y mediciones
     alarmaPresente    : tg('tg-alarm'),
-    resetAlarma       : tg('tg-rst'),
     descAlarma        : v('descAlarma'),
     batteryTest           : tg('tg-batt'),
-    batteryTestMedicion   : v('batteryTestMedicion'),
     cambioBaterias        : tg('tg-cbat'),
+    tipoBateria           : tg('tg-cbat') === 'SI' ? v('tipoBateria') : '',
     medicionAC            : v('medicionAC'),
     medicionBat           : v('medicionBat'),
     medicionCargador      : v('medicionCargador'),
@@ -2429,9 +2473,6 @@ function getData() {
     corrIB            : v('corrIB'),
     corrIC            : v('corrIC'),
     corrIN            : v('corrIN'),
-    ajusteActivo      : v('ajusteActivo'),
-    cApertFase        : v('cApertFase'),
-    cApertNeutro      : v('cApertNeutro'),
 
     // Aterrizaje (medición Ω)
     aterControl       : v('aterControl'),
@@ -2456,10 +2497,13 @@ function getData() {
     numPararrayos     : v('numPararrayos'),
 
     // Potencial
-    potCantidad       : v('potCantidad'),
-    potPararrayos     : tg('tg-pP'),
-    potCuchilla       : tg('tg-pC'),
-    faseConexion      : v('faseConexion'),
+    tienePotencial    : tg('tg-tienePot'),
+    potCantidad       : tg('tg-tienePot') === 'SI' ? v('potCantidad')  : '',
+    potPararrayos     : tg('tg-tienePot') === 'SI' ? tg('tg-pP')       : '',
+    potCuchilla       : tg('tg-tienePot') === 'SI' ? tg('tg-pC')       : '',
+    faseConexion      : tg('tg-tienePot') === 'SI' ? v('faseConexion') : '',
+    alimentadoAcometida : tg('tg-tienePot') === 'NO' ? tg('tg-acometida') : '',
+    obsPotencial        : tg('tg-tienePot') === 'NO' ? v('obsPotencial')  : '',
 
     // Materiales y personal
     materialesUtilizados : mats,
@@ -2471,7 +2515,7 @@ function getData() {
 
     // Responsable
     firmaResponsable  : v('firmaResponsable'),
-    obsResponsable    : v('obsResponsable'),
+    numFotos          : FOTOS_DATA.filter(Boolean).length,
     firmaImg          : (_firmaDataURL && hasFirma) ? _firmaDataURL : '',
 
     timestamp         : new Date().toISOString()
@@ -2554,6 +2598,8 @@ function limpiarFormulario() {
   limpFirma();
   // Resetear fotos
   limpiarFotos();
+  _respAuto = '';
+  actualizarCondicionales();
 
   // Nuevo número de visita con fecha actual
   const n = new Date();
@@ -2581,23 +2627,47 @@ function respaldoLocal(d) {
   } catch(e) { /* cuota llena o storage bloqueado: no es crítico */ }
 }
 
-async function guardarOfflineExito(d, guardarVisitaLocal) {
-  if (guardarVisitaLocal) await guardarPendienteDB(d);
+// Guarda las fotos (originales) en IndexedDB para subirlas al reconectar
+async function guardarFotosLocal(visitaNum, fotos) {
   try {
-    const fotosActuales = FOTOS_DATA.filter(f => f && f.base64);
-    if (fotosActuales.length > 0) await guardarFotosPendientes(d.visitaNum, fotosActuales);
-  } catch(fe) { console.warn('Fotos offline:', fe); }
-  _lastData = d;
-  _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
+    const lista = fotosParaGuardar(fotos);
+    if (lista.length > 0) await guardarFotosPendientes(visitaNum, lista);
+    return true;
+  } catch(fe) {
+    console.warn('Fotos offline:', fe);
+    showToast('⚠️ No se pudieron guardar las fotos en el dispositivo');
+    return false;
+  }
+}
+
+async function guardarOfflineExito(d, fotos, guardarVisitaLocal) {
+  if (guardarVisitaLocal) await guardarPendienteDB(d);
+  await guardarFotosLocal(d.visitaNum, fotos);
+  _lastData = { ...d, fotografias: fotos };
   saveOverlayExito(d.visitaNum, '—');
   showToast('📵 Sin conexión — datos y fotos guardados localmente');
   setTimeout(actualizarBadge, 500);
+}
+
+function setSaveOverlaySub(txt) {
+  const sub = document.getElementById('soSub');
+  if (sub) sub.textContent = txt;
 }
 
 async function guardar() {
   const d = getData();
   if (!d.visitaNum) {
     showToast('⚠️ Falta el número de visita');
+    return;
+  }
+
+  // Fotografía obligatoria
+  const fotos = FOTOS_DATA.filter(Boolean);
+  if (fotos.length === 0) {
+    await uiAlert('Agrega al menos 1 fotografía de la visita antes de guardar.', {
+      title:'Falta la fotografía', icon:'📷', warn:true, okText:'Ir a Fotografías'
+    });
+    jumpSec(SECS.findIndex(x => x.id === 'sec8'));
     return;
   }
 
@@ -2614,7 +2684,7 @@ async function guardar() {
   } catch (err) {
     // Sin red y sin Service Worker que lo intercepte → encolar desde la página
     try {
-      await guardarOfflineExito(d, true);
+      await guardarOfflineExito(d, fotos, true);
     } catch (e) {
       saveOverlayError('Sin conexión y no se pudo guardar localmente: ' + (e?.message || e));
     }
@@ -2625,13 +2695,21 @@ async function guardar() {
   try { json = await resp.json(); } catch {}
 
   if (resp.ok && json?.status === 'ok' && !json.offline) {
-    // Guardado en D1 (o ya existía: reintento idempotente)
-    _lastData = d;
-    _lastData.fotografias = FOTOS_DATA.filter(f => f && f.base64);
+    // Guardado en D1 → subir cada foto original a R2
+    const okFotos = await subirFotosVisita(d.visitaNum, fotos,
+      (i, n) => setSaveOverlaySub(`Subiendo fotografía ${i} de ${n}...`));
+    if (!okFotos) {
+      // La visita ya está en D1; las fotos quedan en cola para subirse después
+      await guardarPendienteDB(d, { subido: true });
+      await guardarFotosLocal(d.visitaNum, fotos);
+      showToast('⚠️ Visita guardada — las fotos se subirán al reconectar');
+      setTimeout(actualizarBadge, 500);
+    }
+    _lastData = { ...d, fotografias: fotos };
     saveOverlayExito(json.visitaNum || d.visitaNum, json.id || '—');
   } else if (json?.status === 'ok' && json.offline) {
     // El Service Worker guardó la visita offline
-    await guardarOfflineExito(d, false);
+    await guardarOfflineExito(d, fotos, false);
   } else {
     // Error del servidor: NO se encola; el formulario se conserva para corregir y reintentar
     const msg = json?.message || ('HTTP ' + resp.status);
@@ -3631,11 +3709,11 @@ async function getPendientesDB() {
   } catch { return []; }
 }
 
-async function guardarPendienteDB(data) {
+async function guardarPendienteDB(data, extra = {}) {
   const db = await abrirDBSync();
   await new Promise((resolve, reject) => {
     const tx = db.transaction('pendientes','readwrite');
-    tx.objectStore('pendientes').add({ visitaNum: data.visitaNum || '', data, savedAt: Date.now() });
+    tx.objectStore('pendientes').add({ visitaNum: data.visitaNum || '', data, savedAt: Date.now(), ...extra });
     tx.oncomplete = resolve;
     tx.onerror    = e => reject(e.target.error);
   });
@@ -3770,7 +3848,15 @@ async function _sincronizarPendientes() {
         continue;
       }
 
-      // 2. PDF: usar el guardado offline (ya tiene fotos) o regenerarlo
+      // 2. Fotos originales → R2 (si falla, la visita queda en cola y se reintenta)
+      const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
+      if (fotosOffline.length) {
+        const okFotos = await subirFotosVisita(visita.visitaNum, fotosOffline, (k, n) =>
+          actualizarSyncOverlay(`⬆️ Sincronizando ${num}/${total}`, `Subiendo fotografía ${k} de ${n}...`));
+        if (!okFotos) { errores++; continue; }
+      }
+
+      // 3. PDF: usar el guardado offline (ya tiene fotos) o regenerarlo
       actualizarSyncOverlay(
         `⬆️ Sincronizando ${num}/${total}`,
         'Generando y subiendo PDF ' + (visita.visitaNum || '') + '...'
@@ -3781,7 +3867,6 @@ async function _sincronizarPendientes() {
       if (pdfGuardado) {
         pdfBase64 = pdfGuardado.pdfBase64;
       } else {
-        const fotosOffline = await recuperarFotosPendientes(visita.visitaNum);
         pdfBase64 = await generarPdfBase64({ ...visita, fotografias: fotosOffline });
       }
 
@@ -3798,7 +3883,7 @@ async function _sincronizarPendientes() {
         }
       }
 
-      // 3. Eliminar visita y fotos de IndexedDB
+      // 4. Eliminar visita y fotos de IndexedDB
       await eliminarPendienteDB(item.id);
       await eliminarFotosOffline(visita.visitaNum);
       exitosos++;
@@ -3995,9 +4080,18 @@ async function _generarDocPDF(d) {
       {label:'Serie Reconectador',value:d.serieRecon},
       {label:'Tipo Control',      value:d.tipoControl},
       {label:'Serie Control',     value:d.serieControl},
-      {label:'Firmware/Proview',  value:d.proviewControl},
       {label:'Medio Extinción',   value:d.medioExtincion},
     ];
+    const esCooperPdf = String(d.marcaReconectador||'').toUpperCase().includes('COOPER');
+    if (esCooperPdf) {
+      reconItems.push(
+        {label:'Firmware/Proview',      value:d.proviewControl},
+        {label:'Terminal p/Sensores V', value:d.termSensV},
+        {label:'Manguera Sensores V',   value:d.manguSensV},
+        {label:'Terminal Manguera Aux', value:d.termManguAux},
+        {label:'Manguera Auxiliar',     value:d.manguAux},
+      );
+    }
     const maxRows = Math.max(genItems.length, reconItems.length);
     for(let i=0;i<maxRows;i++){
       checkPage(8);
@@ -4071,7 +4165,6 @@ async function _generarDocPDF(d) {
     sectionHeader('4 · ALARMA');
     const alarmaItems = [
       ['Alarma Presente', d.alarmaPresente],
-      ['Reset Alarma',    d.resetAlarma],
     ];
     const aw = CW / 2;
     alarmaItems.forEach((item, i) => {
@@ -4113,26 +4206,27 @@ async function _generarDocPDF(d) {
       setFont(10,'bold',BLUE);     txt(m2[1]||'—', ML+mw*i+4, y+8.5);
     });
     y += 11;
-    // Battery test + medición test
+    // Battery test + cambio de baterías (+ tipo instalado)
     checkPage(9);
-    rect(ML, y, CW/2, 9, BGROW);
+    const bw = CW/3;
+    rect(ML, y, bw, 9, BGROW);
     setFont(6.5,'normal',MUTED); txt('BATTERY TEST', ML+2, y+3.5);
-    toggleBadge(d.batteryTest, ML+CW/2-17, y+5.5);
-    rect(ML+CW/2, y, CW/4, 9, WHITE);
-    setFont(6.5,'normal',MUTED); txt('MEDICIÓN TEST (V)', ML+CW/2+2, y+3.5);
-    setFont(9,'bold',BLUE);      txt(d.batteryTestMedicion||'—', ML+CW/2+2, y+8);
-    rect(ML+CW*3/4, y, CW/4, 9, BGROW);
-    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+CW*3/4+2, y+3.5);
-    toggleBadge(d.cambioBaterias, ML+CW-17, y+5.5);
+    toggleBadge(d.batteryTest, ML+bw-17, y+5.5);
+    rect(ML+bw, y, bw, 9, WHITE);
+    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+bw+2, y+3.5);
+    toggleBadge(d.cambioBaterias, ML+bw*2-17, y+5.5);
+    rect(ML+bw*2, y, bw, 9, BGROW);
+    setFont(6.5,'normal',MUTED); txt('TIPO BATERÍA INSTALADA', ML+bw*2+2, y+3.5);
+    setFont(9,'bold',BLUE);      txt(d.tipoBateria||'—', ML+bw*2+2, y+8);
     y += 12;
 
     // ══════════════════════════════════════════════════════
     //  SECCIÓN 6: CORRIENTES Y AJUSTES
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('6 · CORRIENTES Y AJUSTES');
-    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)','Ajuste Activo','C. Fase (A)','C. Neutro (A)'];
-    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN, d.ajusteActivo, d.cApertFase, d.cApertNeutro];
+    sectionHeader('6 · CORRIENTES');
+    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)'];
+    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN];
     const cw7 = CW / corrHeaders.length;
     rect(ML, y, CW, 7, NAVY);
     corrHeaders.forEach((h,i) => {
@@ -4165,7 +4259,18 @@ async function _generarDocPDF(d) {
       ['N° Cuchillas',      d.numCuchillas],
       ['Pararrayos',        d.pararrayos],
       ['N° Pararrayos',     d.numPararrayos],
+      ['Tiene Potencial',   d.tienePotencial],
     ];
+    if (d.tienePotencial === 'SI') {
+      fisItems.push(
+        ['Cant. Potencial',  d.potCantidad],
+        ['Pararrayos Pot.',  d.potPararrayos],
+        ['Cuchilla Pot.',    d.potCuchilla],
+        ['Fase Conexión',    d.faseConexion],
+      );
+    } else if (d.tienePotencial === 'NO') {
+      fisItems.push(['Alim. Acometida', d.alimentadoAcometida]);
+    }
     const fcols = 4, fw = CW/fcols;
     for(let i=0;i<fisItems.length;i+=fcols){
       checkPage(9);
@@ -4193,6 +4298,17 @@ async function _generarDocPDF(d) {
       setFont(9,'bold',BLUE);     txt(a[1]||'—', ML+atW*i+3, y+8.5);
     });
     y += 11;
+    // Obs. potencial (cuando no tiene potencial)
+    if(d.tienePotencial === 'NO' && d.obsPotencial) {
+      checkPage(12);
+      const opLines = doc.splitTextToSize(d.obsPotencial, CW-4);
+      const opH = Math.max(8, opLines.length*4.5+4);
+      setFont(7,'normal',MUTED); txt('OBSERVACIÓN POTENCIAL', ML, y+4); y+=5;
+      rect(ML, y, CW, opH, BGROW, BORDER);
+      setFont(8,'normal'); doc.setTextColor(30,41,59);
+      doc.text(opLines, ML+3, y+4.5);
+      y += opH + 4;
+    }
     // Obs estado físico
     if(d.obsEstadoFisico) {
       checkPage(12);
@@ -4271,7 +4387,12 @@ async function _generarDocPDF(d) {
           const x = ML + j * (fotoW + 4);
 
           try {
-            doc.addImage(foto.base64, 'JPEG', x, y, fotoW, fotoH, '', 'FAST');
+            // Ajustar dentro del recuadro manteniendo la proporción original
+            const props = doc.getImageProperties(foto.base64);
+            const k  = Math.min(fotoW / props.width, fotoH / props.height);
+            const iw = props.width * k, ih = props.height * k;
+            rect(x, y, fotoW, fotoH, BGROW, BORDER);
+            doc.addImage(foto.base64, 'JPEG', x + (fotoW - iw)/2, y + (fotoH - ih)/2, iw, ih, '', 'FAST');
           } catch(e) {
             // Si falla la imagen, dibujar placeholder
             rect(x, y, fotoW, fotoH, BGROW, BORDER);
@@ -4368,15 +4489,6 @@ async function _generarDocPDF(d) {
     // Avanzar y hasta el fondo del box de firma (el más alto entre tabla y firmaBoxH)
     y = firmaStartY + firmaBoxH + 6;
 
-    // ── Obs. del responsable — siempre DEBAJO de la firma ──
-    if(d.obsResponsable) {
-      checkPage(12);
-      const oLines = doc.splitTextToSize('Nota del responsable: ' + d.obsResponsable, CW-4);
-      const oH = Math.max(10, oLines.length*4.5+4);
-      rect(ML, y, CW, oH, [255,251,235], [245,158,11]);
-      setFont(7.5,'normal',[146,64,14]); doc.text(oLines, ML+3, y+5);
-      y += oH + 4;
-    }
 
     // ══════════════════════════════════════════════════════
     //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
@@ -4537,141 +4649,191 @@ setInterval(buscarActualizacion, 60 * 60 * 1000);
 
 
 /* ══════════════════════════════════════════════════════════════
-   FOTOGRAFÍAS — captura, compresión y gestión
-   Máx 4 fotos, comprimidas a 800px / calidad 0.7
-   Cada foto tiene: base64 (comprimida) + observacion
+   FOTOGRAFÍAS — 1 obligatoria + hasta 3 adicionales (máx. 4)
+   Cada foto: { blob (archivo ORIGINAL, sin comprimir), type, name, size,
+                url (vista previa), base64 + w/h (copia liviana SOLO para el PDF),
+                observacion }
+   El original se sube individualmente a R2 (/api/foto).
 ══════════════════════════════════════════════════════════════ */
 
-let FOTOS_DATA   = [null, null, null, null]; // {base64, observacion}
+const MAX_FOTOS      = 4;
+const PDF_FOTO_MAXPX = 1600;  // copia para el PDF (el original no se toca)
+let FOTOS_DATA      = [];     // fotos de la visita actual
 let _fotoSlotActual = -1;
-let _fotoBase64Temp = null;
+let _fotoTemp       = null;   // foto en edición (antes de confirmar observación)
 
-// Abrir selector de cámara/galería
+// Abrir selector de cámara/galería (slot = índice a reemplazar o nueva al final)
 function seleccionarFoto(slot) {
   _fotoSlotActual = slot;
   const input = document.getElementById('fotoInput');
-  input.value = ''; // limpiar para permitir misma foto
+  input.value = ''; // permitir elegir la misma foto otra vez
   input.click();
 }
+function agregarFoto() {
+  if (FOTOS_DATA.length >= MAX_FOTOS) return;
+  seleccionarFoto(FOTOS_DATA.length);
+}
 
-// Procesar foto seleccionada — comprimir y abrir modal de observación
 async function procesarFoto(input) {
   if (!input.files || !input.files[0]) return;
   const file = input.files[0];
-
-  try {
-    const base64 = await comprimirFoto(file, 800, 0.72);
-    _fotoBase64Temp = base64;
-    // Abrir modal para ingresar observación
-    abrirFotoObsModal(base64, FOTOS_DATA[_fotoSlotActual]?.observacion || '');
-  } catch(e) {
-    console.error('Error procesando foto:', e);
-    showToast('❌ Error al procesar la foto');
+  if (file.type && !file.type.startsWith('image/')) {
+    uiAlert('El archivo seleccionado no es una imagen.', { title:'Archivo no válido', icon:'⚠️', warn:true });
+    return;
   }
+  let pdf = { base64:null, w:0, h:0 };
+  try { pdf = await copiaParaPDF(file, PDF_FOTO_MAXPX, 0.85); }
+  catch(e) { console.warn('No se pudo generar la copia para PDF:', e); }
+
+  _fotoTemp = {
+    blob: file, type: file.type || 'image/jpeg', name: file.name || 'foto.jpg', size: file.size,
+    url: URL.createObjectURL(file), base64: pdf.base64, w: pdf.w, h: pdf.h,
+    observacion: FOTOS_DATA[_fotoSlotActual]?.observacion || ''
+  };
+  abrirFotoObsModal(_fotoTemp.url, _fotoTemp.observacion);
 }
 
-// Comprimir imagen usando canvas
-function comprimirFoto(file, maxPx, calidad) {
+// Copia reducida SOLO para insertar en el PDF (el archivo original no se modifica)
+function copiaParaPDF(file, maxPx, calidad) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     const url = URL.createObjectURL(file);
     img.onload = () => {
       URL.revokeObjectURL(url);
-      // Calcular dimensiones manteniendo proporción
       let { width, height } = img;
-      if (width > height) {
-        if (width > maxPx) { height = Math.round(height * maxPx / width); width = maxPx; }
-      } else {
-        if (height > maxPx) { width = Math.round(width * maxPx / height); height = maxPx; }
-      }
+      const k = Math.min(1, maxPx / Math.max(width, height));
+      width = Math.round(width * k); height = Math.round(height * k);
       const canvas = document.createElement('canvas');
-      canvas.width  = width;
-      canvas.height = height;
+      canvas.width = width; canvas.height = height;
       const ctx = canvas.getContext('2d');
-      // Fondo blanco para JPEGs con transparencia
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
-      const base64 = canvas.toDataURL('image/jpeg', calidad);
-      resolve(base64);
+      resolve({ base64: canvas.toDataURL('image/jpeg', calidad), w: width, h: height });
     };
     img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Error cargando imagen')); };
     img.src = url;
   });
 }
 
-// Abrir modal de observación
-function abrirFotoObsModal(base64, obsActual) {
-  document.getElementById('fotoObsPreview').src = base64;
-  document.getElementById('fotoObsInput').value  = obsActual || '';
+function abrirFotoObsModal(src, obsActual) {
+  document.getElementById('fotoObsPreview').src = src;
+  document.getElementById('fotoObsInput').value = obsActual || '';
   document.getElementById('fotoObsModal').classList.add('show');
   setTimeout(() => document.getElementById('fotoObsInput').focus(), 300);
 }
 
-// Cerrar modal — guardar o cancelar
+// Cerrar modal — "Guardar" toma la observación; "Omitir" deja la anterior
 function cerrarFotoObsModal(guardar) {
   document.getElementById('fotoObsModal').classList.remove('show');
-  if (_fotoSlotActual < 0 || !_fotoBase64Temp) return;
-
-  const obs = guardar
+  if (_fotoSlotActual < 0 || !_fotoTemp) return;
+  _fotoTemp.observacion = guardar
     ? document.getElementById('fotoObsInput').value.trim()
     : (FOTOS_DATA[_fotoSlotActual]?.observacion || '');
 
-  // Guardar en array
-  FOTOS_DATA[_fotoSlotActual] = {
-    base64      : _fotoBase64Temp,
-    observacion : obs
-  };
-
-  renderFotoSlot(_fotoSlotActual);
-  _fotoBase64Temp  = null;
-  _fotoSlotActual  = -1;
-}
-
-// Renderizar slot con la foto
-function renderFotoSlot(slot) {
-  const el   = document.getElementById('fotoSlot' + slot);
-  const data = FOTOS_DATA[slot];
-  if (!el) return;
-
-  if (!data || !data.base64) {
-    el.className = 'foto-slot';
-    el.onclick   = () => seleccionarFoto(slot);
-    el.innerHTML = `<span class="foto-slot-icon">📷</span>
-                    <span class="foto-slot-label">Foto ${slot + 1}</span>`;
-    return;
+  const anterior = FOTOS_DATA[_fotoSlotActual];
+  if (anterior && anterior !== _fotoTemp && anterior.url && anterior.url !== _fotoTemp.url) {
+    URL.revokeObjectURL(anterior.url);
   }
-
-  el.className = 'foto-slot has-foto';
-  el.onclick   = null;
-  el.innerHTML = `
-    <img src="${data.base64}" alt="Foto ${slot+1}">
-    <div class="foto-actions">
-      <button class="foto-edit-btn" onclick="editarFotoObs(${slot})" title="Editar observación">✏️</button>
-      <button class="foto-del-btn"  onclick="eliminarFoto(${slot})"   title="Eliminar foto">✕</button>
-    </div>
-    ${data.observacion ? `<div class="foto-obs">${esc(data.observacion)}</div>` : ''}
-  `;
+  FOTOS_DATA[_fotoSlotActual] = _fotoTemp;
+  _fotoTemp = null;
+  _fotoSlotActual = -1;
+  _formDirty = true;
+  renderFotos();
 }
 
-// Editar solo la observación de una foto existente
+function renderFotos() {
+  const grid = document.getElementById('fotosGrid');
+  if (!grid) return;
+  const fmtMB = b => b ? (b / 1048576).toFixed(1) + ' MB' : '';
+  let html = FOTOS_DATA.map((f, i) => `
+    <div class="foto-slot has-foto">
+      ${f.url || f.base64 ? `<img src="${esc(f.url || f.base64)}" alt="Foto ${i+1}">`
+                          : `<span class="foto-slot-icon">🖼️</span>`}
+      <div class="foto-actions">
+        <button class="foto-edit-btn" onclick="editarFotoObs(${i})" title="Editar observación">✏️</button>
+        <button class="foto-del-btn"  onclick="eliminarFoto(${i})"   title="Eliminar foto">✕</button>
+      </div>
+      <div class="foto-obs">${i === 0 ? 'Foto 1 · ' : 'Foto ' + (i+1) + ' · '}${f.observacion ? esc(f.observacion) : esc(fmtMB(f.size))}</div>
+    </div>`).join('');
+
+  if (FOTOS_DATA.length === 0) {
+    html += `<div class="foto-slot" onclick="agregarFoto()">
+      <span class="foto-slot-icon">📷</span>
+      <span class="foto-slot-label">Foto 1 <span class="req">*</span></span>
+      <span style="font-size:10px;color:var(--muted)">Obligatoria</span>
+    </div>`;
+  } else if (FOTOS_DATA.length < MAX_FOTOS) {
+    html += `<div class="foto-slot" onclick="agregarFoto()">
+      <span class="foto-slot-icon">＋</span>
+      <span class="foto-slot-label">Agregar foto</span>
+      <span style="font-size:10px;color:var(--muted)">${MAX_FOTOS - FOTOS_DATA.length} disponible(s)</span>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
 function editarFotoObs(slot) {
-  if (!FOTOS_DATA[slot]) return;
-  _fotoSlotActual  = slot;
-  _fotoBase64Temp  = FOTOS_DATA[slot].base64;
-  abrirFotoObsModal(FOTOS_DATA[slot].base64, FOTOS_DATA[slot].observacion);
+  const f = FOTOS_DATA[slot];
+  if (!f) return;
+  _fotoSlotActual = slot;
+  _fotoTemp = f;
+  abrirFotoObsModal(f.url || f.base64, f.observacion);
 }
 
-// Eliminar foto
-function eliminarFoto(slot) {
-  FOTOS_DATA[slot] = null;
-  renderFotoSlot(slot);
+async function eliminarFoto(slot) {
+  const ok = await uiConfirm('Se quitará la foto ' + (slot + 1) + ' de esta visita.', {
+    title:'¿Eliminar foto?', danger:true, okText:'Eliminar'
+  });
+  if (!ok) return;
+  const [f] = FOTOS_DATA.splice(slot, 1);
+  if (f?.url) URL.revokeObjectURL(f.url);
+  renderFotos();
 }
 
-// Limpiar todas las fotos
 function limpiarFotos() {
-  FOTOS_DATA = [null, null, null, null];
-  [0,1,2,3].forEach(renderFotoSlot);
+  FOTOS_DATA.forEach(f => { if (f?.url) URL.revokeObjectURL(f.url); });
+  FOTOS_DATA = [];
+  renderFotos();
+}
+
+// Fotos listas para IndexedDB (sin la URL temporal de vista previa)
+function fotosParaGuardar(fotos) {
+  return (fotos || FOTOS_DATA).filter(Boolean).map(({ url, ...resto }) => resto);
+}
+
+function dataURLaBlob(dataURL) {
+  const [meta, b64] = dataURL.split(',');
+  const type = (meta.match(/data:([^;]+)/) || [])[1] || 'image/jpeg';
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type });
+}
+
+// Sube cada foto ORIGINAL a R2 por separado. Devuelve true si todas subieron.
+async function subirFotosVisita(visitaNum, fotos, onProgress) {
+  const lista = (fotos || []).filter(Boolean);
+  for (let i = 0; i < lista.length; i++) {
+    const f = lista[i];
+    const blob = f.blob || (f.base64 ? dataURLaBlob(f.base64) : null);
+    if (!blob) continue;
+    if (onProgress) onProgress(i + 1, lista.length);
+    const qs = new URLSearchParams({ visitaNum, orden: String(i + 1), obs: f.observacion || '' });
+    let resp;
+    try {
+      resp = await fetch(`${API_BASE}/api/foto?${qs}`, {
+        method: 'POST',
+        headers: { 'Content-Type': blob.type || f.type || 'image/jpeg' },
+        body: blob
+      });
+    } catch { return false; }
+    if (!resp.ok) {
+      console.warn('Foto no subida:', visitaNum, i + 1, resp.status);
+      return false;
+    }
+  }
+  return true;
 }
 
 /* ── Fotos offline en IndexedDB ── */

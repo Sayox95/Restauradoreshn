@@ -3,11 +3,13 @@ export function cleanVisitaNum(value) {
   return String(value ?? "").trim();
 }
 
+/** Nombre seguro para usar en claves de R2 */
+export function safeName(visitaNum) {
+  return cleanVisitaNum(visitaNum).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80);
+}
+
 export function pdfKeyFor(visitaNum) {
-  const safe = cleanVisitaNum(visitaNum)
-    .replace(/[^A-Za-z0-9_-]/g, "_")
-    .slice(0, 80);
-  return `pdfs/${safe}.pdf`;
+  return `pdfs/${safeName(visitaNum)}.pdf`;
 }
 
 export async function registroExiste(env, visitaNum) {
