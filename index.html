@@ -38,7 +38,30 @@ body{font-family:'Barlow',sans-serif;background:var(--bg);color:var(--text);font
 .tb-brand{display:flex;align-items:center;gap:9px;font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:15px;color:#fff;letter-spacing:.5px;line-height:1.2}
 .tb-brand small{display:block;font-size:10px;font-weight:400;color:rgba(255,255,255,.5)}
 .tb-brand svg{width:26px;height:26px;flex-shrink:0}
-.tb-actions{display:flex;gap:6px}
+.tb-actions{display:flex;gap:6px;flex-shrink:0}
+.tb-logo{height:36px;width:auto;object-fit:contain;filter:brightness(0) invert(1);flex-shrink:1;min-width:0}
+.tb-title{white-space:nowrap}
+.net-badge{display:inline-flex;align-items:center;gap:6px;border:0;cursor:pointer;
+  font-family:'Barlow',sans-serif;font-size:12px;font-weight:700;color:#fff;
+  padding:7px 11px;border-radius:999px;white-space:nowrap;min-height:34px;
+  background:rgba(255,255,255,.12);transition:background .2s}
+.net-badge .net-dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1;flex-shrink:0}
+.net-badge.online{background:rgba(22,163,74,.28)}
+.net-badge.online .net-dot{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.25)}
+.net-badge.offline{background:rgba(220,38,38,.32)}
+.net-badge.offline .net-dot{background:#f87171}
+.net-badge.loading .net-dot{animation:netPulse 1s infinite}
+@keyframes netPulse{50%{opacity:.3}}
+@media(max-width:480px){
+  .topbar{padding:0 10px}
+  .tb-brand{gap:7px;font-size:14px}
+  .tb-logo{height:26px}
+  .tb-brand small{font-size:9px}
+  .net-badge{font-size:11px;padding:6px 9px}
+}
+@media(max-width:360px){
+  .tb-title{display:none}
+}
 .tb-btn{width:40px;height:40px;border-radius:10px;background:rgba(255,255,255,.1);border:none;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;transition:background .15s}
 .tb-btn:active{background:rgba(255,255,255,.25)}
 
@@ -370,6 +393,46 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   transition:color .15s;
 }
 .pdf-skip-btn:hover{color:var(--text);}
+
+/* ── DIÁLOGO PROPIO (reemplaza alert / confirm / prompt) ── */
+#uiDialog{
+  position:fixed;inset:0;z-index:10050;
+  background:rgba(11,31,58,.75);
+  backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;padding:20px;
+  opacity:0;visibility:hidden;pointer-events:none;
+  transition:opacity .2s ease, visibility .2s ease;
+}
+#uiDialog.show{opacity:1;visibility:visible;pointer-events:all;}
+.uid-card{
+  background:var(--card);border-radius:18px;padding:24px 22px 18px;
+  max-width:380px;width:100%;box-shadow:0 24px 64px rgba(0,0,0,.4);
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  animation:pdfSlideUp .25s ease;
+}
+.uid-icon{
+  width:56px;height:56px;border-radius:50%;margin-bottom:14px;
+  display:flex;align-items:center;justify-content:center;font-size:26px;
+  background:rgba(21,101,192,.12);
+}
+.uid-icon.danger{background:rgba(220,38,38,.12);}
+.uid-icon.warn{background:rgba(245,158,11,.15);}
+.uid-title{font-family:'Barlow Condensed',sans-serif;font-weight:900;font-size:20px;color:var(--text);margin-bottom:6px;}
+.uid-msg{font-size:14px;color:var(--muted);line-height:1.45;margin-bottom:18px;white-space:pre-line;word-break:break-word;}
+.uid-input{
+  width:100%;height:46px;border:1.5px solid var(--border);border-radius:10px;
+  padding:0 12px;font-size:16px;margin:-6px 0 18px;background:var(--bg);color:var(--text);outline:none;
+}
+.uid-input:focus{border-color:var(--blue);}
+.uid-actions{display:flex;gap:10px;width:100%;}
+.uid-btn{
+  flex:1;height:46px;border-radius:12px;border:none;cursor:pointer;
+  font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:16px;letter-spacing:.3px;
+}
+.uid-btn.ok{background:linear-gradient(135deg,var(--blue),var(--navy-l));color:#fff;box-shadow:0 4px 14px rgba(21,101,192,.3);}
+.uid-btn.ok.danger{background:var(--nok);box-shadow:0 4px 14px rgba(220,38,38,.3);}
+.uid-btn.cancel{background:var(--bg);color:var(--text);border:1px solid var(--border);}
+.uid-btn:active{transform:scale(.98);}
 
 /* ── VALIDACIÓN CAMPOS OBLIGATORIOS ── */
 .field-err input, .field-err select, .field-err textarea {
@@ -945,7 +1008,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <!-- ═══ LOADING OVERLAY ═══ -->
 <div id="loadOverlay">
   <div class="lo-logo">
-    <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:56px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
+    <img src="/logo.png" alt="Logo" style="height:56px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
     <h2>SCADA Distribución</h2>
     <p>Control de Restauradores</p>
   </div>
@@ -966,15 +1029,14 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="hbg-line"></div>
     </button>
     <div class="tb-brand">
-      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:36px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
-      <div>SCADA Distribución<small>Control de Restauradores</small><span class="version-chip" id="versionChip">v1.0.0</span></div>
+      <img class="tb-logo" src="/logo.png" alt="Logo">
+      <div class="tb-title">SCADA Distribución<small>Control de Restauradores <span class="version-chip" id="versionChip"></span></small></div>
     </div>
   </div>
   <div class="tb-actions">
-    <span id="dataBadge" style="font-size:10px;font-weight:600;padding:4px 8px;border-radius:6px;color:#fff;background:rgba(255,255,255,.1);white-space:nowrap;cursor:pointer;" onclick="cargarDatosIniciales()" title="Toca para recargar catálogos desde Cloudflare">⏳ Cargando BD...</span>
-    <button class="tb-btn" onclick="exportarJSON()" title="Exportar">⬇</button>
-    <button class="tb-btn" onclick="window.print()" title="Imprimir">🖨</button>
-    <button class="tb-btn" onclick="guardar()" title="Guardar">💾</button>
+    <button id="dataBadge" class="net-badge loading" onclick="cargarDatosIniciales()" title="Toca para recargar catálogos">
+      <span class="net-dot"></span><span id="dataBadgeTxt">Cargando...</span>
+    </button>
   </div>
 </header>
 
@@ -985,7 +1047,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 <nav id="adminNav">
   <div class="adm-nav-head">
     <div class="adm-nav-logo">
-      <img src="https://raw.githubusercontent.com/Sayox95/Gastos-de-Combustible/main/imagenes/Logo.png" alt="Logo" style="height:32px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
+      <img src="/logo.png" alt="Logo" style="height:32px;width:auto;object-fit:contain;filter:brightness(0) invert(1);">
       <div>
         <div class="adm-nav-title">Admin</div>
         <div class="adm-nav-sub">SCADA Distribución</div>
@@ -1640,7 +1702,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '1.1.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
+const APP_VERSION = '1.2.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -1649,6 +1711,61 @@ function esc(value) {
     '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   })[c]);
 }
+
+/* ── Diálogos propios: reemplazan alert / confirm / prompt del navegador ──
+   Todos devuelven una Promise:
+     await uiAlert(msg, opts)            → undefined
+     await uiConfirm(msg, opts)          → true / false
+     await uiPrompt(msg, opts)           → texto o null si se cancela
+   opts: { title, icon, okText, cancelText, danger, type, placeholder, value } */
+let _uidCola = Promise.resolve();
+function uiDialog(kind, message, opts = {}) {
+  // Encadenar para que nunca se pisen dos diálogos
+  const run = () => new Promise(resolve => {
+    const ov     = document.getElementById('uiDialog');
+    const icon   = document.getElementById('uidIcon');
+    const input  = document.getElementById('uidInput');
+    const ok     = document.getElementById('uidOk');
+    const cancel = document.getElementById('uidCancel');
+
+    document.getElementById('uidTitle').textContent = opts.title ||
+      (kind === 'confirm' ? 'Confirmar' : kind === 'prompt' ? 'Ingresar dato' : 'Aviso');
+    document.getElementById('uidMsg').textContent = message || '';
+    icon.textContent = opts.icon || (opts.danger ? '🗑️' : kind === 'confirm' ? '❓' : kind === 'prompt' ? '🔑' : 'ℹ️');
+    icon.className   = 'uid-icon' + (opts.danger ? ' danger' : opts.warn ? ' warn' : '');
+    ok.textContent     = opts.okText || 'Aceptar';
+    ok.className       = 'uid-btn ok' + (opts.danger ? ' danger' : '');
+    cancel.textContent = opts.cancelText || 'Cancelar';
+    cancel.style.display = kind === 'alert' ? 'none' : '';
+
+    input.style.display = kind === 'prompt' ? '' : 'none';
+    input.type        = opts.type || 'text';
+    input.placeholder = opts.placeholder || '';
+    input.value       = opts.value || '';
+
+    const cerrar = valor => {
+      ov.classList.remove('show');
+      ok.onclick = cancel.onclick = input.onkeydown = ov.onkeydown = null;
+      setTimeout(() => resolve(valor), 200);
+    };
+    ok.onclick     = () => cerrar(kind === 'prompt' ? input.value : kind === 'confirm' ? true : undefined);
+    cancel.onclick = () => cerrar(kind === 'prompt' ? null : kind === 'confirm' ? false : undefined);
+    ov.onkeydown = e => {
+      if (e.key === 'Escape') cancel.onclick();
+      if (e.key === 'Enter' && kind !== 'prompt') { e.preventDefault(); ok.onclick(); }
+    };
+    input.onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); ok.onclick(); } };
+
+    ov.classList.add('show');
+    setTimeout(() => (kind === 'prompt' ? input : ok).focus(), 50);
+  });
+  const p = _uidCola.then(run);
+  _uidCola = p.catch(() => {});
+  return p;
+}
+const uiAlert   = (msg, opts) => uiDialog('alert',   msg, opts);
+const uiConfirm = (msg, opts) => uiDialog('confirm', msg, opts);
+const uiPrompt  = (msg, opts) => uiDialog('prompt',  msg, opts);
 
 /* ── DATOS EN MEMORIA (se pueblan desde D1 o fallback) ── */
 let RESTS = [];
@@ -1813,27 +1930,23 @@ async function cargarDatosRed(mostrarOverlay = false) {
 }
 
 /* ── Badge visual de fuente de datos ── */
+// Indicador de conexión del encabezado: "En línea" / "Sin conexión".
+// `state` viene de la carga de catálogos ('loading' | 'd1' | 'error').
+let _ultimoEstadoDatos = 'loading';
 function setDataSourceBadge(state, updated) {
-  const el = document.getElementById('dataBadge');
-  if (!el) return;
-  const labels = {
-    loading  : '⏳ Cargando BD...',
-    d1       : '🟢 D1 en vivo',
-    error    : '🔴 Sin conexión',
-    'sin-url': '⚙️ Sin configurar'
-  };
-  const colors = {
-    loading  : 'rgba(255,255,255,.15)',
-    d1       : 'rgba(22,163,74,.3)',
-    error    : 'rgba(220,38,38,.3)',
-    'sin-url': 'rgba(245,158,11,.25)'
-  };
-  el.textContent = labels[state] || state;
-  el.style.background = colors[state] || 'rgba(255,255,255,.1)';
-  if (state === 'd1' && updated) {
-    const d = new Date(updated);
-    el.title = 'Actualizado: ' + d.toLocaleTimeString();
-  }
+  _ultimoEstadoDatos = state;
+  const el  = document.getElementById('dataBadge');
+  const txt = document.getElementById('dataBadgeTxt');
+  if (!el || !txt) return;
+
+  let clase, texto;
+  if (state === 'loading')                            { clase = 'loading'; texto = 'Cargando...'; }
+  else if (!navigator.onLine || state === 'error')    { clase = 'offline'; texto = 'Sin conexión'; }
+  else                                                { clase = 'online';  texto = 'En línea'; }
+
+  el.className    = 'net-badge ' + clase;
+  txt.textContent = texto;
+  if (updated) el.title = 'Catálogos actualizados: ' + new Date(updated).toLocaleString() + ' · Toca para recargar';
 }
 
 /* ── Poblar lista desplegable de personal (Sección 9) ── */
@@ -2526,18 +2639,6 @@ async function guardar() {
   }
 }
 
-/* ── EXPORTAR JSON ── */
-function exportarJSON() {
-  const d = getData();
-  const b = new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(b);
-  a.download = 'visita_' + (d.visitaNum || 'nueva') + '_' +
-               (d.codigoCircuito || 'x') + '.json';
-  a.click();
-  showToast('📥 JSON exportado · ' + (d.visitaNum || ''));
-}
-
 /* ══════════════════════════════════════════════════════════════
    PDF MODAL + GENERADOR DE FICHA TÉCNICA
    Usa jsPDF (cargado desde CDN) — genera el PDF en el navegador
@@ -2621,7 +2722,7 @@ async function descargarFichaPDF() {
 
   } catch(err) {
     console.error('Error generando PDF:', err);
-    alert('Error al generar PDF: ' + err.message);
+    uiAlert('No se pudo generar el PDF: ' + err.message, { title:'Error al generar PDF', icon:'⚠️', warn:true });
   } finally {
     btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Descargar Ficha PDF';
     btn.disabled = false;
@@ -2705,8 +2806,11 @@ const ADM_VISIBLE = {
 const ADM_TOKEN_KEY = 'scada_admin_token';
 function admGetToken() { try { return localStorage.getItem(ADM_TOKEN_KEY) || ''; } catch { return ''; } }
 function admSetToken(t) { try { t ? localStorage.setItem(ADM_TOKEN_KEY, t) : localStorage.removeItem(ADM_TOKEN_KEY); } catch {} }
-function admPedirToken(msg) {
-  const t = prompt(msg || 'Clave de administrador:');
+async function admPedirToken(msg) {
+  const t = await uiPrompt(msg || 'Ingresa la clave para administrar los catálogos.', {
+    title:'Acceso de administrador', icon:'🔑', type:'password',
+    placeholder:'Clave de administrador', okText:'Entrar'
+  });
   if (t === null) return '';
   admSetToken(t.trim());
   return t.trim();
@@ -2714,7 +2818,7 @@ function admPedirToken(msg) {
 
 // fetch a /api/admin con token; pide la clave si falta o es inválida
 async function admFetch(url, opts = {}) {
-  let token = admGetToken() || admPedirToken();
+  let token = admGetToken() || await admPedirToken();
   if (!token) throw new Error('Se requiere la clave de administrador');
   const doFetch = tk => fetch(url, {
     ...opts,
@@ -2723,7 +2827,7 @@ async function admFetch(url, opts = {}) {
   let resp = await doFetch(token);
   if (resp.status === 401) {
     admSetToken('');
-    token = admPedirToken('Clave incorrecta. Ingresa la clave de administrador:');
+    token = await admPedirToken('La clave no es correcta. Inténtalo de nuevo.');
     if (!token) throw new Error('Se requiere la clave de administrador');
     resp = await doFetch(token);
     if (resp.status === 401) { admSetToken(''); }
@@ -2986,7 +3090,10 @@ async function admEliminar(idx) {
   const preview = Object.entries(row)
     .filter(([k]) => k !== '_rowNum')
     .slice(0,3).map(([,v])=>v).filter(Boolean).join(' · ');
-  if (!confirm('¿Eliminar este registro? ' + preview)) return;
+  const okDel = await uiConfirm('Se eliminará este registro:\n' + preview + '\n\nEsta acción no se puede deshacer.', {
+    title:'¿Eliminar registro?', danger:true, okText:'Eliminar'
+  });
+  if (!okDel) return;
 
   admOpShow('deleting', 'Eliminando registro...', 'Aplicando cambios en la base de datos');
 
@@ -3315,6 +3422,9 @@ function actualizarEstadoConexion() {
   const banner = document.getElementById('offlineBanner');
   if (!navigator.onLine) { banner.classList.add('show'); }
   else                   { banner.classList.remove('show'); actualizarBadge(); }
+  // Al volver la señal, un error previo de carga deja de aplicar
+  const estado = (navigator.onLine && _ultimoEstadoDatos === 'error') ? 'd1' : _ultimoEstadoDatos;
+  setDataSourceBadge(estado);
 }
 window.addEventListener('online',  actualizarEstadoConexion);
 window.addEventListener('offline', actualizarEstadoConexion);
@@ -4230,7 +4340,7 @@ async function _generarDocPDF(d) {
 // Mostrar versión actual en el chip del topbar
 document.addEventListener('DOMContentLoaded', () => {
   const chip = document.getElementById('versionChip');
-  if (chip) chip.textContent = 'v' + APP_VERSION;
+  if (chip) chip.textContent = '· v' + APP_VERSION;
 });
 
 // ── Estado del formulario: ¿hay datos sin guardar? ─────────────
@@ -4275,8 +4385,13 @@ function mostrarBannerActualizacion() {
 function ocultarBannerActualizacion() {
   document.getElementById('updateBanner')?.classList.remove('show');
 }
-function actualizarAhora() {
-  if (_formDirty && !confirm('Hay una visita sin guardar. Si actualizas ahora se perderán los datos del formulario. ¿Continuar?')) return;
+async function actualizarAhora() {
+  if (_formDirty) {
+    const ok = await uiConfirm('Hay una visita sin guardar. Si actualizas ahora se perderán los datos del formulario.', {
+      title:'¿Actualizar ahora?', icon:'🔄', warn:true, okText:'Actualizar', cancelText:'Seguir editando'
+    });
+    if (!ok) return;
+  }
   ocultarBannerActualizacion();
   aplicarActualizacion();
 }
@@ -4604,6 +4719,20 @@ async function sincronizarPdfsPendientes() {
 
 <!-- ═══ OFFLINE BANNER + SYNC BADGE ═══ -->
 <div id="offlineBanner">📵 SIN CONEXIÓN — Las visitas se guardarán localmente y se sincronizarán al reconectar</div>
+<!-- ═══ DIÁLOGO PROPIO ═══ -->
+<div id="uiDialog" role="dialog" aria-modal="true" aria-labelledby="uidTitle">
+  <div class="uid-card">
+    <div class="uid-icon" id="uidIcon">ℹ️</div>
+    <div class="uid-title" id="uidTitle"></div>
+    <div class="uid-msg" id="uidMsg"></div>
+    <input class="uid-input" id="uidInput" style="display:none" autocomplete="off">
+    <div class="uid-actions">
+      <button class="uid-btn cancel" id="uidCancel">Cancelar</button>
+      <button class="uid-btn ok" id="uidOk">Aceptar</button>
+    </div>
+  </div>
+</div>
+
 <div id="updateBanner" role="status">
   <span>🔄 Hay una nueva versión de la app. Se aplicará al terminar la visita.</span>
   <button class="ub-later" onclick="ocultarBannerActualizacion()">Luego</button>
