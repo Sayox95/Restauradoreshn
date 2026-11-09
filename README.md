@@ -40,8 +40,17 @@ queda registrado en la tabla `registros_fotos`. Se pueden ver en
 `/api/foto/{visita}/{orden}.jpg`. El PDF incluye una copia reducida (1600 px)
 para que no pese decenas de MB.
 
-## Publicar una versión nueva
+## Deploy y actualizaciones automáticas
 
-Cambiar `CACHE_NAME` y `APP_VERSION` en `sw.js` (y `APP_VERSION` en `index.html`).
-Los dispositivos aplican la actualización automáticamente cuando el formulario
-está vacío; si hay una visita a medio llenar, muestran un aviso y esperan.
+En **Cloudflare Pages → Settings → Build**:
+
+| Campo | Valor |
+|---|---|
+| Build command | `node build.mjs` |
+| Build output directory | `dist` |
+
+`build.mjs` copia solo los archivos públicos a `dist/` y escribe un `BUILD_ID`
+único (commit + fecha) en `sw.js` e `index.html`. Como `sw.js` cambia en cada
+deploy, todos los dispositivos detectan la versión nueva sin editar nada a mano.
+Se aplica sola si el formulario está vacío; si hay una visita a medio llenar,
+aparece un aviso y espera. `APP_VERSION` es solo la versión visible.

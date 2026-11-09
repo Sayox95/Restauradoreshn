@@ -1688,7 +1688,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.0.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
+const APP_VERSION = '2.1.0';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611092000'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -2457,6 +2458,7 @@ function getData() {
     // Tablero dinámico según marca
     tableroMarca      : v('marcaReconectador'),
     tableroCampos     : getTableroDinamico(),
+    grupoActivo       : v('grupoActivo'),
 
     // Alarma y mediciones
     alarmaPresente    : tg('tg-alarm'),
@@ -3354,6 +3356,7 @@ function renderTabliero(marca) {
     .filter(f => f.activo !== 'FALSE' && f.activo !== false)
     .sort((a,b) => (parseInt(a.orden)||0) - (parseInt(b.orden)||0));
 
+  const grupoPrevio = document.getElementById('grupoActivo')?.value || '';
   campos.innerHTML = ordenados.map(f => {
     const id = campoId(f.campo);
     return `<div class="field">
@@ -3363,7 +3366,13 @@ function renderTabliero(marca) {
         <button class="tg-btn" onclick="tg(this,'${id}','a-off')">OFF</button>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + `<div class="field" id="f-grupoActivo">
+      <label>Grupo Activo</label>
+      <select id="grupoActivo">
+        <option value="">— Grupo —</option>
+        ${['G1','G2','G3'].map(g => `<option${g === grupoPrevio ? ' selected' : ''}>${g}</option>`).join('')}
+      </select>
+    </div>`;
 }
 
 // Leer valores del tablero dinámico para getData()
@@ -4138,6 +4147,7 @@ async function _generarDocPDF(d) {
     // ══════════════════════════════════════════════════════
     const tableroCampos = d.tableroCampos || {};
     const tableroEntries = Object.entries(tableroCampos).filter(([k,v2]) => v2);
+    if (d.grupoActivo) tableroEntries.push(['Grupo Activo', d.grupoActivo]);
     if(tableroEntries.length > 0) {
       checkPage(14);
       sectionHeader('3 · TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
@@ -4151,7 +4161,8 @@ async function _generarDocPDF(d) {
           const x = ML + tw*j;
           if(shade) rect(x,y,tw,9,BGROW);
           setFont(6.5,'normal',MUTED); txt(entry[0], x+2, y+3.5);
-          toggleBadge(entry[1], x+tw-17, y+5.5);
+          if (['ON','OFF'].includes(String(entry[1]).toUpperCase())) toggleBadge(entry[1], x+tw-17, y+5.5);
+          else { setFont(9,'bold',BLUE); txt(String(entry[1]), x+2, y+8); }
         }
         y += 9;
       }
@@ -4523,7 +4534,10 @@ async function _generarDocPDF(d) {
 // Mostrar versión actual en el chip del topbar
 document.addEventListener('DOMContentLoaded', () => {
   const chip = document.getElementById('versionChip');
-  if (chip) chip.textContent = '· v' + APP_VERSION;
+  if (chip) {
+    chip.textContent = '· v' + APP_VERSION;
+    chip.title = 'Build ' + BUILD_ID;
+  }
 });
 
 // ── Estado del formulario: ¿hay datos sin guardar? ─────────────

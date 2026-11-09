@@ -221,7 +221,7 @@ export async function onRequest(context) {
       f(v.corrIC),
       f(v.corrIN),
 
-      s(v.ajusteActivo),
+      s(v.grupoActivo || v.ajusteActivo), // "Grupo Activo" (G1/G2/G3) del tablero
       f(v.cApertFase),
       f(v.cApertNeutro),
 

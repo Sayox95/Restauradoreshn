@@ -12,14 +12,16 @@
  * La página decide cuándo activarlo (si el formulario está vacío, o cuando
  * el usuario pulsa "Actualizar"), para no perder una visita a medio llenar.
  *
- * Para forzar actualización en todos los dispositivos:
- *   Cambia CACHE_NAME, ej: 'scada-202611091200'
+ * Versión: en cada deploy de Cloudflare Pages, build.mjs reemplaza BUILD_ID
+ * por el commit desplegado. Al cambiar este archivo, todos los dispositivos
+ * detectan la actualización automáticamente (no hay que editar nada a mano).
  */
 
 importScripts('/idb.js');
 
-const CACHE_NAME  = 'scada-202611091900';
-const APP_VERSION = '2.0.0'; // debe coincidir con el HTML
+const APP_VERSION = '2.1.0';
+const BUILD_ID    = 'dev-202611092000'; // lo reemplaza build.mjs en cada deploy
+const CACHE_NAME  = 'scada-' + BUILD_ID;
 const SYNC_TAG    = 'scada-sync-visitas';
 
 // Respuestas del servidor que se consideran "temporalmente sin servicio"
