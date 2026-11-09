@@ -1690,8 +1690,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.2.4';            // versión funcional de la app
-const BUILD_ID    = 'dev-202611100500'; // lo reemplaza build.mjs en cada deploy
+const APP_VERSION = '2.2.5';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611100600'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -2024,6 +2024,7 @@ function goSec(d){
 }
 function jumpSec(idx){
   if (typeof _seccionesVisitadas !== 'undefined') { _seccionesVisitadas.add(idx); updP(); }
+  if (typeof buscarActualizacionSiToca === 'function') buscarActualizacionSiToca();
   document.getElementById(SECS[cur].id).classList.remove('active');
   document.getElementById('nt'+cur).classList.remove('active');
   cur=idx;
@@ -4870,6 +4871,29 @@ function onActualizacionDisponible() {
   else mostrarBannerActualizacion();
 }
 
+// Seguir un SW nuevo hasta que termine de instalarse (sin perder el evento
+// aunque la instalación haya empezado antes de que la página lo escuche)
+const _workersVigilados = new WeakSet();
+function vigilarWorker(w) {
+  if (!w || _workersVigilados.has(w)) return;
+  _workersVigilados.add(w);
+  const revisar = () => {
+    if (w.state === 'installed' && navigator.serviceWorker.controller) onActualizacionDisponible();
+  };
+  w.addEventListener('statechange', revisar);
+  revisar();
+}
+function revisarRegistro(reg) {
+  if (!reg) return;
+  if (reg.installing) vigilarWorker(reg.installing);
+  if (reg.waiting) {
+    vigilarWorker(reg.waiting);
+    // Ya hay una versión esperando: actualizar (form vacío) o volver a avisar
+    if (navigator.serviceWorker.controller) onActualizacionDisponible();
+  }
+  if (_recargaPendiente) mostrarBannerActualizacion();
+}
+
 if ('serviceWorker' in navigator) {
   // Solo recargar si es una ACTUALIZACIÓN (no en la primera instalación)
   const _teniaController = !!navigator.serviceWorker.controller;
@@ -4892,17 +4916,8 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/sw.js')
       .then(reg => {
         _swReg = reg;
-        if (reg.waiting && navigator.serviceWorker.controller) onActualizacionDisponible();
-
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          if (!newSW) return;
-          newSW.addEventListener('statechange', () => {
-            if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              onActualizacionDisponible();
-            }
-          });
-        });
+        reg.addEventListener('updatefound', () => vigilarWorker(reg.installing));
+        revisarRegistro(reg); // cubre una instalación que empezó antes de este punto
       })
       .catch(e => console.warn('SW registro falló:', e));
   });
@@ -4923,8 +4938,9 @@ async function buscarActualizacion() {
   try {
     const reg = _swReg || await navigator.serviceWorker?.getRegistration();
     if (!reg) return;
-    await reg.update();
-    if (reg.waiting && navigator.serviceWorker.controller) onActualizacionDisponible();
+    revisarRegistro(reg);   // ¿ya hay una versión esperando? → aviso inmediato
+    await reg.update();     // consultar al servidor si hay una más nueva
+    revisarRegistro(reg);
   } catch(e) { /* ignorar errores de red */ }
 }
 
@@ -4932,11 +4948,23 @@ async function buscarActualizacion() {
 //  - al abrir o recargar la app (lo hace el navegador al registrar el SW)
 //  - al volver a la app/pestaña (clave en Android: la PWA nunca se "cierra")
 //  - al recuperar el foco de la ventana o la conexión
+//  - al pasar de una sección a otra del formulario
 // Si el formulario está vacío se actualiza sola; si hay una visita en curso,
 // muestra el aviso y se actualiza al terminarla.
-let _ultimaBusqueda = 0;
+let _ultimaBusqueda = 0, _busquedaDiferida = null;
 function buscarActualizacionSiToca() {
-  if (Date.now() - _ultimaBusqueda < 30000) return; // máx. una vez cada 30 s
+  // Una versión que ya está esperando se avisa siempre, sin consultar la red
+  if (_swReg) revisarRegistro(_swReg);
+  // Agrupa eventos simultáneos ("foco" + "cambio de pestaña") en una sola
+  // consulta. Nunca descarta: si hubo otra hace < 5 s, la posterga.
+  const espera = 5000 - (Date.now() - _ultimaBusqueda);
+  if (espera > 0) {
+    if (!_busquedaDiferida) _busquedaDiferida = setTimeout(() => {
+      _busquedaDiferida = null;
+      buscarActualizacionSiToca();
+    }, espera);
+    return;
+  }
   _ultimaBusqueda = Date.now();
   buscarActualizacion();
 }
@@ -4945,6 +4973,8 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('focus',  buscarActualizacionSiToca);
 window.addEventListener('online', buscarActualizacionSiToca);
+window.addEventListener('pageshow', buscarActualizacionSiToca);
+// (además, jumpSec() la llama al pasar de una sección a otra)
 
 
 
