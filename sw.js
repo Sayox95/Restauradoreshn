@@ -18,8 +18,8 @@
 
 importScripts('/idb.js');
 
-const CACHE_NAME  = 'scada-202611091500';
-const APP_VERSION = '1.2.0'; // debe coincidir con el HTML
+const CACHE_NAME  = 'scada-202611091700';
+const APP_VERSION = '1.3.0'; // debe coincidir con el HTML
 const SYNC_TAG    = 'scada-sync-visitas';
 
 // Respuestas del servidor que se consideran "temporalmente sin servicio"

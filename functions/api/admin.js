@@ -11,7 +11,7 @@ export async function onRequest(context) {
   const { request, env } = context;
 
   try {
-    const denied = requireAdmin(request, env);
+    const denied = await requireAdmin(request, env);
     if (denied) return denied;
 
     if (request.method === "GET") {

@@ -18,8 +18,9 @@ D1 (`env.DB`) y R2 (`env.PDF_BUCKET`).
 ## Configuración requerida en Cloudflare Pages
 
 1. **`ADMIN_TOKEN`** (Settings → Variables and Secrets, tipo *Secret*): clave del
-   panel de administración. Sin ella `/api/admin` responde 503. La app la pide
-   al abrir el panel y la recuerda en el dispositivo (menú Admin → *Cerrar sesión admin*).
+   panel de administración. Sin ella `/api/admin` responde 503. Al ingresarla,
+   `/api/admin-login` entrega una sesión firmada que vence en 8 horas (el
+   dispositivo nunca guarda la clave). Cambiar el secret invalida todas las sesiones.
 2. **Migración D1** (una sola vez) para evitar visitas duplicadas:
 
    ```bash

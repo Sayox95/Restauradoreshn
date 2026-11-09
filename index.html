@@ -1077,7 +1077,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
   </button>
 
   <div class="adm-nav-section">Sesión</div>
-  <button class="adm-nav-item" onclick="cerrarAdmin();admCerrarSesion()">
+  <div id="admSesionInfo" style="padding:4px 18px 8px;font-size:11px;color:rgba(255,255,255,.55)">Sin sesión de administrador</div>
+  <button class="adm-nav-item" id="admLogoutBtn" style="display:none" onclick="cerrarAdmin();admCerrarSesion()">
     <span class="nav-icon">🔒</span> Cerrar sesión admin
   </button>
 
@@ -1702,7 +1703,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '1.2.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
+const APP_VERSION = '1.3.0'; // ← Cambiar en cada deploy importante (igual que en sw.js)
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -2802,35 +2803,97 @@ const ADM_VISIBLE = {
 };
 
 /* ── Autenticación del panel de administración ──
-   El servidor exige el header X-Admin-Token (= secret ADMIN_TOKEN en Cloudflare). */
-const ADM_TOKEN_KEY = 'scada_admin_token';
-function admGetToken() { try { return localStorage.getItem(ADM_TOKEN_KEY) || ''; } catch { return ''; } }
-function admSetToken(t) { try { t ? localStorage.setItem(ADM_TOKEN_KEY, t) : localStorage.removeItem(ADM_TOKEN_KEY); } catch {} }
-async function admPedirToken(msg) {
-  const t = await uiPrompt(msg || 'Ingresa la clave para administrar los catálogos.', {
-    title:'Acceso de administrador', icon:'🔑', type:'password',
-    placeholder:'Clave de administrador', okText:'Entrar'
-  });
-  if (t === null) return '';
-  admSetToken(t.trim());
-  return t.trim();
+   La clave se valida en /api/admin-login, que devuelve una sesión firmada
+   válida por 8 horas. En el dispositivo se guarda solo la sesión (nunca la
+   clave). Al vencer, se vuelve a pedir la clave. */
+const ADM_SESSION_KEY = 'scada_admin_session';
+
+function admGetSesion() {
+  try {
+    const ses = JSON.parse(localStorage.getItem(ADM_SESSION_KEY) || 'null');
+    if (ses && ses.token && ses.exp > Date.now()) return ses;
+  } catch {}
+  admSetSesion(null);
+  return null;
+}
+function admSetSesion(ses) {
+  try {
+    if (ses) localStorage.setItem(ADM_SESSION_KEY, JSON.stringify(ses));
+    else     localStorage.removeItem(ADM_SESSION_KEY);
+    localStorage.removeItem('scada_admin_token'); // formato anterior (guardaba la clave)
+  } catch {}
+  admActualizarInfoSesion();
 }
 
-// fetch a /api/admin con token; pide la clave si falta o es inválida
+function admActualizarInfoSesion() {
+  const info = document.getElementById('admSesionInfo');
+  const btn  = document.getElementById('admLogoutBtn');
+  let ses = null;
+  try { ses = JSON.parse(localStorage.getItem(ADM_SESSION_KEY) || 'null'); } catch {}
+  const activa = ses && ses.exp > Date.now();
+  if (btn)  btn.style.display = activa ? '' : 'none';
+  if (info) info.textContent = activa
+    ? 'Sesión activa · vence ' + new Date(ses.exp).toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' })
+    : 'Sin sesión de administrador';
+}
+document.addEventListener('DOMContentLoaded', admActualizarInfoSesion);
+
+// Pide la clave hasta que sea correcta o el usuario cancele. Devuelve true/false.
+async function admLogin(msg) {
+  let aviso = msg || 'Ingresa la clave para administrar los catálogos.';
+  while (true) {
+    const clave = await uiPrompt(aviso, {
+      title:'Acceso de administrador', icon:'🔑', type:'password',
+      placeholder:'Clave de administrador', okText:'Entrar'
+    });
+    if (clave === null || !clave.trim()) return false;
+
+    admOpShow('loading', 'Verificando clave...', '');
+    let json = null, resp = null;
+    try {
+      resp = await fetch(`${API_BASE}/api/admin-login`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ password: clave.trim() })
+      });
+      json = await resp.json();
+    } catch {}
+    admOpHide();
+
+    if (json?.status === 'ok' && json.token) {
+      admSetSesion({ token: json.token, exp: json.exp });
+      return true;
+    }
+    if (resp && resp.status === 401) { aviso = 'La clave no es correcta. Inténtalo de nuevo.'; continue; }
+    await uiAlert(json?.message || 'No se pudo conectar con el servidor. Revisa tu conexión.',
+      { title:'No se pudo iniciar sesión', icon:'⚠️', warn:true });
+    return false;
+  }
+}
+
+// Garantiza una sesión vigente (pide la clave si hace falta)
+async function admAsegurarSesion(msg) {
+  return !!admGetSesion() || await admLogin(msg);
+}
+
+function admCancelado() {
+  const e = new Error('Se requiere la clave de administrador');
+  e.cancelado = true;
+  return e;
+}
+
+// fetch a /api/admin con la sesión; si venció, pide la clave y reintenta
 async function admFetch(url, opts = {}) {
-  let token = admGetToken() || await admPedirToken();
-  if (!token) throw new Error('Se requiere la clave de administrador');
-  const doFetch = tk => fetch(url, {
+  if (!await admAsegurarSesion()) throw admCancelado();
+  const doFetch = () => fetch(url, {
     ...opts,
-    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}), 'X-Admin-Token': tk }
+    headers: { 'Content-Type': 'application/json', ...(opts.headers || {}),
+               'Authorization': 'Bearer ' + (admGetSesion()?.token || '') }
   });
-  let resp = await doFetch(token);
+  let resp = await doFetch();
   if (resp.status === 401) {
-    admSetToken('');
-    token = await admPedirToken('La clave no es correcta. Inténtalo de nuevo.');
-    if (!token) throw new Error('Se requiere la clave de administrador');
-    resp = await doFetch(token);
-    if (resp.status === 401) { admSetToken(''); }
+    admSetSesion(null);
+    if (!await admLogin('Tu sesión de administrador venció. Ingresa la clave de nuevo.')) throw admCancelado();
+    resp = await doFetch();
   }
   let json = null;
   try { json = await resp.json(); } catch {}
@@ -2838,8 +2901,12 @@ async function admFetch(url, opts = {}) {
   return json;
 }
 
-function admCerrarSesion() {
-  admSetToken('');
+async function admCerrarSesion() {
+  const ok = await uiConfirm('Tendrás que ingresar la clave otra vez para administrar los catálogos.', {
+    title:'¿Cerrar sesión de administrador?', icon:'🔒', okText:'Cerrar sesión', cancelText:'Cancelar'
+  });
+  if (!ok) return;
+  admSetSesion(null);
   cerrarAdminPage();
   admToast('🔒 Sesión de administrador cerrada');
 }
@@ -2850,7 +2917,7 @@ function toggleAdmin() {
   const overlay = document.getElementById('adminOverlay');
   const isOpen  = nav.classList.contains('show');
   if (isOpen) { cerrarAdmin(); }
-  else { nav.classList.add('show'); overlay.classList.add('show'); }
+  else { admActualizarInfoSesion(); nav.classList.add('show'); overlay.classList.add('show'); }
 }
 function cerrarAdmin() {
   document.getElementById('adminNav').classList.remove('show');
@@ -2858,13 +2925,16 @@ function cerrarAdmin() {
 }
 
 /* ── Abrir página fullscreen de una sección ── */
-function admAbrirPagina(seccion, btn) {
+async function admAbrirPagina(seccion, btn) {
+  // Cerrar menú lateral
+  cerrarAdmin();
+
+  // Pedir la clave antes de mostrar la página; si cancela, queda en el formulario
+  if (!await admAsegurarSesion()) return;
+
   // Marcar activo en nav
   document.querySelectorAll('.adm-nav-item').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
-
-  // Cerrar menú lateral
-  cerrarAdmin();
 
   admCurrentTab    = seccion;
   admCurrentData   = [];
@@ -2897,9 +2967,10 @@ async function admCargarTabla(seccion) {
     admCurrentData = json.rows || [];
     admRenderTabla(seccion, admCurrentData, '');   // admOpHide() se llama dentro
   } catch(err) {
+    admOpHide();
+    if (err.cancelado) { cerrarAdminPage(); return; }
     document.getElementById('admTableWrap').innerHTML =
       '<div class="adm-empty">❌ ' + esc(err.message) + '</div>';
-    admOpHide();
   }
 }
 
