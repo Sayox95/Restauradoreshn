@@ -1688,8 +1688,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.1.0';            // versión funcional de la app
-const BUILD_ID    = 'dev-202611092000'; // lo reemplaza build.mjs en cada deploy
+const APP_VERSION = '2.1.1';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611092200'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -1953,9 +1953,16 @@ function poblarSelectorPersonal() {
 /* ── Al seleccionar técnico del dropdown, autollenar campos ── */
 function onPersSelect(sel, cardId) {
   const opt = sel.options[sel.selectedIndex];
-  if (!opt || opt.value === 'OTRO' || !opt.value) return;
   const card = document.getElementById('pe' + cardId);
   if (!card) return;
+  // "Otro (manual)": mostrar campo para escribir el nombre
+  const manual = card.querySelector('.pers-nombre-manual');
+  if (manual) {
+    const esOtro = opt && opt.value === 'OTRO';
+    manual.closest('.field').style.display = esOtro ? '' : 'none';
+    if (esOtro) setTimeout(() => manual.focus(), 50); else manual.value = '';
+  }
+  if (!opt || opt.value === 'OTRO' || !opt.value) { autollenarResponsable(); return; }
   const cargoSel  = card.querySelector('.pers-cargo-sel');
   const idInput   = card.querySelector('.pers-id-input');
   if (cargoSel && opt.dataset.cargo) cargoSel.value = opt.dataset.cargo;
@@ -1966,13 +1973,18 @@ function onPersSelect(sel, cardId) {
 /* ── Nombre del responsable = Técnico #1 ──
    Se actualiza mientras el usuario no lo haya escrito a mano. */
 let _respAuto = '';
-function nombreTecnico1() {
-  const card = document.querySelector('#personalContainer .pers-card');
+// Nombre del técnico de una tarjeta: del catálogo, o escrito a mano ("Otro")
+function nombreDeTarjeta(card) {
   if (!card) return '';
   const sel = card.querySelector('.pers-nombre-select');
-  const inp = card.querySelector('input[type="text"]:not(.pers-id-input)');
-  const v = sel ? sel.value : inp ? inp.value : '';
-  return (v && v !== 'OTRO') ? v.trim() : '';
+  if (sel) {
+    if (sel.value === 'OTRO') return (card.querySelector('.pers-nombre-manual')?.value || '').trim();
+    return sel.value.trim();
+  }
+  return (card.querySelector('input[type="text"]:not(.pers-id-input)')?.value || '').trim();
+}
+function nombreTecnico1() {
+  return nombreDeTarjeta(document.querySelector('#personalContainer .pers-card'));
 }
 function autollenarResponsable() {
   const campo = document.getElementById('firmaResponsable');
@@ -2288,7 +2300,8 @@ function agregarPers(){
 
   d.innerHTML=`<div class="pers-head"><span class="pers-lbl">Técnico #${id}</span>${id>1?`<button class="mat-rm" onclick="document.getElementById('pe${id}').remove()">✕</button>`:''}</div>
 ${hasPersonal
-  ? `<div class="field"><label>Seleccionar Técnico <span class="req">*</span></label><select class="pers-nombre-select" onchange="onPersSelect(this,${id})">${persOpts}</select></div>`
+  ? `<div class="field"><label>Seleccionar Técnico <span class="req">*</span></label><select class="pers-nombre-select" onchange="onPersSelect(this,${id})">${persOpts}</select></div>
+     <div class="field" style="display:none"><label>Nombre Completo <span class="req">*</span></label><input type="text" class="pers-nombre-manual" placeholder="Nombre del técnico" autocomplete="name"></div>`
   : `<div class="field"><label>Nombre Completo <span class="req">*</span></label><input type="text" placeholder="Nombre del técnico" autocomplete="name"></div>`
 }
 <div class="g2"><div class="field"><label>Cargo / Rol</label><select class="pers-cargo-sel"><option value="">— Cargo —</option><option>Técnico SCADA</option><option>Ingeniero de Campo</option><option>Jefe de Cuadrilla</option><option>Supervisor</option><option>Auxiliar Técnico</option><option>Contratista</option></select></div><div class="field"><label>N° Empleado</label><input type="text" class="pers-id-input" placeholder="ID" inputmode="text"></div></div>`;
@@ -2299,7 +2312,16 @@ ${hasPersonal
 const canvas=document.getElementById('firmaCanvas');
 const ctx=canvas.getContext('2d');
 let drw=false,lx=0,ly=0,hasFirma=false;
-function rsCanvas(){canvas.width=document.getElementById('firmaWrap').clientWidth;canvas.height=120;}
+// Ajusta el lienzo a su contenedor. Se llama cuando la sección se hace visible
+// (antes medía 0 px y la firma se perdía) y conserva lo ya dibujado.
+function rsCanvas(){
+  const w=document.getElementById('firmaWrap').clientWidth;
+  if(!w || (w===canvas.width && canvas.height===120)) return;
+  const previa=(typeof _firmaDataURL!=='undefined' && hasFirma) ? _firmaDataURL : null;
+  canvas.width=w; canvas.height=120;
+  if(previa){ const img=new Image(); img.onload=()=>ctx.drawImage(img,0,0); img.src=previa; }
+}
+if('ResizeObserver' in window) new ResizeObserver(()=>rsCanvas()).observe(document.getElementById('firmaWrap'));
 function gxy(e){const r=canvas.getBoundingClientRect();const s=e.touches?e.touches[0]:e;return[s.clientX-r.left,s.clientY-r.top];}
 canvas.addEventListener('mousedown',e=>{drw=true;[lx,ly]=gxy(e);});
 canvas.addEventListener('touchstart',e=>{e.preventDefault();drw=true;[lx,ly]=gxy(e);},{passive:false});
@@ -2357,9 +2379,8 @@ function getData() {
     return active ? active.textContent.trim() : '';
   };
 
-  // Tipo reconectador (botones tgS con estado en SS{})
-  const tipoRecon = SS['tipoRecon'] === 'mono' ? '1ø Monofásico'
-                  : SS['tipoRecon'] === 'tri'  ? '3ø Trifásico' : '';
+  // Tipo reconectador (select poblado desde el catálogo de tipos)
+  const tipoRecon = v('tipoRecon');
 
   // Tecnología módems (tgS)
   const tecModem1 = SS['tec1'] ? SS['tec1'].toUpperCase() : '';
@@ -2387,11 +2408,8 @@ function getData() {
   // Personal — soporta tanto select (con D1) como input texto (fallback)
   const personal = [];
   document.querySelectorAll('.pers-card').forEach(c => {
-    const selNombre = c.querySelector('.pers-nombre-select');
-    const inpNombre = c.querySelector('input[type="text"]');
-    const nombre = selNombre ? selNombre.value.trim()
-                 : inpNombre ? inpNombre.value.trim() : '';
-    if (!nombre || nombre === 'OTRO') return;
+    const nombre = nombreDeTarjeta(c);
+    if (!nombre) return;
     const cargo = c.querySelector('.pers-cargo-sel');
     const idEmp = c.querySelector('.pers-id-input');
     personal.push({
@@ -2429,7 +2447,6 @@ function getData() {
     tipoControl       : v('tipoControl'),
     serieControl      : v('serieControl'),
     proviewControl    : esMarcaCooper() ? v('proviewControl') : '',
-    tarjetaRed        : tg('tg-tarjetaRed'),
 
     // Mangueras Extras (solo COOPER)
     termSensV         : esMarcaCooper() ? tg('tg-termSensV')    : '',
@@ -3986,11 +4003,13 @@ async function _generarDocPDF(d) {
         drawPageFooter();
       }
     };
+    // Numeración automática: las secciones vacías (p. ej. sin módems) no dejan saltos
+    let numSeccion = 0;
     const sectionHeader = (label, color=NAVY) => {
       checkPage(10);
       rect(ML, y, CW, 7, color);
       setFont(8.5, 'bold', WHITE);
-      txt(label, ML+3, y+5);
+      txt((++numSeccion) + ' · ' + label, ML+3, y+5);
       y += 9;
     };
     const fieldRow = (label, value, x, yy, w, shade=false) => {
@@ -4071,7 +4090,7 @@ async function _generarDocPDF(d) {
     // ══════════════════════════════════════════════════════
     //  SECCIÓN 1: DATOS GENERALES + RECONECTADOR (2 cols)
     // ══════════════════════════════════════════════════════
-    sectionHeader('1 · IDENTIFICACIÓN DEL RESTAURADOR');
+    sectionHeader('IDENTIFICACIÓN DEL RESTAURADOR');
     const colA = ML, colB = ML + CW/2, colW2 = CW/2;
     const genItems = [
       {label:'Circuito',    value:d.codigoCircuito},
@@ -4081,6 +4100,7 @@ async function _generarDocPDF(d) {
       {label:'Sector',      value:d.sector},
       {label:'Latitud',     value:d.latitud},
       {label:'Longitud',    value:d.longitud},
+      {label:'Gen. Distribuida', value:d.genDistribuida},
     ];
     const reconItems = [
       {label:'Tipo Reconectador', value:d.tipoRecon},
@@ -4116,7 +4136,7 @@ async function _generarDocPDF(d) {
     // ══════════════════════════════════════════════════════
     if(d.hasModem1 || d.hasModem2) {
       checkPage(12);
-      sectionHeader('2 · MÓDEMS DE COMUNICACIÓN');
+      sectionHeader('MÓDEMS DE COMUNICACIÓN');
       const modemItems = [];
       if(d.hasModem1) {
         modemItems.push(
@@ -4150,7 +4170,7 @@ async function _generarDocPDF(d) {
     if (d.grupoActivo) tableroEntries.push(['Grupo Activo', d.grupoActivo]);
     if(tableroEntries.length > 0) {
       checkPage(14);
-      sectionHeader('3 · TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
+      sectionHeader('TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
       const tcols = 4, tw = CW / tcols;
       for(let i=0;i<tableroEntries.length;i+=tcols){
         checkPage(9);
@@ -4173,7 +4193,7 @@ async function _generarDocPDF(d) {
     //  SECCIÓN 4: ALARMA
     // ══════════════════════════════════════════════════════
     checkPage(14);
-    sectionHeader('4 · ALARMA');
+    sectionHeader('ALARMA');
     const alarmaItems = [
       ['Alarma Presente', d.alarmaPresente],
     ];
@@ -4201,7 +4221,7 @@ async function _generarDocPDF(d) {
     //  SECCIÓN 5: BATERÍA
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('5 · BATERÍA');
+    sectionHeader('BATERÍA');
     // Mediciones en banda horizontal
     checkPage(9);
     rect(ML, y, CW, 9, [232,240,254], BORDER);
@@ -4235,7 +4255,7 @@ async function _generarDocPDF(d) {
     //  SECCIÓN 6: CORRIENTES Y AJUSTES
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('6 · CORRIENTES');
+    sectionHeader('CORRIENTES');
     const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)'];
     const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN];
     const cw7 = CW / corrHeaders.length;
@@ -4256,7 +4276,7 @@ async function _generarDocPDF(d) {
     //  SECCIÓN 7: ESTADO FÍSICO
     // ══════════════════════════════════════════════════════
     checkPage(20);
-    sectionHeader('7 · ESTADO FÍSICO DEL EQUIPO');
+    sectionHeader('ESTADO FÍSICO DEL EQUIPO');
     const fisItems = [
       ['Gabinete',          d.gabinete],
       ['Borneras',          d.borneras],
@@ -4294,7 +4314,7 @@ async function _generarDocPDF(d) {
         setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
         const isToggle = ['OK','NOK','SI','NO'].includes((item[1]||'').toUpperCase());
         if(isToggle) toggleBadge(item[1], x+fw-17, y+5.5);
-        else { setFont(8,'bold'); txt(String(item[1]||'—').slice(0,14), x+2, y+8); }
+        else { setFont(8,'bold'); txt(doc.splitTextToSize(String(item[1]||'—'), fw-4)[0], x+2, y+8); }
       }
       y += 9;
     }
@@ -4339,9 +4359,9 @@ async function _generarDocPDF(d) {
     const mats = d.materialesUtilizados || [];
     if(mats.length > 0) {
       checkPage(14);
-      sectionHeader('8 · MATERIALES UTILIZADOS');
+      sectionHeader('MATERIALES UTILIZADOS');
       rect(ML, y, CW, 7, BLUE);
-      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.50},{l:'Unidad',w:.10},{l:'Cantidad',w:.12},{l:'Motivo',w:.16}];
+      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.44},{l:'Unidad',w:.09},{l:'Cantidad',w:.11},{l:'Motivo',w:.24}];
       let mx = ML;
       matCols.forEach(mc => {
         setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
@@ -4354,10 +4374,9 @@ async function _generarDocPDF(d) {
         mx = ML;
         const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
         matCols.forEach((mc,ci) => {
-          const maxLen = ci===1 ? 58 : 18;
           setFont(7.5, ci===0?'bold':'normal');
           if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
-          txt(String(vals[ci]||'').slice(0,maxLen), mx+2, y+5.5);
+          txt(doc.splitTextToSize(String(vals[ci]||''), CW*mc.w-3)[0] || '', mx+2, y+5.5);
           mx += CW*mc.w;
         });
         y += 8;
@@ -4382,8 +4401,8 @@ async function _generarDocPDF(d) {
     // ══════════════════════════════════════════════════════════
     const fotos = (d.fotografias || []).filter(f => f && f.base64);
     if (fotos.length > 0) {
-      checkPage(14);
-      sectionHeader('8 · FOTOGRAFÍAS');
+      checkPage(14 + 55 + 8 + 4); // título + primera fila de fotos juntos
+      sectionHeader('FOTOGRAFÍAS');
 
       const fotoCols  = 2;
       const fotoW     = (CW - 4) / fotoCols;
@@ -4429,7 +4448,7 @@ async function _generarDocPDF(d) {
     // ══════════════════════════════════════════════════════
     if(d.obsGenerales) {
       checkPage(16);
-      sectionHeader('9 · OBSERVACIONES');
+      sectionHeader('OBSERVACIONES');
       const oLines = doc.splitTextToSize(d.obsGenerales, CW-4);
       const oH = Math.max(10, oLines.length*4.5+4);
       rect(ML, y, CW, oH, BGROW, BORDER);
@@ -4442,7 +4461,7 @@ async function _generarDocPDF(d) {
     //  SECCIÓN 10: PERSONAL + FIRMA
     // ══════════════════════════════════════════════════════
     checkPage(36);
-    sectionHeader('10 · PERSONAL DE VISITA Y FIRMA');
+    sectionHeader('PERSONAL DE VISITA Y FIRMA');
 
     const personal = d.personal || [];
     const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
