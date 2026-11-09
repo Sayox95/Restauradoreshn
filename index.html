@@ -1690,8 +1690,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.2.0';            // versión funcional de la app
-const BUILD_ID    = 'dev-202611100100'; // lo reemplaza build.mjs en cada deploy
+const APP_VERSION = '2.2.1';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611100200'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -4821,7 +4821,7 @@ document.addEventListener('click', e => {
 
 function marcarFormularioLimpio() {
   _formDirty = false;
-  if (_swReg && _swReg.waiting) aplicarActualizacion();
+  if (_recargaPendiente || (_swReg && _swReg.waiting)) aplicarActualizacion();
 }
 
 window.addEventListener('beforeunload', e => {
@@ -4833,8 +4833,14 @@ window.addEventListener('beforeunload', e => {
 
 // ── Registro del SW + actualización controlada ────────────────
 let _swReg = null;
+let _recargaPendiente = false; // nueva versión ya activa, falta recargar esta pestaña
 
 function aplicarActualizacion() {
+  if (_recargaPendiente) {
+    _recargaPorActualizacion = true;
+    window.location.reload();
+    return;
+  }
   if (!_swReg || !_swReg.waiting) return;
   _recargaPorActualizacion = true;
   _swReg.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -4870,6 +4876,13 @@ if ('serviceWorker' in navigator) {
   let _refreshing = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!_teniaController || _refreshing) return;
+    // La actualización la activó OTRA pestaña y aquí hay una visita a medio
+    // llenar: no recargar (se perderían los datos); avisar y esperar.
+    if (_formDirty && !_recargaPorActualizacion) {
+      _recargaPendiente = true;
+      mostrarBannerActualizacion();
+      return;
+    }
     _refreshing = true;
     _recargaPorActualizacion = true;
     window.location.reload();
@@ -4915,14 +4928,23 @@ async function buscarActualizacion() {
   } catch(e) { /* ignorar errores de red */ }
 }
 
-// Verificar actualizaciones al volver desde background
-// (clave en Android: la PWA instalada nunca se "cierra" realmente)
+// Cuándo se busca una versión nueva (consulta mínima: si sw.js no cambió,
+// el servidor responde 304 sin enviar el archivo):
+//  - al volver a la app/pestaña (clave en Android: la PWA nunca se "cierra")
+//  - al recuperar el foco de la ventana o la conexión
+//  - cada 5 minutos mientras está abierta
+let _ultimaBusqueda = 0;
+function buscarActualizacionSiToca() {
+  if (Date.now() - _ultimaBusqueda < 30000) return; // máx. una vez cada 30 s
+  _ultimaBusqueda = Date.now();
+  buscarActualizacion();
+}
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') buscarActualizacion();
+  if (document.visibilityState === 'visible') buscarActualizacionSiToca();
 });
-
-// Verificar actualizaciones cada 60 minutos
-setInterval(buscarActualizacion, 60 * 60 * 1000);
+window.addEventListener('focus',  buscarActualizacionSiToca);
+window.addEventListener('online', buscarActualizacionSiToca);
+setInterval(() => { if (document.visibilityState === 'visible') buscarActualizacion(); }, 5 * 60 * 1000);
 
 
 
