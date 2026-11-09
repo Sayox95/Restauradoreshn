@@ -1690,8 +1690,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.2.1';            // versión funcional de la app
-const BUILD_ID    = 'dev-202611100200'; // lo reemplaza build.mjs en cada deploy
+const APP_VERSION = '2.2.2';            // versión funcional de la app
+const BUILD_ID    = 'dev-202611100300'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
 /* ── Escapar texto antes de insertarlo con innerHTML (evita XSS) ── */
@@ -4928,11 +4928,12 @@ async function buscarActualizacion() {
   } catch(e) { /* ignorar errores de red */ }
 }
 
-// Cuándo se busca una versión nueva (consulta mínima: si sw.js no cambió,
-// el servidor responde 304 sin enviar el archivo):
+// Cuándo se busca una versión nueva (sin consultas periódicas, solo eventos):
+//  - al abrir o recargar la app (lo hace el navegador al registrar el SW)
 //  - al volver a la app/pestaña (clave en Android: la PWA nunca se "cierra")
 //  - al recuperar el foco de la ventana o la conexión
-//  - cada 5 minutos mientras está abierta
+// Si el formulario está vacío se actualiza sola; si hay una visita en curso,
+// muestra el aviso y se actualiza al terminarla.
 let _ultimaBusqueda = 0;
 function buscarActualizacionSiToca() {
   if (Date.now() - _ultimaBusqueda < 30000) return; // máx. una vez cada 30 s
@@ -4944,7 +4945,6 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('focus',  buscarActualizacionSiToca);
 window.addEventListener('online', buscarActualizacionSiToca);
-setInterval(() => { if (document.visibilityState === 'visible') buscarActualizacion(); }, 5 * 60 * 1000);
 
 
 
