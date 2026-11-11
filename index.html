@@ -111,8 +111,18 @@ input:focus,select:focus,textarea:focus{border-color:var(--blue);box-shadow:0 0 
 input.af{background:#f0fdf4;border-color:#86efac;color:var(--ok);font-weight:600}
 textarea{min-height:88px;resize:vertical}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%2364748b' d='M6 8L0 0h12z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.g2 .field{margin-bottom:0}
+/* Grillas: 2, 3 y 4 columnas. Los campos se alinean por abajo para que una
+   etiqueta larga (que ocupa 2 líneas) no desalinee los botones de la fila. */
+.g2,.g3,.g4{display:grid;gap:12px;margin-bottom:13px;align-items:end}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr);gap:10px}
+.g4{grid-template-columns:repeat(4,1fr);gap:8px}
+.g2:last-child,.g3:last-child,.g4:last-child{margin-bottom:0}
+.g2 .field,.g3 .field,.g4 .field{margin-bottom:0;min-width:0}
+.g2 > .span2,.g3 > .span3{grid-column:1/-1}
+.g3 input,.g4 input{padding-left:10px;padding-right:8px;text-align:center}
+.g4 label,.g3 label{text-align:center}
+.field label{line-height:1.25}
 
 /* TOGGLE BUTTONS */
 .tg{display:flex;gap:6px}
@@ -183,6 +193,14 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .hmeta{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
 .hm{background:rgba(255,255,255,.1);border-radius:8px;padding:8px 11px;font-size:11px;color:rgba(255,255,255,.65);display:flex;flex-direction:column;gap:2px}
 .hm strong{color:#fff;font-size:14px;font-family:'Barlow Condensed',sans-serif;font-weight:700}
+/* Tarjeta más compacta: número de visita a todo el ancho + progreso al lado */
+.hcard{padding:13px 14px}
+.hcard h1{font-size:19px}
+.hmeta{display:grid;grid-template-columns:1fr auto;margin-top:10px}
+.hm{min-width:0}
+.hm:last-child{min-width:82px;align-items:center;justify-content:center}
+.hm strong#pp{font-size:20px}
+#visitaNum{width:100%!important;min-height:36px!important}
 
 /* STATUS CHIPS */
 .chip-row{display:flex;gap:8px;flex-wrap:wrap}
@@ -1240,8 +1258,8 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
 
       <div class="g2">
+        <div class="field span2"><label>Ubicación</label><input type="text" id="nombreUbicacion" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Circuito</label><input type="text" id="codigoCircuito" class="af" readonly placeholder="Autorrelleno"></div>
-        <div class="field"><label>Ubicación</label><input type="text" id="nombreUbicacion" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Subestación</label><input type="text" id="subestacion" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Zona</label><input type="text" id="zona" class="af" readonly placeholder="Autorrelleno"></div>
         <div class="field"><label>Sector</label><input type="text" id="sector" class="af" readonly placeholder="Autorrelleno"></div>
@@ -1291,13 +1309,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           </select>
           <div class="field-err-msg">Campo obligatorio</div>
         </div>
-        <div class="field"><label>Serie Reconectador</label><input type="text" id="serieRecon" placeholder="N° serie"></div>
-        <div class="field"><label>Medio Extinción</label>
-          <select id="medioExtincion">
-            <option value="">— Tipo —</option>
-            <option>Vacío</option><option>Aceite (VWE)</option><option>SF6</option>
-          </select>
-        </div>
         <div class="field" id="f-tipoControl">
           <label>Tipo Control <span class="req">*</span></label>
           <select id="tipoControl" onchange="clearErr('f-tipoControl');updP()">
@@ -1305,9 +1316,16 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
           </select>
           <div class="field-err-msg">Campo obligatorio</div>
         </div>
+        <div class="field"><label>Serie Reconectador</label><input type="text" id="serieRecon" placeholder="N° serie"></div>
         <div class="field"><label>Serie Control</label><input type="text" id="serieControl" placeholder="N° serie"></div>
+        <div class="field"><label>Medio Extinción</label>
+          <select id="medioExtincion">
+            <option value="">— Tipo —</option>
+            <option>Vacío</option><option>Aceite (VWE)</option><option>SF6</option>
+          </select>
+        </div>
+        <div class="field" id="f-proview" style="display:none"><label>Firmware / Proview</label><input type="text" id="proviewControl" placeholder="Ej: 4.0.1, 5.1, RC10"></div>
       </div>
-      <div class="field" id="f-proview" style="display:none"><label>Firmware / Proview</label><input type="text" id="proviewControl" placeholder="Ej: 4.0.1, 5.1, RC10"></div>
 
       <!-- Solo para marca COOPER -->
       <div id="blk-mangueras" style="display:none">
@@ -1481,16 +1499,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
       <!-- Batería -->
       <div class="sdiv">Batería</div>
+      <div class="g3">
+        <div class="field"><label>AC (V)</label><input type="number" id="medicionAC" placeholder="V" inputmode="decimal" step="0.1"></div>
+        <div class="field"><label>Baterías (V)</label><input type="number" id="medicionBat" placeholder="V" inputmode="decimal" step="0.1"></div>
+        <div class="field"><label>Cargador (V)</label><input type="number" id="medicionCargador" placeholder="V" inputmode="decimal" step="0.1"></div>
+      </div>
       <div class="g2">
-        <div class="field"><label>Medición AC (V)</label><input type="number" id="medicionAC" placeholder="V" inputmode="decimal" step="0.1"></div>
-        <div class="field"><label>Medición Baterías (V)</label><input type="number" id="medicionBat" placeholder="V" inputmode="decimal" step="0.1"></div>
-        <div class="field"><label>Medición Cargador (V)</label><input type="number" id="medicionCargador" placeholder="V" inputmode="decimal" step="0.1"></div>
+        <div class="field">
+          <label>Battery Test</label>
+          <div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div>
+        </div>
+        <div class="field"><label>Cambio Baterías</label><div class="tg" id="tg-cbat"><button class="tg-btn" onclick="tg(this,'tg-cbat','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-cbat','a-no')">NO</button></div></div>
       </div>
-      <div class="field">
-        <label>Battery Test</label>
-        <div class="tg" id="tg-batt"><button class="tg-btn" onclick="tg(this,'tg-batt','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-batt','a-nok')">NOK</button></div>
-      </div>
-      <div class="field"><label>Cambio Baterías</label><div class="tg" id="tg-cbat"><button class="tg-btn" onclick="tg(this,'tg-cbat','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-cbat','a-no')">NO</button></div></div>
       <div class="field" id="f-tipoBateria" style="display:none"><label>Tipo de Batería Instalada</label>
         <select id="tipoBateria"><option value="">— Tipo de batería —</option><option>12V/ 12AH</option><option>12V/ 17AH</option><option>12V/ 26AH</option></select>
       </div>
@@ -1508,11 +1528,11 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
     <div class="card-body">
       <div class="mbox">
         <div class="mbox-title">Corrientes Instantáneas (A)</div>
-        <div class="g2">
+        <div class="g4">
           <div class="field"><label>IA</label><input type="number" id="corrIA" placeholder="A" inputmode="decimal" step="0.1"></div>
           <div class="field"><label>IB</label><input type="number" id="corrIB" placeholder="A" inputmode="decimal" step="0.1"></div>
           <div class="field"><label>IC</label><input type="number" id="corrIC" placeholder="A" inputmode="decimal" step="0.1"></div>
-          <div class="field"><label>IN Neutro</label><input type="number" id="corrIN" placeholder="A" inputmode="decimal" step="0.1"></div>
+          <div class="field"><label>IN</label><input type="number" id="corrIN" placeholder="A" inputmode="decimal" step="0.1"></div>
         </div>
       </div>
 
@@ -1538,19 +1558,18 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       <div class="g2">
         <div class="field"><label>Restaurador</label><div class="tg" id="tg-atR"><button class="tg-btn" onclick="tg(this,'tg-atR','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atR','a-nok')">NOK</button></div></div>
         <div class="field"><label>Control</label><div class="tg" id="tg-atC"><button class="tg-btn" onclick="tg(this,'tg-atC','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atC','a-nok')">NOK</button></div></div>
-        <div class="field"><label>Potencial</label><div class="tg" id="tg-atP"><button class="tg-btn" onclick="tg(this,'tg-atP','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atP','a-nok')">NOK</button></div></div>
         <div class="field"><label>Cable de Tierra</label><div class="tg" id="tg-ct"><button class="tg-btn" onclick="tg(this,'tg-ct','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-ct','a-nok')">NOK</button></div></div>
         <div class="field"><label># Varillas</label><input type="number" id="numVarillas" min="0" inputmode="numeric" placeholder="Cant."></div>
       </div>
       <div class="sdiv">Medición de Aterrizaje (Ω)</div>
-      <div class="g2">
-        <div class="field"><label>Control (Ω)</label><input type="number" id="aterControl" placeholder="Ω" inputmode="decimal" step="0.01"></div>
-        <div class="field"><label>Restaurador (Ω)</label><input type="number" id="aterRestaurador" placeholder="Ω" inputmode="decimal" step="0.01"></div>
-        <div class="field"><label>Otros (Ω)</label><input type="number" id="aterOtros" placeholder="Ω" inputmode="decimal" step="0.01"></div>
+      <div class="g3">
+        <div class="field"><label>Control</label><input type="number" id="aterControl" placeholder="Ω" inputmode="decimal" step="0.01"></div>
+        <div class="field"><label>Restaurador</label><input type="number" id="aterRestaurador" placeholder="Ω" inputmode="decimal" step="0.01"></div>
+        <div class="field"><label>Otros</label><input type="number" id="aterOtros" placeholder="Ω" inputmode="decimal" step="0.01"></div>
       </div>
       <div class="sdiv">Bypass</div>
       <div class="g2">
-        <div class="field"><label>Tipo Cuchilla</label>
+        <div class="field span2"><label>Tipo Cuchilla</label>
           <select id="tipoCuchilla"><option value="">— Tipo —</option><option>Cortacircuito Rompearco</option><option>Cortacircuito Sencillo</option><option>Cuchilla Monopolar</option><option>Cuchilla Tripolar</option></select>
         </div>
         <div class="field"><label>Estado Cuchillas</label><div class="tg" id="tg-cuch"><button class="tg-btn" onclick="tg(this,'tg-cuch','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-cuch','a-nok')">NOK</button></div></div>
@@ -1570,12 +1589,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
       </div>
       <div class="g2" id="blk-potSi" style="display:none">
         <div class="field"><label>Cantidad</label><input type="number" id="potCantidad" min="0" inputmode="numeric" placeholder="Cant."></div>
-        <div class="field"><label>Pararrayos</label><div class="tg" id="tg-pP"><button class="tg-btn" onclick="tg(this,'tg-pP','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pP','a-no')">NO</button></div></div>
-        <div class="field"><label>Cuchilla</label><div class="tg" id="tg-pC"><button class="tg-btn" onclick="tg(this,'tg-pC','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pC','a-no')">NO</button></div></div>
         <div class="field"><label>Fase Conexión</label>
           <select id="faseConexion"><option value="">— Fase —</option><option>Fase A</option><option>Fase B</option><option>Fase C</option><option>Trifásica</option></select>
         </div>
-      </div>
+        <div class="field"><label>Pararrayos</label><div class="tg" id="tg-pP"><button class="tg-btn" onclick="tg(this,'tg-pP','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pP','a-no')">NO</button></div></div>
+        <div class="field"><label>Cuchilla</label><div class="tg" id="tg-pC"><button class="tg-btn" onclick="tg(this,'tg-pC','a-si')">SI</button><button class="tg-btn" onclick="tg(this,'tg-pC','a-no')">NO</button></div></div>
+        <div class="field span2"><label>Aterrizaje del Potencial</label><div class="tg" id="tg-atP"><button class="tg-btn" onclick="tg(this,'tg-atP','a-ok')">OK</button><button class="tg-btn" onclick="tg(this,'tg-atP','a-nok')">NOK</button></div>
+      </div></div>
     </div>
   </div>
 </div>
@@ -1690,7 +1710,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.2.6';            // versión funcional de la app
+const APP_VERSION = '2.3.0';            // versión funcional de la app
 const BUILD_ID    = 'dev-202611100600'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 
@@ -4293,478 +4313,362 @@ async function _generarDocPDF(d) {
     };
 
     // ══════════════════════════════════════════════════════
+    //  SISTEMA DE MAQUETACIÓN
+    //  Todo se dibuja en celdas de una grilla de 4 columnas con la misma
+    //  altura: etiqueta arriba, valor (texto o pastilla de color) abajo.
+    //  La última celda de cada fila se estira para no dejar huecos.
+    // ══════════════════════════════════════════════════════
+    const TXT    = [30, 41, 59];
+    const SUBBG  = [232, 240, 254];
+    const CELL_H = 11;
+    const vacio = v => v === undefined || v === null || String(v).trim() === '';
+    const esToggle = v => ['SI','NO','OK','NOK','ON','OFF'].includes(String(v||'').trim().toUpperCase());
+    const ajustar = (t, w) => doc.splitTextToSize(String(t), w)[0] || '';
+
+    const pastilla = (val, x, yy) => {
+      const v = String(val||'').toUpperCase();
+      const pos = ['SI','ON','OK'].includes(v), neg = ['NO','OFF','NOK'].includes(v);
+      rect(x, yy, 15, 5, pos ? OK : neg ? NOK : BLUE, null, 2.4);
+      setFont(6.8, 'bold', WHITE); txt(v, x + 7.5, yy + 3.6, { align: 'center' });
+    };
+
+    // Títulos de sección y subtítulos quedan "pendientes" y se dibujan junto
+    // con el bloque que los sigue: nunca quedan solos al final de una página.
+    let _secPendiente = null, _subPendiente = null;
+    const seccion = (titulo) => { _secPendiente = titulo; };
+    const subtitulo = (t) => { _subPendiente = t; };
+    const altoPendiente = () => (_secPendiente ? 8.5 : 0) + (_subPendiente ? 5.2 : 0);
+    const dibujarSubtitulo = () => {
+      if (_secPendiente) {
+        rect(ML, y, CW, 7, NAVY, null, 1);
+        rect(ML, y, 1.6, 7, ACCENT);
+        setFont(8.5, 'bold', WHITE);
+        txt((++numSeccion) + '  ·  ' + _secPendiente, ML + 4.5, y + 4.9);
+        y += 8.5; _secPendiente = null;
+      }
+      if (_subPendiente) {
+        rect(ML, y, CW, 5.2, SUBBG);
+        setFont(6.8, 'bold', BLUE); txt(_subPendiente.toUpperCase(), ML + 2.5, y + 3.7);
+        y += 5.2; _subPendiente = null;
+      }
+    };
+    // Para bloques propios (tablas, fotos, firma): reservar espacio y dibujar títulos
+    const abrir = (alto) => { checkPage(altoPendiente() + alto); dibujarSubtitulo(); };
+
+    // items: [{l: etiqueta, v: valor, s: columnas que ocupa}]
+    const grid = (items, cols = 4) => {
+      items = items.filter(Boolean);
+      if (!items.length) return;
+      const cw = CW / cols;
+      const filas = [];
+      let fila = [], usadas = 0;
+      items.forEach(it => {
+        const s = Math.min(it.s || 1, cols);
+        if (usadas + s > cols) { filas.push(fila); fila = []; usadas = 0; }
+        fila.push({ ...it, s }); usadas += s;
+      });
+      if (fila.length) filas.push(fila);
+      // Grupos pequeños (hasta 4 filas) no se parten entre páginas
+      const alto = altoPendiente() + Math.min(filas.length, 4) * CELL_H;
+      checkPage(alto);
+      dibujarSubtitulo();
+      filas.forEach((f, fi) => {
+        const total = f.reduce((a, it) => a + it.s, 0);
+        f[f.length - 1].s += cols - total;           // estirar la última celda
+        checkPage(CELL_H);
+        let x = ML;
+        f.forEach(it => {
+          const w = cw * it.s;
+          rect(x, y, w, CELL_H, fi % 2 === 0 ? BGROW : WHITE);
+          line(x, y + CELL_H, x + w, y + CELL_H, BORDER, .2);
+          if (x > ML) line(x, y + 1.5, x, y + CELL_H - 1.5, BORDER, .2);
+          setFont(6.2, 'normal', MUTED); txt(ajustar(String(it.l).toUpperCase(), w - 4), x + 2.5, y + 3.9);
+          if (vacio(it.v)) { setFont(8.5, 'normal', [148,163,184]); txt('—', x + 2.5, y + 9.1); }
+          else if (esToggle(it.v)) pastilla(it.v, x + 2.5, y + 5.2);
+          else { setFont(8.6, 'bold', TXT); txt(ajustar(it.v, w - 5), x + 2.5, y + 9.1); }
+          x += w;
+        });
+        y += CELL_H;
+      });
+      y += 2.5;
+    };
+
+    // Recuadro de texto largo (observaciones, descripción de alarma, etc.)
+    const textoLargo = (etiqueta, texto, tono = 'normal') => {
+      if (vacio(texto)) return;
+      setFont(8.2, 'normal');
+      const lineas = doc.splitTextToSize(String(texto), CW - 6);
+      let i = 0, primera = true;
+      checkPage(altoPendiente() + 12);
+      dibujarSubtitulo();
+      while (i < lineas.length) {
+        checkPage(12);
+        const cabe = Math.max(1, Math.floor((PH - 14 - y - 7) / 4.2));
+        const trozo = lineas.slice(i, i + cabe);
+        const h = 6 + trozo.length * 4.2 + 1.5;
+        const fondo = tono === 'aviso' ? [255,251,235] : BGROW;
+        const borde = tono === 'aviso' ? ACCENT : BORDER;
+        rect(ML, y, CW, h, fondo, borde, 1);
+        setFont(6.2, 'normal', tono === 'aviso' ? [146,64,14] : MUTED);
+        txt((etiqueta + (primera ? '' : ' (cont.)')).toUpperCase(), ML + 3, y + 4);
+        setFont(8.2, 'normal', TXT); doc.text(trozo, ML + 3, y + 8.6);
+        y += h + 2.5; i += trozo.length; primera = false;
+      }
+    };
+
+    const esCooperPdf = String(d.marcaReconectador||'').toUpperCase().includes('COOPER');
+
+    // ══════════════════════════════════════════════════════
     //  ENCABEZADO
     // ══════════════════════════════════════════════════════
-    // Franja superior navy
-    rect(0, 0, PW, 22, NAVY);
-    // Acento izquierdo
-    rect(0, 0, 4, 22, ACCENT);
-
-    // Logo empresa en esquina izquierda del encabezado
-    if(logoBase64) {
-      try { doc.addImage(logoBase64, 'PNG', 5, 2, 18, 18, '', 'FAST'); } catch(e){}
+    rect(0, 0, PW, 24, NAVY);
+    rect(0, 0, 3, 24, ACCENT);
+    if (logoBase64) {
+      try {
+        const pr = doc.getImageProperties(logoBase64);
+        const lh = 11, lw = Math.min(34, lh * pr.width / pr.height);
+        doc.addImage(logoBase64, 'PNG', 8, (24 - lh) / 2, lw, lh, '', 'FAST');
+      } catch(e) {}
     }
-    setFont(14,'bold',WHITE);
-    txt('HOJA DE VISITA — SCADA DISTRIBUCIÓN', 26, 9);
-    setFont(8,'normal',[245,158,11]);
-    txt('Control de Restauradores / Seccionamiento en Red Eléctrica', 26, 15);
+    line(46, 5, 46, 19, [60, 85, 120], .3);
+    setFont(14, 'bold', WHITE);    txt('HOJA DE VISITA', 50, 11);
+    setFont(7.5, 'normal', ACCENT); txt('Inspección de Restauradores · SCADA Distribución', 50, 16.5);
+    // N° de visita: recuadro claro con buen contraste
+    const nvW = 54, nvX = PW - MR - nvW;
+    rect(nvX, 5, nvW, 14, WHITE, null, 1.5);
+    setFont(6.2, 'bold', MUTED);  txt('N° DE VISITA', nvX + nvW / 2, 9.2, { align: 'center' });
+    setFont(10.5, 'bold', NAVY);  txt(d.visitaNum || '—', nvX + nvW / 2, 15.6, { align: 'center' });
+    y = 28;
 
-    // Chip de N° visita
-    rect(PW-MR-52, 3, 52, 7, [255,255,255,10]);
-    setFont(7,'normal',[200,210,230]); txt('N° VISITA', PW-MR-50, 7);
-    setFont(9,'bold',WHITE); txt(d.visitaNum||'—', PW-MR-50, 13);
-
-    y = 26;
-
-    // Banda de datos rápidos
-    rect(ML, y, CW, 9, BGROW, BORDER);
-    const quickItems = [
-      ['FECHA', d.fechaVisita||'—'],
-      ['TIPO',  d.tipoVisita||'—'],
-      ['LLEGADA', d.horaLlegada||'—'],
-      ['SALIDA', d.horaSalida||'—'],
-      ['ENERGIS', d.codigoEnergis||'—'],
-    ];
-    const qw = CW / quickItems.length;
-    quickItems.forEach((q,i) => {
-      if(i>0) line(ML+qw*i, y, ML+qw*i, y+9, BORDER);
-      setFont(6,'normal',MUTED); txt(q[0], ML+qw*i+qw/2, y+3.5, {align:'center'});
-      setFont(8,'bold');         txt(q[1], ML+qw*i+qw/2, y+8,   {align:'center'});
+    // Franja de datos de la visita
+    const rapidos = [['Fecha', d.fechaVisita], ['Tipo de visita', d.tipoVisita], ['Llegada', d.horaLlegada],
+                     ['Salida', d.horaSalida], ['Energis', d.codigoEnergis], ['Circuito', d.codigoCircuito]];
+    const qw = CW / rapidos.length;
+    rect(ML, y, CW, 11, WHITE, BORDER, 1.2);
+    rapidos.forEach(([l, v], i) => {
+      const cx = ML + qw * i + qw / 2;
+      if (i > 0) line(ML + qw * i, y + 2, ML + qw * i, y + 9, BORDER, .2);
+      setFont(6, 'normal', MUTED); txt(l.toUpperCase(), cx, y + 4, { align: 'center' });
+      setFont(8.8, 'bold', NAVY);  txt(ajustar(vacio(v) ? '—' : v, qw - 3), cx, y + 9, { align: 'center' });
     });
-    y += 13;
+    y += 15;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 1: DATOS GENERALES + RECONECTADOR (2 cols)
+    //  DATOS DEL RESTAURADOR
     // ══════════════════════════════════════════════════════
-    sectionHeader('IDENTIFICACIÓN DEL RESTAURADOR');
-    const colA = ML, colB = ML + CW/2, colW2 = CW/2;
-    const genItems = [
-      {label:'Circuito',    value:d.codigoCircuito},
-      {label:'Ubicación',   value:d.nombreUbicacion},
-        {label:'Subestación', value:d.subestacion},
-      {label:'Zona',        value:d.zona},
-      {label:'Sector',      value:d.sector},
-      {label:'Latitud',     value:d.latitud},
-      {label:'Longitud',    value:d.longitud},
-      {label:'Gen. Distribuida', value:d.genDistribuida},
-    ];
-    const reconItems = [
-      {label:'Tipo Reconectador', value:d.tipoRecon},
-      {label:'Marca',             value:d.marcaReconectador},
-      {label:'Modelo',            value:d.modeloRecon},
-      {label:'Serie Reconectador',value:d.serieRecon},
-      {label:'Tipo Control',      value:d.tipoControl},
-      {label:'Serie Control',     value:d.serieControl},
-      {label:'Medio Extinción',   value:d.medioExtincion},
-    ];
-    const esCooperPdf = String(d.marcaReconectador||'').toUpperCase().includes('COOPER');
+    seccion('DATOS DEL RESTAURADOR');
+    const coord = (!vacio(d.latitud) || !vacio(d.longitud)) ? `${d.latitud || '—'} , ${d.longitud || '—'}` : '';
+    grid([
+      { l:'Ubicación', v:d.nombreUbicacion, s:2 }, { l:'Subestación', v:d.subestacion }, { l:'Zona', v:d.zona },
+      { l:'Sector', v:d.sector }, { l:'Coordenadas (lat , long)', v:coord, s:2 }, { l:'Generación distribuida', v:d.genDistribuida },
+    ]);
+
+    // ══════════════════════════════════════════════════════
+    //  RECONECTADOR
+    // ══════════════════════════════════════════════════════
+    seccion('RECONECTADOR');
+    grid([
+      { l:'Tipo', v:d.tipoRecon }, { l:'Marca', v:d.marcaReconectador }, { l:'Modelo', v:d.modeloRecon }, { l:'Medio de extinción', v:d.medioExtincion },
+      { l:'Serie reconectador', v:d.serieRecon }, { l:'Tipo de control', v:d.tipoControl }, { l:'Serie control', v:d.serieControl },
+      esCooperPdf ? { l:'Firmware / Proview', v:d.proviewControl } : null,
+    ]);
     if (esCooperPdf) {
-      reconItems.push(
-        {label:'Firmware/Proview',      value:d.proviewControl},
-        {label:'Terminal p/Sensores V', value:d.termSensV},
-        {label:'Manguera Sensores V',   value:d.manguSensV},
-        {label:'Terminal Manguera Aux', value:d.termManguAux},
-        {label:'Manguera Auxiliar',     value:d.manguAux},
-      );
-    }
-    const maxRows = Math.max(genItems.length, reconItems.length);
-    for(let i=0;i<maxRows;i++){
-      checkPage(8);
-      const shade = i%2===0;
-      if(genItems[i])   fieldRow(genItems[i].label,   genItems[i].value,   colA, y, colW2, shade);
-      if(reconItems[i]) fieldRow(reconItems[i].label, reconItems[i].value, colB, y, colW2, shade);
-      y += 8;
-    }
-    y += 3;
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 2: MÓDEMS
-    // ══════════════════════════════════════════════════════
-    if(d.hasModem1 || d.hasModem2) {
-      checkPage(12);
-      sectionHeader('MÓDEMS DE COMUNICACIÓN');
-      const modemItems = [];
-      if(d.hasModem1) {
-        modemItems.push(
-          {label:'Tipo Módem 1',   value:d.tipoModem1},
-          {label:'Marca Módem 1',  value:d.marcaModem1},
-          {label:'Modelo Módem 1', value:d.modeloModem1},
-          {label:'Serie Módem 1',  value:d.serieModem1},
-          {label:'Antena 1',       value:d.antenaModem1 + (d.tipoAntena1 ? ' · '+d.tipoAntena1 : '')},
-          {label:'Tecnología 1',   value:d.tecModem1},
-        );
-      }
-      if(d.hasModem2) {
-        modemItems.push(
-          {label:'Tipo Módem 2',   value:d.tipoModem2},
-          {label:'Marca Módem 2',  value:d.marcaModem2},
-          {label:'Modelo Módem 2', value:d.modeloModem2},
-          {label:'Serie Módem 2',  value:d.serieModem2},
-          {label:'Antena 2',       value:d.antenaModem2 + (d.tipoAntena2 ? ' · '+d.tipoAntena2 : '')},
-          {label:'Tecnología 2',   value:d.tecModem2},
-        );
-      }
-      twoCol(modemItems);
-      y += 3;
+      subtitulo('Mangueras extras');
+      grid([
+        { l:'Terminal p/sensores V', v:d.termSensV }, { l:'Manguera sensores V', v:d.manguSensV },
+        { l:'Terminal manguera aux', v:d.termManguAux }, { l:'Manguera auxiliar', v:d.manguAux },
+      ]);
     }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 3: TABLERO DE CONTROL (dinámico por marca)
+    //  MÓDEMS
     // ══════════════════════════════════════════════════════
-    const tableroCampos = d.tableroCampos || {};
-    const tableroEntries = Object.entries(tableroCampos).filter(([k,v2]) => v2);
-    if (d.grupoActivo) tableroEntries.push(['Grupo Activo', d.grupoActivo]);
-    if(tableroEntries.length > 0) {
-      checkPage(14);
-      sectionHeader('TABLERO DE CONTROL · ' + (d.tableroMarca || '').toUpperCase());
-      const tcols = 4, tw = CW / tcols;
-      for(let i=0;i<tableroEntries.length;i+=tcols){
-        checkPage(9);
-        const shade = (Math.floor(i/tcols))%2===0;
-        for(let j=0;j<tcols;j++){
-          const entry = tableroEntries[i+j];
-          if(!entry) continue;
-          const x = ML + tw*j;
-          if(shade) rect(x,y,tw,9,BGROW);
-          setFont(6.5,'normal',MUTED); txt(entry[0], x+2, y+3.5);
-          if (['ON','OFF'].includes(String(entry[1]).toUpperCase())) toggleBadge(entry[1], x+tw-17, y+5.5);
-          else { setFont(9,'bold',BLUE); txt(String(entry[1]), x+2, y+8); }
-        }
-        y += 9;
-      }
-      y += 3;
-    }
-
-    // ══════════════════════════════════════════════════════
-    //  SECCIÓN 4: ALARMA
-    // ══════════════════════════════════════════════════════
-    checkPage(14);
-    sectionHeader('ALARMA');
-    const alarmaItems = [
-      ['Alarma Presente', d.alarmaPresente],
-    ];
-    const aw = CW / 2;
-    alarmaItems.forEach((item, i) => {
-      const x = ML + aw * i;
-      rect(x, y, aw, 9, i%2===0 ? BGROW : WHITE);
-      setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
-      toggleBadge(item[1], x+aw-17, y+5.5);
+    seccion('MÓDEMS Y COMUNICACIONES');
+    [1, 2].forEach(n => {
+      const tiene = d['hasModem' + n];
+      if (!tiene) return;
+      subtitulo('Módem ' + n);
+      const ant = d['antenaModem' + n], tAnt = d['tipoAntena' + n];
+      grid([
+        { l:'Tipo', v:d['tipoModem' + n] }, { l:'Marca', v:d['marcaModem' + n] }, { l:'Modelo', v:d['modeloModem' + n] }, { l:'Serie', v:d['serieModem' + n] },
+        { l:'Antena', v: ant ? ant + (tAnt ? ' · ' + tAnt : '') : '' , s:2 }, { l:'Tecnología', v:d['tecModem' + n], s:2 },
+      ]);
     });
-    y += 9;
-    if(d.descAlarma) {
-      checkPage(12);
-      const aLines = doc.splitTextToSize(d.descAlarma, CW-4);
-      const aH = Math.max(8, aLines.length*4.5+4);
-      setFont(7,'normal',MUTED); txt('DESCRIPCIÓN ALARMA', ML, y+4); y += 5;
-      rect(ML, y, CW, aH, BGROW, BORDER);
-      setFont(8,'normal'); doc.setTextColor(30,41,59);
-      doc.text(aLines, ML+3, y+4.5);
-      y += aH + 3;
+    if (!d.hasModem1 && !d.hasModem2) grid([{ l:'Módem 1', v:'NO' }, { l:'Módem 2', v:'NO' }]);
+
+    // ══════════════════════════════════════════════════════
+    //  TABLERO DE CONTROL
+    // ══════════════════════════════════════════════════════
+    const tablero = Object.entries(d.tableroCampos || {}).filter(([, v]) => v);
+    if (tablero.length || d.grupoActivo) {
+      seccion('TABLERO DE CONTROL' + (d.tableroMarca ? ' · ' + String(d.tableroMarca).toUpperCase() : ''));
+      grid([...tablero.map(([l, v]) => ({ l, v })), d.grupoActivo ? { l:'Grupo activo', v:d.grupoActivo } : null]);
     }
-    y += 3;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 5: BATERÍA
+    //  ALARMA Y BATERÍA
     // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('BATERÍA');
-    // Mediciones en banda horizontal
-    checkPage(9);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    const medCols = [
-      ['MEDICIÓN AC (V)',      d.medicionAC],
-      ['MEDICIÓN BAT (V)',     d.medicionBat],
-      ['MEDICIÓN CARGADOR (V)',d.medicionCargador],
-    ];
-    const mw = CW / medCols.length;
-    medCols.forEach((m2,i) => {
-      if(i>0) line(ML+mw*i,y,ML+mw*i,y+9,BORDER);
-      setFont(6.5,'normal',MUTED); txt(m2[0], ML+mw*i+4, y+3.5);
-      setFont(10,'bold',BLUE);     txt(m2[1]||'—', ML+mw*i+4, y+8.5);
-    });
-    y += 11;
-    // Battery test + cambio de baterías (+ tipo instalado)
-    checkPage(9);
-    const bw = CW/3;
-    rect(ML, y, bw, 9, BGROW);
-    setFont(6.5,'normal',MUTED); txt('BATTERY TEST', ML+2, y+3.5);
-    toggleBadge(d.batteryTest, ML+bw-17, y+5.5);
-    rect(ML+bw, y, bw, 9, WHITE);
-    setFont(6.5,'normal',MUTED); txt('CAMBIO BATERÍAS', ML+bw+2, y+3.5);
-    toggleBadge(d.cambioBaterias, ML+bw*2-17, y+5.5);
-    rect(ML+bw*2, y, bw, 9, BGROW);
-    setFont(6.5,'normal',MUTED); txt('TIPO BATERÍA INSTALADA', ML+bw*2+2, y+3.5);
-    setFont(9,'bold',BLUE);      txt(d.tipoBateria||'—', ML+bw*2+2, y+8);
-    y += 12;
+    seccion('ALARMA Y BATERÍA');
+    grid([
+      { l:'Alarma presente', v:d.alarmaPresente }, { l:'Battery test', v:d.batteryTest },
+      { l:'Cambio de baterías', v:d.cambioBaterias }, { l:'Batería instalada', v:d.cambioBaterias === 'SI' ? d.tipoBateria : 'N/A' },
+      { l:'Medición AC (V)', v:d.medicionAC }, { l:'Medición baterías (V)', v:d.medicionBat }, { l:'Medición cargador (V)', v:d.medicionCargador, s:2 },
+    ]);
+    textoLargo('Descripción de la alarma', d.descAlarma);
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 6: CORRIENTES Y AJUSTES
+    //  CORRIENTES
     // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('CORRIENTES');
-    const corrHeaders = ['IA (A)','IB (A)','IC (A)','IN Neutro (A)'];
-    const corrVals    = [d.corrIA, d.corrIB, d.corrIC, d.corrIN];
-    const cw7 = CW / corrHeaders.length;
-    rect(ML, y, CW, 7, NAVY);
-    corrHeaders.forEach((h,i) => {
-      setFont(6.5,'bold',WHITE);
-      txt(h, ML+cw7*i+cw7/2, y+5, {align:'center'});
-    });
-    y += 7;
-    rect(ML, y, CW, 8, BGROW, BORDER);
-    corrVals.forEach((v2,i) => {
-      setFont(9,'bold',BLUE);
-      txt(v2||'—', ML+cw7*i+cw7/2, y+6, {align:'center'});
-    });
-    y += 12;
+    seccion('CORRIENTES INSTANTÁNEAS (A)');
+    grid([{ l:'IA', v:d.corrIA }, { l:'IB', v:d.corrIB }, { l:'IC', v:d.corrIC }, { l:'IN (neutro)', v:d.corrIN }]);
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 7: ESTADO FÍSICO
+    //  ESTADO FÍSICO
     // ══════════════════════════════════════════════════════
-    checkPage(20);
-    sectionHeader('ESTADO FÍSICO DEL EQUIPO');
-    const fisItems = [
-      ['Gabinete',          d.gabinete],
-      ['Borneras',          d.borneras],
-      ['Ater. Restaurador', d.aterRestState],
-      ['Ater. Control',     d.aterCtrlState],
-      ['Ater. Potencial',   d.aterPotState],
-      ['Cable de Tierra',   d.cableTierra],
-      ['N° Varillas',       d.numVarillas],
-      ['Tipo Cuchilla',     d.tipoCuchilla],
-      ['Estado Cuchillas',  d.estadoCuchillas],
-      ['N° Cuchillas',      d.numCuchillas],
-      ['Pararrayos',        d.pararrayos],
-      ['N° Pararrayos',     d.numPararrayos],
-      ['Tiene Potencial',   d.tienePotencial],
-    ];
+    seccion('ESTADO FÍSICO');
+    subtitulo('Equipo y aterrizaje');
+    grid([
+      { l:'Gabinete', v:d.gabinete }, { l:'Borneras', v:d.borneras }, { l:'Aterrizaje restaurador', v:d.aterRestState }, { l:'Aterrizaje control', v:d.aterCtrlState },
+      { l:'Cable de tierra', v:d.cableTierra }, { l:'N° varillas', v:d.numVarillas },
+      { l:'Resistencia control (ohm)', v:d.aterControl }, { l:'Resistencia restaurador (ohm)', v:d.aterRestaurador },
+      !vacio(d.aterOtros) ? { l:'Resistencia otros (ohm)', v:d.aterOtros } : null,
+    ]);
+    textoLargo('Observación del estado físico', d.obsEstadoFisico);
+    subtitulo('Bypass');
+    grid([
+      { l:'Tipo de cuchilla', v:d.tipoCuchilla, s:2 }, { l:'Estado cuchillas', v:d.estadoCuchillas }, { l:'N° cuchillas', v:d.numCuchillas },
+      { l:'Pararrayos', v:d.pararrayos }, { l:'N° pararrayos', v:d.numPararrayos },
+    ]);
+    subtitulo('Potencial');
     if (d.tienePotencial === 'SI') {
-      fisItems.push(
-        ['Cant. Potencial',  d.potCantidad],
-        ['Pararrayos Pot.',  d.potPararrayos],
-        ['Cuchilla Pot.',    d.potCuchilla],
-        ['Fase Conexión',    d.faseConexion],
-      );
-    } else if (d.tienePotencial === 'NO') {
-      fisItems.push(['Alim. Acometida', d.alimentadoAcometida]);
+      grid([
+        { l:'Tiene potencial', v:'SI' }, { l:'Cantidad', v:d.potCantidad }, { l:'Fase de conexión', v:d.faseConexion }, { l:'Aterrizaje potencial', v:d.aterPotState },
+        { l:'Pararrayos', v:d.potPararrayos }, { l:'Cuchilla', v:d.potCuchilla },
+      ]);
+    } else {
+      grid([{ l:'Tiene potencial', v:d.tienePotencial }, d.tienePotencial === 'NO' ? { l:'Alimentado por acometida', v:d.alimentadoAcometida } : null]);
+      textoLargo('Observación de la alimentación', d.obsPotencial);
     }
-    const fcols = 4, fw = CW/fcols;
-    for(let i=0;i<fisItems.length;i+=fcols){
-      checkPage(9);
-      const shade = (Math.floor(i/fcols))%2===0;
-      for(let j=0;j<fcols;j++){
-        const item = fisItems[i+j];
-        if(!item) continue;
-        const x = ML + fw*j;
-        if(shade) rect(x,y,fw,9,BGROW);
-        setFont(6.5,'normal',MUTED); txt(item[0], x+2, y+3.5);
-        const isToggle = ['OK','NOK','SI','NO'].includes((item[1]||'').toUpperCase());
-        if(isToggle) toggleBadge(item[1], x+fw-17, y+5.5);
-        else { setFont(8,'bold'); txt(doc.splitTextToSize(String(item[1]||'—'), fw-4)[0], x+2, y+8); }
-      }
-      y += 9;
-    }
-    // Medición aterrizaje
-    checkPage(10);
-    rect(ML, y, CW, 9, [232,240,254], BORDER);
-    const aterCols = [['ATER. CONTROL (Ohm)', d.aterControl],['ATER. RESTAURADOR (Ohm)', d.aterRestaurador],['ATER. OTROS (Ohm)', d.aterOtros]];
-    const atW = CW/3;
-    aterCols.forEach((a,i) => {
-      if(i>0) line(ML+atW*i,y,ML+atW*i,y+9,BORDER);
-      setFont(6.5,'normal',MUTED); txt(a[0], ML+atW*i+3, y+3.5);
-      setFont(9,'bold',BLUE);     txt(a[1]||'—', ML+atW*i+3, y+8.5);
-    });
-    y += 11;
-    // Obs. potencial (cuando no tiene potencial)
-    if(d.tienePotencial === 'NO' && d.obsPotencial) {
-      checkPage(12);
-      const opLines = doc.splitTextToSize(d.obsPotencial, CW-4);
-      const opH = Math.max(8, opLines.length*4.5+4);
-      setFont(7,'normal',MUTED); txt('OBSERVACIÓN POTENCIAL', ML, y+4); y+=5;
-      rect(ML, y, CW, opH, BGROW, BORDER);
-      setFont(8,'normal'); doc.setTextColor(30,41,59);
-      doc.text(opLines, ML+3, y+4.5);
-      y += opH + 4;
-    }
-    // Obs estado físico
-    if(d.obsEstadoFisico) {
-      checkPage(12);
-      const ofLines = doc.splitTextToSize(d.obsEstadoFisico, CW-4);
-      const ofH = Math.max(8, ofLines.length*4.5+4);
-      setFont(7,'normal',MUTED); txt('OBSERVACIÓN ESTADO FÍSICO', ML, y+4); y+=5;
-      rect(ML, y, CW, ofH, BGROW, BORDER);
-      setFont(8,'normal'); doc.setTextColor(30,41,59);
-      doc.text(ofLines, ML+3, y+4.5);
-      y += ofH + 4;
-    }
-    y += 3;
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 8: MATERIALES
+    //  MATERIALES
     // ══════════════════════════════════════════════════════
     const mats = d.materialesUtilizados || [];
-    if(mats.length > 0) {
-      checkPage(14);
-      sectionHeader('MATERIALES UTILIZADOS');
-      rect(ML, y, CW, 7, BLUE);
-      const matCols = [{l:'Código',w:.12},{l:'Descripción',w:.44},{l:'Unidad',w:.09},{l:'Cantidad',w:.11},{l:'Motivo',w:.24}];
-      let mx = ML;
-      matCols.forEach(mc => {
-        setFont(7,'bold',WHITE); txt(mc.l, mx+2, y+5);
-        mx += CW*mc.w;
-      });
-      y += 7;
-      mats.forEach((m,idx) => {
-        checkPage(8);
-        if(idx%2===0) rect(ML,y,CW,8,BGROW);
-        mx = ML;
-        const vals = [m.codigo, m.desc, m.unidad, m.cant, m.motivo];
-        matCols.forEach((mc,ci) => {
-          setFont(7.5, ci===0?'bold':'normal');
-          if(ci===0){doc.setTextColor(...BLUE);}else{doc.setTextColor(30,41,59);}
-          txt(doc.splitTextToSize(String(vals[ci]||''), CW*mc.w-3)[0] || '', mx+2, y+5.5);
-          mx += CW*mc.w;
+    if (mats.length > 0) {
+      seccion('MATERIALES UTILIZADOS');
+      abrir(6.5 + 7.5 * Math.min(mats.length, 3));
+      const cols = [{l:'Código',w:.13},{l:'Descripción',w:.43},{l:'Unidad',w:.09,c:1},{l:'Cantidad',w:.11,c:1},{l:'Motivo',w:.24}];
+      const encabezado = () => {
+        rect(ML, y, CW, 6.5, BLUE, null, 1);
+        let mx = ML;
+        cols.forEach(c => {
+          setFont(6.8, 'bold', WHITE);
+          txt(c.l.toUpperCase(), c.c ? mx + CW*c.w/2 : mx + 2.5, y + 4.4, c.c ? {align:'center'} : {});
+          mx += CW * c.w;
         });
-        y += 8;
+        y += 6.5;
+      };
+      encabezado();
+      mats.forEach((m, idx) => {
+        if (y + 8 > PH - 14) { checkPage(20); encabezado(); }
+        rect(ML, y, CW, 7.5, idx % 2 === 0 ? BGROW : WHITE);
+        line(ML, y + 7.5, ML + CW, y + 7.5, BORDER, .2);
+        let mx = ML;
+        [m.codigo, m.desc, m.unidad, m.cant, m.motivo].forEach((v, ci) => {
+          const c = cols[ci];
+          setFont(7.8, ci === 1 ? 'bold' : 'normal', ci === 0 ? BLUE : TXT);
+          const t = ajustar(vacio(v) ? '—' : v, CW * c.w - 4);
+          txt(t, c.c ? mx + CW*c.w/2 : mx + 2.5, y + 5, c.c ? {align:'center'} : {});
+          mx += CW * c.w;
+        });
+        y += 7.5;
       });
-      // Obs materiales
-      if(d.obsMateriales) {
-        checkPage(10);
-        const omLines = doc.splitTextToSize('Obs: ' + d.obsMateriales, CW-4);
-        const omH = Math.max(8, omLines.length*4.5+4);
-        rect(ML, y, CW, omH, [255,251,235], ACCENT);
-        setFont(7.5,'normal',[146,64,14]); doc.text(omLines, ML+3, y+4.5);
-        y += omH;
-      }
-      y += 4;
+      y += 2.5;
+      textoLargo('Observación de materiales', d.obsMateriales, 'aviso');
     }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 9: OBSERVACIONES
-
-    // ══════════════════════════════════════════════════════════
-    //  SECCIÓN FOTOGRAFÍAS en PDF
-    // ══════════════════════════════════════════════════════════
+    //  FOTOGRAFÍAS (filas de 2; una foto sola queda centrada)
+    // ══════════════════════════════════════════════════════
     const fotos = (d.fotografias || []).filter(f => f && f.base64);
     if (fotos.length > 0) {
-      checkPage(14 + 55 + 8 + 4); // título + primera fila de fotos juntos
-      sectionHeader('FOTOGRAFÍAS');
-
-      const fotoCols  = 2;
-      const fotoW     = (CW - 4) / fotoCols;
-      const fotoH     = 55; // altura de cada foto en mm
-      const fotoObsH  = 8;  // altura para la observación
-
-      for (let i = 0; i < fotos.length; i += fotoCols) {
-        checkPage(fotoH + fotoObsH + 4);
-        for (let j = 0; j < fotoCols; j++) {
-          const foto = fotos[i + j];
-          if (!foto) continue;
-          const x = ML + j * (fotoW + 4);
-
+      const FW = (CW - 5) / 2, FH = 66, CAP = 7;
+      seccion('REGISTRO FOTOGRÁFICO');
+      abrir(FH + CAP + 2);
+      for (let i = 0; i < fotos.length; i += 2) {
+        checkPage(FH + CAP + 2);
+        const enFila = fotos.slice(i, i + 2);
+        const x0 = enFila.length === 1 ? ML + (CW - FW) / 2 : ML;
+        enFila.forEach((foto, j) => {
+          const x = x0 + j * (FW + 5);
+          rect(x, y, FW, FH + CAP, WHITE, BORDER, 1.5);
           try {
-            // Ajustar dentro del recuadro manteniendo la proporción original
-            const props = doc.getImageProperties(foto.base64);
-            const k  = Math.min(fotoW / props.width, fotoH / props.height);
-            const iw = props.width * k, ih = props.height * k;
-            rect(x, y, fotoW, fotoH, BGROW, BORDER);
-            doc.addImage(foto.base64, 'JPEG', x + (fotoW - iw)/2, y + (fotoH - ih)/2, iw, ih, '', 'FAST');
+            const pr = doc.getImageProperties(foto.base64);
+            const k = Math.min((FW - 3) / pr.width, (FH - 3) / pr.height);
+            const iw = pr.width * k, ih = pr.height * k;
+            doc.addImage(foto.base64, 'JPEG', x + (FW - iw) / 2, y + 1.5 + (FH - 3 - ih) / 2, iw, ih, '', 'FAST');
           } catch(e) {
-            // Si falla la imagen, dibujar placeholder
-            rect(x, y, fotoW, fotoH, BGROW, BORDER);
-            setFont(8,'normal',MUTED);
-            txt('Foto ' + (i+j+1), x + fotoW/2, y + fotoH/2, {align:'center'});
+            setFont(8, 'normal', MUTED); txt('Imagen no disponible', x + FW / 2, y + FH / 2, { align:'center' });
           }
-
-          // Observación debajo de la foto
+          line(x, y + FH, x + FW, y + FH, BORDER, .2);
+          setFont(7.2, 'bold', NAVY); txt('Foto ' + (i + j + 1), x + 2.5, y + FH + 4.6);
           if (foto.observacion) {
-            setFont(7,'normal',MUTED);
-            const obsLines = doc.splitTextToSize(foto.observacion, fotoW - 2);
-            txt(obsLines[0] || '', x + 1, y + fotoH + 5);
-          } else {
-            setFont(7,'italic',MUTED);
-            txt('Foto ' + (i+j+1), x + 1, y + fotoH + 5);
+            setFont(7.2, 'normal', MUTED);
+            txt(ajustar(foto.observacion, FW - 18), x + 15, y + FH + 4.6);
           }
-        }
-        y += fotoH + fotoObsH + 4;
+        });
+        y += FH + CAP + 4;
       }
-      y += 3;
     }
 
     // ══════════════════════════════════════════════════════
-    if(d.obsGenerales) {
-      checkPage(16);
-      sectionHeader('OBSERVACIONES');
-      const oLines = doc.splitTextToSize(d.obsGenerales, CW-4);
-      const oH = Math.max(10, oLines.length*4.5+4);
-      rect(ML, y, CW, oH, BGROW, BORDER);
-      setFont(8.5,'normal'); doc.setTextColor(30,41,59);
-      doc.text(oLines, ML+3, y+5);
-      y += oH + 4;
+    //  OBSERVACIONES GENERALES
+    // ══════════════════════════════════════════════════════
+    if (!vacio(d.obsGenerales)) {
+      seccion('OBSERVACIONES GENERALES');
+      textoLargo('Observaciones', d.obsGenerales);
     }
 
     // ══════════════════════════════════════════════════════
-    //  SECCIÓN 10: PERSONAL + FIRMA
+    //  PERSONAL Y FIRMA (bloques lado a lado, misma altura)
     // ══════════════════════════════════════════════════════
-    checkPage(36);
-    sectionHeader('PERSONAL DE VISITA Y FIRMA');
-
     const personal = d.personal || [];
-    const persW = CW * .55, firmaW = CW * .42, gap = CW*.03;
-
-    // Personal (izquierda)
-    if(personal.length > 0) {
-      rect(ML, y, persW, 7, BLUE);
-      setFont(7,'bold',WHITE); txt('NOMBRE', ML+2, y+5);
-      setFont(7,'bold',WHITE); txt('CARGO', ML+persW*.55, y+5);
-      setFont(7,'bold',WHITE); txt('ID', ML+persW*.82, y+5);
-      y += 7;
-      personal.forEach((p,i) => {
-        checkPage(8);
-        if(i%2===0) rect(ML,y,persW,8,BGROW);
-        setFont(8,'bold');   txt((p.nombre||'—').slice(0,28), ML+2, y+5.5);
-        setFont(7.5,'normal',MUTED); txt((p.cargo||'—').slice(0,20), ML+persW*.55, y+5.5);
-        setFont(7.5,'normal');        txt(p.id||'—', ML+persW*.82, y+5.5);
-        y += 8;
-      });
-    }
-
-    // Firma (derecha) — alineada con la tabla de personal
-    // Alto de firma: mínimo 45mm (suficiente para imagen legible) o lo que ocupe el personal
-    const persTableH = personal.length * 8 + 7;  // alto real de la tabla de personal
-    const FIRMA_MIN_H = 45;                        // alto mínimo garantizado para la firma
-    const firmaBoxH   = Math.max(FIRMA_MIN_H, persTableH);
-    const firmaStartY = y - persTableH;            // alineado con la parte inferior de la tabla
-    const firmaX      = ML + persW + gap;
-
-    rect(firmaX, firmaStartY, firmaW, firmaBoxH, BGROW, BORDER);
-
-    // Etiqueta superior
-    setFont(7,'normal',MUTED);
-    txt('FIRMA DEL RESPONSABLE', firmaX + firmaW/2, firmaStartY+5, {align:'center'});
-    line(firmaX+4, firmaStartY+7, firmaX+firmaW-4, firmaStartY+7, BORDER, .2);
-
-    if(d.firmaImg && d.firmaImg.startsWith('data:image')) {
+    const filaP = 8, cabP = 6.5;
+    const altoTabla = cabP + Math.max(1, personal.length) * filaP;
+    const altoBloque = Math.max(46, altoTabla);
+    seccion('PERSONAL DE VISITA Y FIRMA');
+    abrir(altoBloque);
+    const gap = 5, persW = CW * .58 - gap / 2, firmaW = CW - persW - gap, firmaX = ML + persW + gap;
+    const y0 = y;
+    // Tabla de personal
+    rect(ML, y0, persW, altoBloque, WHITE, BORDER, 1.2);
+    rect(ML, y0, persW, cabP, BLUE, null, 1.2);
+    setFont(6.8, 'bold', WHITE);
+    txt('NOMBRE', ML + 2.5, y0 + 4.4); txt('CARGO', ML + persW * .56, y0 + 4.4); txt('N° EMP.', ML + persW * .84, y0 + 4.4);
+    personal.forEach((p, i) => {
+      const ry = y0 + cabP + i * filaP;
+      if (i % 2 === 0) rect(ML + .3, ry, persW - .6, filaP, BGROW);
+      setFont(8, 'bold', TXT);      txt(ajustar(p.nombre || '—', persW * .54 - 3), ML + 2.5, ry + 5.3);
+      setFont(7.4, 'normal', MUTED); txt(ajustar(p.cargo || '—', persW * .28 - 2), ML + persW * .56, ry + 5.3);
+      setFont(7.4, 'normal', TXT);   txt(ajustar(p.id || '—', persW * .16 - 2), ML + persW * .84, ry + 5.3);
+    });
+    // Firma
+    rect(firmaX, y0, firmaW, altoBloque, BGROW, BORDER, 1.2);
+    setFont(6.2, 'bold', MUTED); txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4.6, { align:'center' });
+    const fTop = y0 + 7, fBot = y0 + altoBloque - 10;
+    if (d.firmaImg && String(d.firmaImg).startsWith('data:image')) {
       try {
-        // Imagen ocupa el espacio central dejando margen arriba (etiqueta) y abajo (nombre)
-        const fImgY = firmaStartY + 9;
-        const fImgH = firmaBoxH - 18;   // resta etiqueta (9) + nombre (9)
-        const fImgW = firmaW - 8;
-        doc.addImage(d.firmaImg, 'PNG', firmaX+4, fImgY, fImgW, fImgH, '', 'FAST');
-      } catch(e){}
+        const pr = doc.getImageProperties(d.firmaImg);
+        const k = Math.min((firmaW - 8) / pr.width, (fBot - fTop) / pr.height);
+        const iw = pr.width * k, ih = pr.height * k;
+        doc.addImage(d.firmaImg, 'PNG', firmaX + (firmaW - iw) / 2, fTop + (fBot - fTop - ih) / 2, iw, ih, '', 'FAST');
+      } catch(e) {}
     } else {
-      setFont(8,'normal',MUTED);
-      txt('Sin firma digital', firmaX+firmaW/2, firmaStartY+firmaBoxH/2 - 2, {align:'center'});
+      setFont(8, 'italic', MUTED); txt('Sin firma digital', firmaX + firmaW / 2, (fTop + fBot) / 2, { align:'center' });
     }
-
-    // Nombre del responsable al fondo
-    line(firmaX+4, firmaStartY+firmaBoxH-9, firmaX+firmaW-4, firmaStartY+firmaBoxH-9, BORDER, .2);
-    setFont(8,'bold'); doc.setTextColor(30,41,59);
-    txt(d.firmaResponsable||'—', firmaX+firmaW/2, firmaStartY+firmaBoxH-4, {align:'center'});
-
-    // Avanzar y hasta el fondo del box de firma (el más alto entre tabla y firmaBoxH)
-    y = firmaStartY + firmaBoxH + 6;
-
+    line(firmaX + 6, fBot + 1, firmaX + firmaW - 6, fBot + 1, MUTED, .3);
+    setFont(8.4, 'bold', NAVY); txt(ajustar(d.firmaResponsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 6, { align:'center' });
+    y = y0 + altoBloque + 4;
 
     // ══════════════════════════════════════════════════════
     //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
