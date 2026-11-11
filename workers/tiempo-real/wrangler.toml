@@ -1,0 +1,16 @@
+# Canal de tiempo real de Inspección de Restauradores (Durable Object). Se publica una vez y cada vez que cambie:
+#   npm run tiempo-real:deploy
+# La app (Pages) lo usa con el enlace TIEMPO_REAL (Durable Object) que se agrega en el panel de Pages.
+name = "restauradores-tiempo-real"
+main = "index.ts"
+compatibility_date = "2026-06-01"
+# No es público: solo lo alcanzan las Functions de la app por el enlace.
+workers_dev = false
+
+[[durable_objects.bindings]]
+name = "CANAL"
+class_name = "CanalTiempoReal"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["CanalTiempoReal"]

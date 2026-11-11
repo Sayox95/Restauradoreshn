@@ -1,2 +1,8 @@
-dist/
-.wrangler/
+node_modules
+dist
+dev-dist
+.wrangler
+*.tsbuildinfo
+.dev.vars
+tmp-*.sql
+test-results

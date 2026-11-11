@@ -1,0 +1,235 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-slate-100 text-slate-900 antialiased;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-marca-500 ring-offset-2;
+  }
+}
+
+@layer components {
+  .tarjeta {
+    @apply rounded-2xl bg-white shadow-tarjeta;
+  }
+  .btn {
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl px-4 text-[15px] font-semibold transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primario {
+    @apply btn bg-marca-600 text-white hover:bg-marca-700;
+  }
+  .btn-secundario {
+    @apply btn border border-slate-300 bg-white text-slate-800 hover:bg-slate-50;
+  }
+  .btn-peligro {
+    @apply btn bg-rose-500 text-white hover:bg-rose-600;
+  }
+  .btn-exito {
+    @apply btn bg-emerald-500 text-white hover:bg-emerald-600;
+  }
+  .campo {
+    @apply block w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 placeholder:text-slate-400 focus:border-marca-500 focus:outline-none focus:ring-2 focus:ring-marca-100;
+  }
+  .etiqueta {
+    @apply mb-1 block text-sm font-medium text-slate-700;
+  }
+  .chip {
+    @apply inline-flex min-h-[36px] items-center rounded-full border px-3 text-sm font-medium transition;
+  }
+}
+
+.pb-seguro {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Pie de los modales: margen normal, o el de la barra de inicio del iPhone si es mayor. */
+.pb-pie {
+  padding-bottom: max(0.75rem, env(safe-area-inset-bottom));
+}
+
+/* Impresión del formato oficial (CLS-PAU-F-03): hoja carta, colores de fondo incluidos. */
+@page {
+  size: letter;
+  margin: 0.4in;
+}
+@media print {
+  html,
+  body {
+    background: #fff !important;
+  }
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
+/* Proceso de la falla: ✓ del paso que termina, pulso que recorre la línea y llegada al paso nuevo. */
+@layer utilities {
+  .anim-check {
+    animation: paso-check 450ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+  .anim-llenar {
+    animation: linea-llenar 700ms ease-in-out both;
+  }
+  .anim-pulso {
+    animation: linea-pulso 700ms ease-in-out both;
+  }
+  .anim-llega {
+    animation: paso-llega 900ms ease-out both;
+  }
+  .anim-abrir {
+    animation: caja-abrir 180ms ease-out;
+  }
+}
+
+/* Movimiento general: suave y corto (lineamiento UX); nada se anima si el sistema pide menos movimiento. */
+@layer utilities {
+  .anim-pagina {
+    animation: entrar 220ms ease-out;
+  }
+  .anim-aparecer {
+    animation: caja-abrir 180ms ease-out;
+  }
+  .anim-menu {
+    animation: menu-abrir 140ms ease-out;
+    transform-origin: top;
+  }
+  .anim-fondo {
+    animation: fundido 180ms ease-out;
+  }
+  .anim-hoja {
+    animation: hoja-subir 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .anim-dialogo {
+    animation: dialogo-entrar 180ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .anim-aviso {
+    animation: aviso-bajar 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @media (min-width: 640px) {
+    .anim-hoja {
+      animation-name: dialogo-entrar;
+    }
+  }
+}
+
+/* Las tarjetas entran con un desvanecido corto al aparecer (después de cargar, al paginar…). */
+@layer components {
+  .tarjeta {
+    animation: entrar 220ms ease-out;
+  }
+}
+
+@keyframes entrar {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes fundido {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes menu-abrir {
+  from {
+    opacity: 0;
+    transform: scaleY(0.96) translateY(-4px);
+  }
+}
+@keyframes hoja-subir {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes dialogo-entrar {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+}
+@keyframes aviso-bajar {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.98);
+  }
+}
+
+@keyframes paso-check {
+  from {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.2);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1);
+  }
+}
+@keyframes linea-llenar {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes linea-pulso {
+  from {
+    top: -6px;
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: 1;
+  }
+  to {
+    top: calc(100% - 6px);
+    opacity: 0;
+  }
+}
+@keyframes paso-llega {
+  from {
+    transform: scale(1);
+    opacity: 0.9;
+  }
+  to {
+    transform: scale(1.8);
+    opacity: 0;
+  }
+}
+@keyframes caja-abrir {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-check,
+  .anim-llenar,
+  .anim-llega,
+  .anim-abrir,
+  .anim-pagina,
+  .anim-aparecer,
+  .anim-menu,
+  .anim-fondo,
+  .anim-hoja,
+  .anim-dialogo,
+  .anim-aviso,
+  .tarjeta {
+    animation: none;
+  }
+  .anim-pulso,
+  .anim-llega {
+    display: none;
+  }
+}
