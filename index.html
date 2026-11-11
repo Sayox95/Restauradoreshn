@@ -114,7 +114,9 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* Grillas: 2, 3 y 4 columnas. Los campos se alinean por abajo para que una
    etiqueta larga (que ocupa 2 líneas) no desalinee los botones de la fila. */
 .g2,.g3,.g4{display:grid;gap:12px;margin-bottom:13px;align-items:end}
-.g2{grid-template-columns:1fr 1fr}
+/* Lineamientos UTCD: una sola columna al capturar. Excepción E4: solo los grupos
+   de mediciones numéricas cortas (.g3 / .g4) van en una fila. */
+.g2{grid-template-columns:1fr}
 .g3{grid-template-columns:repeat(3,1fr);gap:10px}
 .g4{grid-template-columns:repeat(4,1fr);gap:8px}
 .g2:last-child,.g3:last-child,.g4:last-child{margin-bottom:0}
@@ -1710,7 +1712,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 // Ejemplo: https://scada-worker.TU-USUARIO.workers.dev
 // ═══════════════════════════════════════════════════════════
 const API_BASE    = ''; // Cloudflare Pages Functions en el mismo proyecto
-const APP_VERSION = '2.3.0';            // versión funcional de la app
+const APP_VERSION = '2.3.1';            // versión funcional de la app
 const BUILD_ID    = 'dev-202611100600'; // lo reemplaza build.mjs en cada deploy
 const WEBAPP_URL = API_BASE; // alias para compatibilidad
 

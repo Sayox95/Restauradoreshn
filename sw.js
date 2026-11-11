@@ -19,7 +19,7 @@
 
 importScripts('/idb.js');
 
-const APP_VERSION = '2.3.0';
+const APP_VERSION = '2.3.1';
 const BUILD_ID    = 'dev-202611100600'; // lo reemplaza build.mjs en cada deploy
 const CACHE_NAME  = 'scada-' + BUILD_ID;
 const SYNC_TAG    = 'scada-sync-visitas';
