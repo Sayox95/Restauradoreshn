@@ -77,6 +77,21 @@ async function operar<T>(store: string, modo: IDBTransactionMode, fn: (s: IDBObj
   });
 }
 
+/**
+ * Pide al navegador que no borre lo guardado aunque le falte espacio o la app no se use en días (Safari
+ * puede borrar los datos de una web sin uso). Se pide una vez, al guardar algo por primera vez; en
+ * Chrome y Safari se concede o niega sin preguntar a la persona. Si no se puede, la app sigue igual.
+ */
+let persistenciaPedida = false;
+function pedirPersistencia() {
+  if (persistenciaPedida) return;
+  persistenciaPedida = true;
+  void navigator.storage
+    ?.persisted?.()
+    .then((ya) => ya || navigator.storage.persist())
+    .catch(() => {});
+}
+
 // ── Cola de envíos ──────────────────────────────────────────────────────────────────────────
 const oyentes = new Set<() => void>();
 /** Avisa a las pantallas (contador, lista) que la cola cambió. */
@@ -89,6 +104,7 @@ const avisar = () => oyentes.forEach((f) => f());
 export const listarCola = async () =>
   ((await operar<Pendiente[]>('cola', 'readonly', (s) => s.getAll())) ?? []).sort((a, b) => a.guardado_en.localeCompare(b.guardado_en));
 export async function guardarEnCola(p: Pendiente) {
+  pedirPersistencia();
   await operar('cola', 'readwrite', (s) => s.put(p));
   avisar();
 }
@@ -99,7 +115,10 @@ export async function quitarDeCola(visitaNum: string) {
 
 // ── Borrador ────────────────────────────────────────────────────────────────────────────────
 export const leerBorrador = () => operar<Borrador>('borrador', 'readonly', (s) => s.get('actual'));
-export const guardarBorrador = (b: Borrador) => operar('borrador', 'readwrite', (s) => s.put(b, 'actual'));
+export const guardarBorrador = (b: Borrador) => {
+  pedirPersistencia();
+  return operar('borrador', 'readwrite', (s) => s.put(b, 'actual'));
+};
 export const borrarBorrador = () => operar('borrador', 'readwrite', (s) => s.delete('actual'));
 
 // ── Catálogos para capturar sin señal ──────────────────────────────────────────────────────
