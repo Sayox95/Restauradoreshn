@@ -52,3 +52,11 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   aviso y la versión nueva se aplica al terminarla; nunca se recarga encima de lo escrito.
 - La versión nueva se detecta solo por eventos (abrir, volver a la app, foco, conexión, cambio de
   sección); sin consultas periódicas.
+
+## Pendientes acordados
+
+- **Optimizar `registros` (96 columnas, límite de D1: 100)** — después de estabilizar la versión 3.
+  Pasar lo repetido a tablas hijas: módems 1 y 2 → `visita_modems`, materiales (hoy JSON) →
+  `visita_materiales`, personal (hoy JSON) → `visita_personal`; el resto se queda en columnas.
+  Requiere mover los datos de producción: antes presentar el plan (qué se mueve, respaldo y
+  verificación) y esperar la confirmación del dueño del proyecto.
