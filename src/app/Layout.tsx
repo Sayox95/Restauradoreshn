@@ -1,4 +1,4 @@
-import { CloudOff, Menu, Plus, WifiOff } from 'lucide-react';
+import { CloudOff, Loader2, Menu, Plus, WifiOff } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
@@ -61,7 +61,7 @@ export function Layout() {
   const ruta = useLocation().pathname;
   // Excepción E1: lo guardado en el teléfono se envía solo (al abrir, al volver la señal o a la app).
   useEnvioAutomatico();
-  const { pendientes } = useCola();
+  const { pendientes, enviando } = useCola();
   // La barra inferior (teléfono y tableta) muestra las secciones del menú; en el formulario de visita se
   // oculta para dejar lugar a sus botones Anterior / Siguiente.
   const enFormulario = ruta === urlNuevaVisita;
@@ -97,15 +97,21 @@ export function Layout() {
             <img src="/icons/icon-192.png" alt="" className="h-8 w-8" />
             <span className="truncate text-base font-bold">Inspección de Restauradores</span>
           </NavLink>
-          {pendientes.length > 0 && (
-            <NavLink
-              to={urlMisVisitas}
-              className="flex h-9 items-center gap-1.5 rounded-full bg-amber-300 px-3 text-xs font-bold text-slate-900"
-              title="Visitas guardadas en el teléfono que faltan por enviar"
-            >
-              <CloudOff className="h-4 w-4" aria-hidden /> {pendientes.length} sin enviar
-            </NavLink>
-          )}
+          {pendientes.length > 0 &&
+            (enviando ? (
+              // Mientras se envía no es «sin señal»: se muestra que va en camino.
+              <span className="flex h-9 items-center gap-1.5 rounded-full bg-white/15 px-3 text-xs font-bold lg:bg-marca-50 lg:text-marca-700" role="status">
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> Enviando…
+              </span>
+            ) : (
+              <NavLink
+                to={urlMisVisitas}
+                className="flex h-9 items-center gap-1.5 rounded-full bg-amber-300 px-3 text-xs font-bold text-slate-900"
+                title="Visitas guardadas en el teléfono que faltan por enviar"
+              >
+                <CloudOff className="h-4 w-4" aria-hidden /> {pendientes.length} sin enviar
+              </NavLink>
+            ))}
           <NavLink
             to={urlMiCuenta}
             className={({ isActive }) =>

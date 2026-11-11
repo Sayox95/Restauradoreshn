@@ -144,7 +144,14 @@ export function RegistrarVisita() {
       enfocarFaltante(campo);
       return;
     }
-    if (!(await confirmar({ titulo: 'Guardar visita', mensaje: 'Se guardará en el teléfono y se enviará al haber señal.', confirmar: 'Guardar' }))) return;
+    if (
+      !(await confirmar({
+        titulo: 'Guardar visita',
+        mensaje: 'Se enviará ahora. Si no hay señal, queda guardada en el teléfono y se envía sola al volver la señal.',
+        confirmar: 'Guardar',
+      }))
+    )
+      return;
     setGuardando(true);
     try {
       const fotosVisita = fotos;
@@ -258,7 +265,15 @@ export function RegistrarVisita() {
           </button>
           {ultimo ? (
             <button type="button" className="btn-primario flex-1" disabled={guardando} onClick={guardar}>
-              {guardando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />} Guardar visita
+              {guardando ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin" /> Enviando…
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5" /> Guardar visita
+                </>
+              )}
             </button>
           ) : (
             <button type="button" className="btn-primario flex-1" onClick={siguiente}>

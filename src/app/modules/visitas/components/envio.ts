@@ -71,14 +71,19 @@ async function procesar(): Promise<ResultadoEnvio> {
 }
 
 let enCurso: Promise<ResultadoEnvio> | null = null;
+/** Pantallas que muestran si hay un envío en curso (p. ej. «Enviando…» en el encabezado). */
+const oyentesEnvio = new Set<(enviando: boolean) => void>();
+const avisarEnvio = (enviando: boolean) => oyentesEnvio.forEach((f) => f(enviando));
 
 /** Envía todo lo pendiente. Si ya hay un envío en curso (en esta u otra pestaña), espera a ese. */
 export function enviarPendientes(): Promise<ResultadoEnvio> {
   if (enCurso) return enCurso;
   const tarea = () => procesar();
+  avisarEnvio(true);
   const envio = (navigator.locks ? navigator.locks.request('cola-visitas', tarea) : tarea()) as Promise<ResultadoEnvio>;
   enCurso = envio.finally(() => {
     enCurso = null;
+    avisarEnvio(false);
   });
   return enCurso as Promise<ResultadoEnvio>;
 }
@@ -86,7 +91,11 @@ export function enviarPendientes(): Promise<ResultadoEnvio> {
 /** Lista de pendientes (se actualiza sola) y si hay un envío en curso. */
 export function useCola() {
   const [pendientes, setPendientes] = useState<Pendiente[]>([]);
-  const [enviando, setEnviando] = useState(false);
+  const [enviando, setEnviando] = useState(enCurso !== null);
+  useEffect(() => {
+    oyentesEnvio.add(setEnviando);
+    return () => void oyentesEnvio.delete(setEnviando);
+  }, []);
   useEffect(() => {
     let vivo = true;
     const leer = () =>
@@ -100,14 +109,8 @@ export function useCola() {
       quitar();
     };
   }, []);
-  const enviar = async () => {
-    setEnviando(true);
-    try {
-      return await enviarPendientes();
-    } finally {
-      setEnviando(false);
-    }
-  };
+  const enviar = () => enviarPendientes();
+  /** Lista y si hay un envío en curso (de cualquier origen: al guardar, automático o a pedido). */
   return { pendientes, enviando, enviar };
 }
 
