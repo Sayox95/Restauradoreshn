@@ -96,9 +96,7 @@ export const COLUMNAS_DATOS = [
   'personal_json',
   'personal_resumen',
   'firma_responsable',
-  'firma_img',
   'num_fotos',
-  'capturado_en',
 ] as const;
 
 const siNo = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v) === 1 || v === 'SI' ? 'SI' : 'NO');
@@ -115,6 +113,9 @@ const json = <T>(v: unknown, porDefecto: T): T => {
 export function filaAVisita(f: Record<string, unknown>): Visita {
   const d: Record<string, unknown> = {};
   for (const c of COLUMNAS_DATOS) d[c] = f[c] ?? null;
+  // Van en visitas_registro (ver DESDE_VISITAS).
+  d.capturado_en = f.capturado_en ?? null;
+  d.firma_img = f.firma_img ?? null;
   d.has_modem1 = siNo(f.has_modem1);
   d.has_modem2 = siNo(f.has_modem2);
   d.tablero_campos = json(f.tablero_campos, {});
@@ -124,9 +125,17 @@ export function filaAVisita(f: Record<string, unknown>): Visita {
   return d as unknown as Visita;
 }
 
+/**
+ * Origen de las consultas de visitas: los datos en `registros` (r) y el registro de cada visita (estado,
+ * quién y cuándo, firma) en `visitas_registro` (v). Las visitas anteriores no tienen fila en v.
+ */
+export const DESDE_VISITAS = `registros r
+  LEFT JOIN visitas_registro v ON v.registro_id = r.id
+  LEFT JOIN usuarios u ON u.id = v.registrado_por`;
+
 export const SELECT_RESUMEN = `
   r.id, r.visita_num, r.fecha_visita, r.tipo_visita, r.codigo_energis, r.circuito, r.ubicacion, r.zona, r.marca_reconectador,
-  r.estado, r.registrado_en, u.nombre AS registrado_por, COALESCE(r.num_fotos, 0) AS num_fotos, (r.pdf_r2_key IS NOT NULL AND r.pdf_r2_key <> '') AS tiene_pdf`;
+  COALESCE(v.estado, 'registrada') AS estado, v.registrado_en, u.nombre AS registrado_por, COALESCE(r.num_fotos, 0) AS num_fotos, (r.pdf_r2_key IS NOT NULL AND r.pdf_r2_key <> '') AS tiene_pdf`;
 
 export const resumen = (f: Record<string, unknown>): VisitaResumen => ({
   id: Number(f.id),
@@ -152,8 +161,8 @@ export const resumen = (f: Record<string, unknown>): VisitaResumen => ({
 export async function cargarVisita(ctx: Ctx, id: number) {
   const fv = filtroVisitas(ctx.usuario);
   const f = await ctx.env.DB.prepare(
-    `SELECT ${SELECT_RESUMEN}, r.registrado_por AS registrado_por_id, r.pdf_r2_key
-     FROM registros r LEFT JOIN usuarios u ON u.id = r.registrado_por
+    `SELECT ${SELECT_RESUMEN}, v.registrado_por AS registrado_por_id, r.pdf_r2_key
+     FROM ${DESDE_VISITAS}
      WHERE r.id = ? AND ${fv.sql}`,
   )
     .bind(id, ...fv.binds)
@@ -165,7 +174,9 @@ export async function cargarVisita(ctx: Ctx, id: number) {
 export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle> {
   const f = await cargarVisita(ctx, id);
   // Los datos van en una consulta aparte (menos de 100 columnas).
-  const datos = await ctx.env.DB.prepare(`SELECT ${COLUMNAS_DATOS.join(', ')} FROM registros WHERE id = ?`)
+  const datos = await ctx.env.DB.prepare(
+    `SELECT ${COLUMNAS_DATOS.map((c) => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
+  )
     .bind(id)
     .first<Record<string, unknown>>();
   const { results } = await ctx.env.DB.prepare(

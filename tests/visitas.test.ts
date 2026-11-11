@@ -19,7 +19,9 @@ describe('registrar una visita', () => {
     expect(r.status).toBe(201);
     expect(r.datos.datos.creada).toBe(true);
     expect(r.datos.datos.visita).toMatchObject({ visita_num: 'HV-20261101-080000', estado: 'registrada', registrado_por: 'Nombre beto' });
-    const fila = await t.DB.prepare('SELECT estado, registrado_por, registrado_en, capturado_en, has_modem1, materiales_json FROM registros').first<any>();
+    const fila = await t.DB.prepare(
+      'SELECT v.estado, v.registrado_por, v.registrado_en, v.capturado_en, r.has_modem1, r.materiales_json FROM registros r JOIN visitas_registro v ON v.registro_id = r.id',
+    ).first<any>();
     expect(fila).toMatchObject({
       estado: 'registrada',
       registrado_por: tec.id,

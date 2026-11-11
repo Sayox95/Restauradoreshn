@@ -1,5 +1,6 @@
 import type { Ctx } from '../../../plumbing/contexto';
 import { fechaLocal, zonaHoraria } from '../../../plumbing/zona';
+import { DESDE_VISITAS } from '../comun';
 import { filtrosVisitas } from './listar-visitas';
 
 const COLUMNAS: [string, string][] = [
@@ -50,9 +51,9 @@ export async function exportarVisitas(ctx: Ctx) {
   const f = filtrosVisitas(ctx, false);
   const tz = await zonaHoraria(ctx.env);
   const { results } = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS.filter(([c]) => c !== 'registrado_por')
+    `SELECT ${COLUMNAS.filter(([c]) => !['estado', 'registrado_por', 'registrado_en'].includes(c))
       .map(([c]) => `r.${c}`)
-      .join(', ')}, u.nombre AS registrado_por FROM registros r LEFT JOIN usuarios u ON u.id = r.registrado_por
+      .join(', ')}, COALESCE(v.estado, 'registrada') AS estado, u.nombre AS registrado_por, v.registrado_en FROM ${DESDE_VISITAS}
      WHERE ${f.sql} ORDER BY r.fecha_visita DESC, r.id DESC LIMIT 10000`,
   )
     .bind(...f.binds)

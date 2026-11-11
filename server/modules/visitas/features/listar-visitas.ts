@@ -1,12 +1,12 @@
 import { type Ctx, filtroVisitas } from '../../../plumbing/contexto';
-import { SELECT_RESUMEN, resumen } from '../comun';
+import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /** Filtros de la lista: texto (folio, Energis, circuito, ubicación) y rango de fechas de visita. */
 export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const q = ctx.url.searchParams.get('q')?.trim();
   const desde = ctx.url.searchParams.get('desde');
   const hasta = ctx.url.searchParams.get('hasta');
-  const fv = soloMias ? { sql: 'r.registrado_por = ?', binds: [ctx.usuario.id] as unknown[] } : filtroVisitas(ctx.usuario);
+  const fv = soloMias ? { sql: 'v.registrado_por = ?', binds: [ctx.usuario.id] as unknown[] } : filtroVisitas(ctx.usuario);
   const condiciones = [fv.sql];
   const binds: unknown[] = [...fv.binds];
   if (q) {
@@ -32,11 +32,11 @@ export async function listarVisitas(ctx: Ctx, pagina: number, porPagina: number,
   const [filas, total] = await db.batch<Record<string, unknown>>([
     db
       .prepare(
-        `SELECT ${SELECT_RESUMEN} FROM registros r LEFT JOIN usuarios u ON u.id = r.registrado_por
+        `SELECT ${SELECT_RESUMEN} FROM ${DESDE_VISITAS}
          WHERE ${f.sql} ORDER BY r.fecha_visita DESC, r.id DESC LIMIT ? OFFSET ?`,
       )
       .bind(...f.binds, porPagina, offset),
-    db.prepare(`SELECT COUNT(*) AS n FROM registros r WHERE ${f.sql}`).bind(...f.binds),
+    db.prepare(`SELECT COUNT(*) AS n FROM ${DESDE_VISITAS} WHERE ${f.sql}`).bind(...f.binds),
   ]);
   return { filas: filas!.results.map(resumen), total: Number(total!.results[0]!.n), pagina, por_pagina: porPagina };
 }

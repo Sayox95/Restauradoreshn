@@ -2,7 +2,7 @@ import { type Visita, faltantes, requisitosVisita, resumenMateriales, resumenPer
 import type { Ctx } from '../../../plumbing/contexto';
 import { ApiError, esErrorUnico } from '../../../plumbing/http';
 import { catalogosVisita } from '../../catalogos/features/gestionar-catalogos';
-import { COLUMNAS_DATOS, SELECT_RESUMEN, resumen } from '../comun';
+import { COLUMNAS_DATOS, DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /** Datos de la visita → valores de cada columna de `registros`. */
 function valores(v: Visita): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
@@ -50,9 +50,7 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
   const db = ctx.env.DB;
   const existente = async () => {
     const f = await db
-      .prepare(
-        `SELECT ${SELECT_RESUMEN}, r.registrado_por AS registrado_por_id FROM registros r LEFT JOIN usuarios u ON u.id = r.registrado_por WHERE r.visita_num = ?`,
-      )
+      .prepare(`SELECT ${SELECT_RESUMEN}, v.registrado_por AS registrado_por_id FROM ${DESDE_VISITAS} WHERE r.visita_num = ?`)
       .bind(v.visita_num)
       .first<Record<string, unknown>>();
     if (!f) return null;
@@ -63,13 +61,20 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
   if (previa) return previa;
 
   const datos = valores(v);
-  const columnas = [...COLUMNAS_DATOS, 'estado', 'registrado_por', 'registrado_en'];
-  const binds = [...COLUMNAS_DATOS.map((c) => datos[c] ?? null), 'registrada', ctx.usuario.id, ctx.ahora];
+  const columnas = [...COLUMNAS_DATOS];
+  const binds = COLUMNAS_DATOS.map((c) => datos[c] ?? null);
   // En la auditoría no va la imagen de la firma (solo si la hubo).
   const { firma_img, ...paraAuditoria } = v;
   try {
     await db.batch([
       db.prepare(`INSERT INTO registros (${columnas.join(', ')}) VALUES (${columnas.map(() => '?').join(',')})`).bind(...binds),
+      // Estado, quién, cuándo y la firma van aparte: `registros` está en el límite de columnas de D1.
+      db
+        .prepare(
+          `INSERT INTO visitas_registro (registro_id, estado, registrado_por, registrado_en, capturado_en, firma_img)
+           VALUES ((SELECT id FROM registros WHERE visita_num = ?), 'registrada', ?, ?, ?, ?)`,
+        )
+        .bind(v.visita_num, ctx.usuario.id, ctx.ahora, v.capturado_en, firma_img),
       db
         .prepare(
           `INSERT INTO auditoria (usuario_id, accion, entidad, entidad_id, antes, despues, creado_en)

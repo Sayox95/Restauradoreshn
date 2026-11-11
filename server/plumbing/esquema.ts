@@ -64,12 +64,8 @@ export const CUENTAS = [
 ];
 
 export const VISITAS_REGISTRO = [
-  `ALTER TABLE registros ADD COLUMN estado TEXT NOT NULL DEFAULT 'registrada' CHECK (estado IN ('registrada'))`,
-  `ALTER TABLE registros ADD COLUMN registrado_por INTEGER REFERENCES usuarios(id)`,
-  `ALTER TABLE registros ADD COLUMN registrado_en TEXT`,
-  `ALTER TABLE registros ADD COLUMN capturado_en TEXT`,
-  `ALTER TABLE registros ADD COLUMN firma_img TEXT`,
-  `CREATE INDEX IF NOT EXISTS ix_registros_registrado_por ON registros(registrado_por, registrado_en)`,
+  `CREATE TABLE IF NOT EXISTS visitas_registro ( registro_id INTEGER PRIMARY KEY REFERENCES registros(id), estado TEXT NOT NULL DEFAULT 'registrada' CHECK (estado IN ('registrada')), registrado_por INTEGER REFERENCES usuarios(id), registrado_en TEXT, capturado_en TEXT, firma_img TEXT )`,
+  `CREATE INDEX IF NOT EXISTS ix_visitas_registro_por ON visitas_registro(registrado_por, registrado_en)`,
   `ALTER TABLE registros_fotos ADD COLUMN subido_por INTEGER REFERENCES usuarios(id)`,
   `ALTER TABLE materiales ADD COLUMN activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1))`,
   `ALTER TABLE tipos ADD COLUMN activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1))`,
@@ -88,7 +84,7 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0001_registros_visita_num_unique.sql', sentencias: VISITA_UNICA, yaAplicado: existeIndice('idx_registros_visita_num') },
   { migracion: '0002_campos_formulario_v2.sql', sentencias: CAMPOS_V2, yaAplicado: existeColumna('registros', 'num_fotos') },
   { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
-  { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeColumna('registros', 'estado') },
+  { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
 ];
 
 export let listo = false;
@@ -146,11 +142,26 @@ export async function sembrarPermisos(env: Env) {
   ]);
 }
 
+/**
+ * Quita los «ALTER TABLE … ADD COLUMN» cuya columna ya existe (una base de producción que alguien
+ * ajustó a mano, o un intento anterior): así una migración no falla por una columna repetida.
+ */
+async function pendientes(env: Env, sentencias: string[]) {
+  const quedan: string[] = [];
+  for (const sql of sentencias) {
+    const m = /^ALTER TABLE (\w+) ADD COLUMN (\w+)/i.exec(sql.trim());
+    if (m && (await existeColumna(m[1]!, m[2]!)(env))) continue;
+    quedan.push(sql);
+  }
+  return quedan;
+}
+
 export async function aplicar(env: Env) {
   for (const c of CAMBIOS) {
     if (await c.yaAplicado(env)) continue;
     try {
-      await env.DB.batch(c.sentencias.map((sql) => env.DB.prepare(sql)));
+      const sentencias = await pendientes(env, c.sentencias);
+      if (sentencias.length) await env.DB.batch(sentencias.map((sql) => env.DB.prepare(sql)));
     } catch (e) {
       // Otra instancia pudo aplicarla al mismo tiempo: si ya quedó aplicada, se sigue.
       if (!(await c.yaAplicado(env))) throw e;

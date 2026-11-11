@@ -36,12 +36,12 @@ export function requierePermiso(ctx: Ctx, ...permisos: Permiso[]) {
 }
 
 /**
- * Filtro de visitas (alias `r`): con permiso de consultar, todas; sin él, solo las que registró el
+ * Filtro de visitas (alias `r` para registros y `v` para visitas_registro, ver DESDE_VISITAS): con permiso de consultar, todas; sin él, solo las que registró el
  * usuario («datos visibles sin permiso: ver lo suyo»).
  */
 export function filtroVisitas(usuario: UsuarioSesion): { sql: string; binds: number[] } {
   if (tiene(usuario, PermisosVisitas.Consultar)) return { sql: '1=1', binds: [] };
-  return { sql: 'r.registrado_por = ?', binds: [usuario.id] };
+  return { sql: 'v.registrado_por = ?', binds: [usuario.id] };
 }
 
 export async function auditar(

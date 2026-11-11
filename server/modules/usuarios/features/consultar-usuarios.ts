@@ -32,7 +32,7 @@ export async function verUsuario(ctx: Ctx, id: number) {
   const [u, sesiones, reportes, historial] = await db.batch<Record<string, unknown>>([
     db.prepare(`SELECT ${COLUMNAS} FROM usuarios WHERE id = ?`).bind(id),
     db.prepare('SELECT COUNT(*) AS n FROM sesiones WHERE usuario_id = ? AND expira_en > ?').bind(id, ctx.ahora),
-    db.prepare('SELECT COUNT(*) AS n FROM registros WHERE registrado_por = ?').bind(id),
+    db.prepare('SELECT COUNT(*) AS n FROM visitas_registro WHERE registrado_por = ?').bind(id),
     db
       .prepare(
         `SELECT a.id, a.accion, a.antes, a.despues, a.creado_en, p.nombre AS por
