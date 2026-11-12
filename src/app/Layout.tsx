@@ -62,10 +62,8 @@ export function Layout() {
   // Excepción E1: lo guardado en el teléfono se envía solo (al abrir, al volver la señal o a la app).
   useEnvioAutomatico();
   const { pendientes, enviando } = useCola();
-  // La barra inferior (teléfono y tableta) muestra las secciones del menú; en el formulario de visita se
-  // oculta para dejar lugar a sus botones Anterior / Siguiente.
-  const enFormulario = ruta === urlNuevaVisita;
-  const barraInferior = nav.length > 0 && !enFormulario;
+  // La barra inferior (teléfono y tableta) muestra las secciones del menú, también en el formulario.
+  const barraInferior = nav.length > 0;
   const [menuAbierto, setMenuAbierto] = useMenuLateral();
   // Canal de tiempo real: abierto mientras se usa la app con sesión (el marco solo existe con sesión).
   useEffect(() => {

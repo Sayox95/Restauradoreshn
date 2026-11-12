@@ -233,49 +233,45 @@ export function RegistrarVisita() {
         )}
       </div>
 
-      <div className="mb-3" aria-label={`Avance ${pct}%`}>
-        <div className="mb-1 flex justify-between text-xs font-semibold text-slate-600">
+      {/* Indicador de secciones: fijo, sin desplazamiento; un segmento por sección (se puede tocar para ir). */}
+      <div className="mb-4">
+        <div className="mb-1.5 flex justify-between text-xs font-semibold text-slate-600">
           <span>
-            Paso {paso + 1} de {SECCIONES.length}
+            Sección {paso + 1} de {SECCIONES.length}
           </span>
           <span>{pct}% completo</span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-slate-200">
-          <div className="h-full rounded-full bg-marca-500 transition-all" style={{ width: `${pct}%` }} />
-        </div>
+        <nav className="grid gap-1" style={{ gridTemplateColumns: `repeat(${SECCIONES.length}, minmax(0, 1fr))` }} aria-label="Secciones">
+          {SECCIONES.map((s, i) => {
+            const pend = revisadas.has(i) ? (pendientesPorSeccion.get(i) ?? 0) : 0;
+            const pasada = i < paso || revisadas.has(i);
+            const color = i === paso ? 'bg-marca-600' : pend ? 'bg-rose-300' : pasada && !pendientesPorSeccion.get(i) ? 'bg-marca-300' : 'bg-slate-200';
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => irA(i)}
+                aria-current={i === paso ? 'step' : undefined}
+                aria-label={`${i + 1}. ${s}${pend ? `, faltan ${pend}` : ''}`}
+                title={`${i + 1}. ${s}`}
+                className="py-2"
+              >
+                <span className={`block h-2 rounded-full transition-colors ${color}`} />
+              </button>
+            );
+          })}
+        </nav>
       </div>
 
-      <nav className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4 pb-1" aria-label="Secciones">
-        {SECCIONES.map((s, i) => {
-          const pend = revisadas.has(i) ? (pendientesPorSeccion.get(i) ?? 0) : 0;
-          return (
-            <button
-              key={s}
-              type="button"
-              onClick={() => irA(i)}
-              aria-current={i === paso ? 'step' : undefined}
-              className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 ring-inset ${
-                i === paso
-                  ? 'bg-marca-600 text-white ring-marca-600'
-                  : pend
-                    ? 'bg-rose-50 text-rose-800 ring-rose-200'
-                    : 'bg-white text-slate-600 ring-slate-200'
-              }`}
-            >
-              {i + 1}. {s}
-              {pend > 0 && ` · ${pend}`}
-            </button>
-          );
-        })}
-      </nav>
-
       <div className="tarjeta p-4">
-        <h2 className="mb-4 text-lg font-bold text-slate-900">{SECCIONES[paso]}</h2>
+        <h2 className="mb-4 text-lg font-bold text-slate-900">
+          {paso + 1}. {SECCIONES[paso]}
+        </h2>
         <Seccion b={b} set={set} faltan={faltan} cat={cat} fotos={fotos} setFotos={setFotos} />
       </div>
 
-      {/* Barra fija al pie del formulario (en esta pantalla no se muestra la barra inferior del menú). */}
-      <div className="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:mx-0 lg:rounded-t-2xl">
+      {/* Botones fijos al pie del formulario, encima de la barra del menú en el teléfono. */}
+      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:mx-0 lg:rounded-t-2xl">
         <div className="flex gap-3">
           <button type="button" className="btn-secundario flex-1" disabled={paso === 0} onClick={() => irA(paso - 1)}>
             <ChevronLeft className="h-5 w-5" /> Anterior
