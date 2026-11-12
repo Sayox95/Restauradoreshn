@@ -213,14 +213,16 @@ export const SECCIONES = [
   'Datos generales',
   'Reconectador',
   'Módems',
-  'Tablero',
-  'Corrientes',
+  'Tablero y mediciones',
   'Estado físico',
   'Materiales',
   'Fotografías',
   'Observaciones',
   'Personal',
 ] as const;
+export type NombreSeccion = (typeof SECCIONES)[number];
+/** Índice de una sección por su nombre (las reglas no usan números fijos). */
+export const seccion = (n: NombreSeccion) => SECCIONES.indexOf(n);
 
 export interface Requisito {
   /** Índice en SECCIONES. */
@@ -253,6 +255,7 @@ const lleno = (v: unknown) => v !== null && v !== undefined && String(v).trim() 
  */
 export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
   const R: Requisito[] = [];
+  const S = Object.fromEntries(SECCIONES.map((n) => [n, seccion(n)])) as Record<NombreSeccion, number>;
   const req = (seccion: number, campo: string, etiqueta: string, ok: unknown, alGuardar = false) =>
     R.push({ seccion, campo, etiqueta, ok: !!ok, ...(alGuardar ? { alGuardar } : {}) });
   const campo = (seccion: number, k: keyof Visita, etiqueta: string, alGuardar = false) => req(seccion, k, etiqueta, lleno(v[k]), alGuardar);
@@ -261,106 +264,106 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
   };
 
   // 1 · Datos generales
-  campo(0, 'fecha_visita', 'Fecha de visita');
-  campo(0, 'tipo_visita', 'Tipo de visita');
-  campo(0, 'hora_llegada', 'Hora de llegada');
-  campo(0, 'hora_salida', 'Hora de salida', true);
-  campo(0, 'codigo_energis', 'Código Energis');
-  campo(0, 'gen_distribuida', 'Generación distribuida');
+  campo(S['Datos generales'], 'fecha_visita', 'Fecha de visita');
+  campo(S['Datos generales'], 'tipo_visita', 'Tipo de visita');
+  campo(S['Datos generales'], 'hora_llegada', 'Hora de llegada');
+  campo(S['Datos generales'], 'hora_salida', 'Hora de salida', true);
+  campo(S['Datos generales'], 'codigo_energis', 'Código Energis');
+  campo(S['Datos generales'], 'gen_distribuida', 'Generación distribuida');
   if (v.latitud !== null && (v.latitud < RANGO_LATITUD[0] || v.latitud > RANGO_LATITUD[1]))
-    req(0, 'latitud', `Latitud fuera de Honduras (${RANGO_LATITUD[0]} a ${RANGO_LATITUD[1]}); ¿está invertida con la longitud?`, false);
+    req(S['Datos generales'], 'latitud', `Latitud fuera de Honduras (${RANGO_LATITUD[0]} a ${RANGO_LATITUD[1]}); ¿está invertida con la longitud?`, false);
   if (v.longitud !== null && (v.longitud < RANGO_LONGITUD[0] || v.longitud > RANGO_LONGITUD[1]))
-    req(0, 'longitud', `Longitud fuera de Honduras (${RANGO_LONGITUD[0]} a ${RANGO_LONGITUD[1]})`, false);
+    req(S['Datos generales'], 'longitud', `Longitud fuera de Honduras (${RANGO_LONGITUD[0]} a ${RANGO_LONGITUD[1]})`, false);
 
   // 2 · Reconectador
-  catalogo(1, 'tipo_recon', 'Tipo de reconectador');
-  catalogo(1, 'marca_reconectador', 'Marca');
-  catalogo(1, 'modelo_recon', 'Modelo');
-  catalogo(1, 'tipo_control', 'Tipo de control');
-  campo(1, 'serie_recon', 'Serie del reconectador');
-  campo(1, 'serie_control', 'Serie del control');
-  campo(1, 'medio_extincion', 'Medio de extinción');
+  catalogo(S['Reconectador'], 'tipo_recon', 'Tipo de reconectador');
+  catalogo(S['Reconectador'], 'marca_reconectador', 'Marca');
+  catalogo(S['Reconectador'], 'modelo_recon', 'Modelo');
+  catalogo(S['Reconectador'], 'tipo_control', 'Tipo de control');
+  campo(S['Reconectador'], 'serie_recon', 'Serie del reconectador');
+  campo(S['Reconectador'], 'serie_control', 'Serie del control');
+  campo(S['Reconectador'], 'medio_extincion', 'Medio de extinción');
   if (esCooper(v)) {
-    campo(1, 'proview_control', 'Firmware / Proview');
-    campo(1, 'term_sens_v', 'Terminal p/sensores V');
-    campo(1, 'mangu_sens_v', 'Manguera sensores V');
-    campo(1, 'term_mangu_aux', 'Terminal manguera aux');
-    campo(1, 'mangu_aux', 'Manguera auxiliar');
+    campo(S['Reconectador'], 'proview_control', 'Firmware / Proview');
+    campo(S['Reconectador'], 'term_sens_v', 'Terminal p/sensores V');
+    campo(S['Reconectador'], 'mangu_sens_v', 'Manguera sensores V');
+    campo(S['Reconectador'], 'term_mangu_aux', 'Terminal manguera aux');
+    campo(S['Reconectador'], 'mangu_aux', 'Manguera auxiliar');
   }
 
   // 3 · Módems
   for (const n of [1, 2] as const) {
-    campo(2, `has_modem${n}`, `¿Tiene módem ${n}?`);
+    campo(S['Módems'], `has_modem${n}`, `¿Tiene módem ${n}?`);
     if (v[`has_modem${n}`] !== 'SI') continue;
-    campo(2, `tipo_modem${n}`, `Tipo módem ${n}`);
-    catalogo(2, `marca_modem${n}`, `Marca módem ${n}`);
-    catalogo(2, `modelo_modem${n}`, `Modelo módem ${n}`);
-    campo(2, `serie_modem${n}`, `Serie módem ${n}`);
-    campo(2, `antena_modem${n}`, `Antena módem ${n}`);
-    if (v[`antena_modem${n}`] === 'EXTERNA') campo(2, `tipo_antena${n}`, `Tipo de antena ${n}`);
-    campo(2, `tec_modem${n}`, `Tecnología módem ${n}`);
+    campo(S['Módems'], `tipo_modem${n}`, `Tipo módem ${n}`);
+    catalogo(S['Módems'], `marca_modem${n}`, `Marca módem ${n}`);
+    catalogo(S['Módems'], `modelo_modem${n}`, `Modelo módem ${n}`);
+    campo(S['Módems'], `serie_modem${n}`, `Serie módem ${n}`);
+    campo(S['Módems'], `antena_modem${n}`, `Antena módem ${n}`);
+    if (v[`antena_modem${n}`] === 'EXTERNA') campo(S['Módems'], `tipo_antena${n}`, `Tipo de antena ${n}`);
+    campo(S['Módems'], `tec_modem${n}`, `Tecnología módem ${n}`);
   }
 
   // 4 · Tablero, alarma y batería
-  for (const t of c.camposTablero) req(3, `tablero.${t}`, t, lleno(v.tablero_campos[t]));
-  if (c.camposTablero.length) campo(3, 'ajuste_activo', 'Grupo activo');
-  campo(3, 'alarma_presente', 'Alarma presente');
-  if (v.alarma_presente === 'SI') campo(3, 'desc_alarma', 'Descripción de la alarma');
-  campo(3, 'medicion_ac', 'Medición AC');
-  campo(3, 'medicion_bat', 'Medición baterías');
-  campo(3, 'medicion_cargador', 'Medición cargador');
-  campo(3, 'battery_test', 'Battery test');
-  campo(3, 'cambio_baterias', 'Cambio de baterías');
-  if (v.cambio_baterias === 'SI') campo(3, 'tipo_bateria', 'Tipo de batería instalada');
+  for (const t of c.camposTablero) req(S['Tablero y mediciones'], `tablero.${t}`, t, lleno(v.tablero_campos[t]));
+  if (c.camposTablero.length) campo(S['Tablero y mediciones'], 'ajuste_activo', 'Grupo activo');
+  campo(S['Tablero y mediciones'], 'alarma_presente', 'Alarma presente');
+  if (v.alarma_presente === 'SI') campo(S['Tablero y mediciones'], 'desc_alarma', 'Descripción de la alarma');
+  campo(S['Tablero y mediciones'], 'medicion_ac', 'Medición AC');
+  campo(S['Tablero y mediciones'], 'medicion_bat', 'Medición baterías');
+  campo(S['Tablero y mediciones'], 'medicion_cargador', 'Medición cargador');
+  campo(S['Tablero y mediciones'], 'battery_test', 'Battery test');
+  campo(S['Tablero y mediciones'], 'cambio_baterias', 'Cambio de baterías');
+  if (v.cambio_baterias === 'SI') campo(S['Tablero y mediciones'], 'tipo_bateria', 'Tipo de batería instalada');
 
-  // 5 · Corrientes
-  campo(4, 'corr_ia', 'Corriente IA');
+  // 4 · Tablero y mediciones: corrientes
+  campo(S['Tablero y mediciones'], 'corr_ia', 'Corriente IA');
   if (!esMonofasico(v)) {
-    campo(4, 'corr_ib', 'Corriente IB');
-    campo(4, 'corr_ic', 'Corriente IC');
+    campo(S['Tablero y mediciones'], 'corr_ib', 'Corriente IB');
+    campo(S['Tablero y mediciones'], 'corr_ic', 'Corriente IC');
   }
-  campo(4, 'corr_in', 'Corriente IN');
+  campo(S['Tablero y mediciones'], 'corr_in', 'Corriente IN');
 
-  // 6 · Estado físico
-  campo(5, 'gabinete', 'Gabinete');
-  campo(5, 'borneras', 'Borneras');
-  if (v.gabinete === 'NOK' || v.borneras === 'NOK') campo(5, 'obs_estado_fisico', 'Observación del estado físico (hay un NOK)');
-  campo(5, 'ater_rest_state', 'Aterrizaje restaurador');
-  campo(5, 'ater_ctrl_state', 'Aterrizaje control');
-  campo(5, 'cable_tierra', 'Cable de tierra');
-  campo(5, 'num_varillas', '# Varillas');
-  campo(5, 'ater_control', 'Resistencia de aterrizaje del control');
-  campo(5, 'ater_restaurador', 'Resistencia de aterrizaje del restaurador');
-  campo(5, 'tipo_cuchilla', 'Tipo de cuchilla');
-  campo(5, 'estado_cuchillas', 'Estado de cuchillas');
-  campo(5, 'num_cuchillas', '# Cuchillas');
-  campo(5, 'pararrayos', 'Pararrayos');
-  campo(5, 'num_pararrayos', '# Pararrayos');
-  campo(5, 'tiene_potencial', '¿Tiene potencial?');
+  // 5 · Estado físico
+  campo(S['Estado físico'], 'gabinete', 'Gabinete');
+  campo(S['Estado físico'], 'borneras', 'Borneras');
+  if (v.gabinete === 'NOK' || v.borneras === 'NOK') campo(S['Estado físico'], 'obs_estado_fisico', 'Observación del estado físico (hay un NOK)');
+  campo(S['Estado físico'], 'ater_rest_state', 'Aterrizaje restaurador');
+  campo(S['Estado físico'], 'ater_ctrl_state', 'Aterrizaje control');
+  campo(S['Estado físico'], 'cable_tierra', 'Cable de tierra');
+  campo(S['Estado físico'], 'num_varillas', '# Varillas');
+  campo(S['Estado físico'], 'ater_control', 'Resistencia de aterrizaje del control');
+  campo(S['Estado físico'], 'ater_restaurador', 'Resistencia de aterrizaje del restaurador');
+  campo(S['Estado físico'], 'tipo_cuchilla', 'Tipo de cuchilla');
+  campo(S['Estado físico'], 'estado_cuchillas', 'Estado de cuchillas');
+  campo(S['Estado físico'], 'num_cuchillas', '# Cuchillas');
+  campo(S['Estado físico'], 'pararrayos', 'Pararrayos');
+  campo(S['Estado físico'], 'num_pararrayos', '# Pararrayos');
+  campo(S['Estado físico'], 'tiene_potencial', '¿Tiene potencial?');
   if (v.tiene_potencial === 'SI') {
-    campo(5, 'pot_cantidad', 'Cantidad de potencial');
-    campo(5, 'fase_conexion', 'Fase de conexión');
-    campo(5, 'pot_pararrayos', 'Pararrayos del potencial');
-    campo(5, 'pot_cuchilla', 'Cuchilla del potencial');
-    campo(5, 'ater_pot_state', 'Aterrizaje del potencial');
+    campo(S['Estado físico'], 'pot_cantidad', 'Cantidad de potencial');
+    campo(S['Estado físico'], 'fase_conexion', 'Fase de conexión');
+    campo(S['Estado físico'], 'pot_pararrayos', 'Pararrayos del potencial');
+    campo(S['Estado físico'], 'pot_cuchilla', 'Cuchilla del potencial');
+    campo(S['Estado físico'], 'ater_pot_state', 'Aterrizaje del potencial');
   } else if (v.tiene_potencial === 'NO') {
-    campo(5, 'alimentado_acometida', 'Alimentado por acometida');
+    campo(S['Estado físico'], 'alimentado_acometida', 'Alimentado por acometida');
   }
 
-  // 7 · Materiales (opcionales; si se agrega uno, debe estar completo)
+  // 6 · Materiales (opcionales; si se agrega uno, debe estar completo)
   v.materiales.forEach((m, i) => {
-    req(6, `material.${i}.desc`, `Descripción del material #${i + 1}`, lleno(m.desc));
-    req(6, `material.${i}.cant`, `Cantidad del material #${i + 1}`, (m.cant ?? 0) > 0);
+    req(S['Materiales'], `material.${i}.desc`, `Descripción del material #${i + 1}`, lleno(m.desc));
+    req(S['Materiales'], `material.${i}.cant`, `Cantidad del material #${i + 1}`, (m.cant ?? 0) > 0);
   });
 
-  // 8 · Fotografías (excepción E2: 1 obligatoria)
-  req(7, 'fotos', 'Al menos 1 fotografía', c.fotos > 0);
+  // 7 · Fotografías (excepción E2: 1 obligatoria)
+  req(S['Fotografías'], 'fotos', 'Al menos 1 fotografía', c.fotos > 0);
 
-  // 10 · Personal y firma
-  if (!v.personal.length) req(9, 'personal.0.nombre', 'Al menos un técnico', false);
-  v.personal.forEach((p, i) => req(9, `personal.${i}.nombre`, `Nombre del técnico #${i + 1}`, lleno(p.nombre)));
-  campo(9, 'firma_responsable', 'Nombre del responsable');
-  campo(9, 'firma_img', 'Firma del responsable');
+  // 9 · Personal y firma (8 · Observaciones no tiene campos obligatorios)
+  if (!v.personal.length) req(S['Personal'], 'personal.0.nombre', 'Al menos un técnico', false);
+  v.personal.forEach((p, i) => req(S['Personal'], `personal.${i}.nombre`, `Nombre del técnico #${i + 1}`, lleno(p.nombre)));
+  campo(S['Personal'], 'firma_responsable', 'Nombre del responsable');
+  campo(S['Personal'], 'firma_img', 'Firma del responsable');
 
   return R;
 }

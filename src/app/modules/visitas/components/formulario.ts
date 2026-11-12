@@ -7,6 +7,8 @@ import { type ContextoReglas, type Visita, type VisitaEntrada, folioNuevo, requi
 import { opcionesDe } from './catalogos';
 
 export interface MaterialB {
+  /** Código del catálogo, «OTRO» (se escribe a mano) o vacío (sin elegir). */
+  eleccion?: string;
   codigo: string;
   desc: string;
   unidad: string;

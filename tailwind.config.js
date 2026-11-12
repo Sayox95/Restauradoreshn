@@ -7,6 +7,7 @@ export default {
         marca: {
           50: '#eef5fb',
           100: '#d6e6f4',
+          300: '#8fb6dc',
           500: '#2b6cb0',
           600: '#1f5a99',
           700: '#17497f',

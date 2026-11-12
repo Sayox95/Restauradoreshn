@@ -1,4 +1,4 @@
-/** Las diez secciones de la hoja de visita. Una columna al capturar (salvo mediciones, excepción E4). */
+/** Las nueve secciones de la hoja de inspección. Una columna al capturar (salvo mediciones, excepción E4). */
 import {
   ANTENAS,
   CARGOS_PERSONAL,
@@ -304,8 +304,9 @@ export function Modems({ b, set, faltan, cat }: PropsSeccion) {
   );
 }
 
-// ── 4 · Tablero, alarma y batería ───────────────────────────────────────────────────────────
+// ── 4 · Tablero y mediciones (tablero, alarma, batería y corrientes) ─────────────────────────
 export function Tablero({ b, set, faltan, cat }: PropsSeccion) {
+  const mono = esMonofasico({ tipo_recon: b.tipo_recon ?? null });
   const campos = opcionesDe(cat, b.marca_reconectador).camposTablero;
   return (
     <>
@@ -371,33 +372,26 @@ export function Tablero({ b, set, faltan, cat }: PropsSeccion) {
           </Campo>
         )}
       </Bloque>
+      <Bloque titulo="Corrientes instantáneas (A)">
+        <FilaMediciones
+          unidad="A"
+          faltan={faltan}
+          valores={b}
+          onCambio={(id, v) => set({ [id]: v })}
+          campos={[
+            { id: 'corr_ia', etiqueta: 'IA', requerido: true },
+            { id: 'corr_ib', etiqueta: 'IB', requerido: !mono },
+            { id: 'corr_ic', etiqueta: 'IC', requerido: !mono },
+            { id: 'corr_in', etiqueta: 'IN', requerido: true },
+          ]}
+        />
+        {mono && <p className="text-xs text-slate-500">Reconectador monofásico: IB e IC son opcionales.</p>}
+      </Bloque>
     </>
   );
 }
 
-// ── 5 · Corrientes ──────────────────────────────────────────────────────────────────────────
-export function Corrientes({ b, set, faltan }: PropsSeccion) {
-  const mono = esMonofasico({ tipo_recon: b.tipo_recon ?? null });
-  return (
-    <Bloque titulo="Corrientes instantáneas (A)">
-      <FilaMediciones
-        unidad="A"
-        faltan={faltan}
-        valores={b}
-        onCambio={(id, v) => set({ [id]: v })}
-        campos={[
-          { id: 'corr_ia', etiqueta: 'IA', requerido: true },
-          { id: 'corr_ib', etiqueta: 'IB', requerido: !mono },
-          { id: 'corr_ic', etiqueta: 'IC', requerido: !mono },
-          { id: 'corr_in', etiqueta: 'IN', requerido: true },
-        ]}
-      />
-      {mono && <p className="text-xs text-slate-500">Reconectador monofásico: IB e IC son opcionales.</p>}
-    </Bloque>
-  );
-}
-
-// ── 6 · Estado físico ───────────────────────────────────────────────────────────────────────
+// ── 5 · Estado físico ───────────────────────────────────────────────────────────────────────
 export function EstadoFisico({ b, set, faltan }: PropsSeccion) {
   const op = (k: string, t: string, opciones: readonly string[] = OK_NOK) => (
     <Campo id={k} etiqueta={t} requerido falta={faltan.has(k)}>
@@ -479,7 +473,11 @@ export function EstadoFisico({ b, set, faltan }: PropsSeccion) {
   );
 }
 
-// ── 7 · Materiales ──────────────────────────────────────────────────────────────────────────
+/** Lo elegido en «Material» (los borradores anteriores no guardaban la elección: se deduce). */
+const eleccionDe = (m: MaterialB) => m.eleccion ?? (m.codigo || (m.desc ? 'OTRO' : ''));
+const otro = (m: MaterialB) => eleccionDe(m) === 'OTRO';
+
+// ── 6 · Materiales ──────────────────────────────────────────────────────────────────────────
 export function Materiales({ b, set, faltan, cat }: PropsSeccion) {
   const cambiar = (i: number, c: Partial<MaterialB>) => set({ materiales: b.materiales.map((m, j) => (j === i ? { ...m, ...c } : m)) });
   return (
@@ -498,31 +496,46 @@ export function Materiales({ b, set, faltan, cat }: PropsSeccion) {
               <X className="h-5 w-5" />
             </button>
           </div>
-          <Campo id={`material.${i}.catalogo`} etiqueta="Del catálogo">
+          {/* Como el personal: se elige del catálogo y, si no está, «Otro» permite escribirlo. */}
+          <Campo
+            id={otro(m) ? `material.${i}.eleccion` : `material.${i}.desc`}
+            etiqueta="Material"
+            requerido
+            falta={!otro(m) && faltan.has(`material.${i}.desc`)}
+          >
             <select
-              id={`v-material.${i}.catalogo`}
+              id={`v-${otro(m) ? `material.${i}.eleccion` : `material.${i}.desc`}`}
               className="campo"
-              value={m.codigo}
+              value={eleccionDe(m)}
               onChange={(e) => {
-                const mat = cat?.materiales.find((x) => x.codigo === e.target.value);
-                cambiar(i, mat ? { codigo: mat.codigo, desc: mat.nombre, unidad: mat.unidad ?? '' } : { codigo: '' });
+                const v = e.target.value;
+                const mat = cat?.materiales.find((x) => x.codigo === v);
+                cambiar(
+                  i,
+                  mat ? { eleccion: v, codigo: mat.codigo, desc: mat.nombre, unidad: mat.unidad ?? '' } : { eleccion: v, codigo: '', desc: '', unidad: '' },
+                );
               }}
             >
-              <option value="">— Escribir a mano —</option>
+              <option value="">— Elegir —</option>
               {cat?.materiales.map((x) => (
                 <option key={x.id} value={x.codigo}>
                   {x.codigo} · {x.nombre}
                 </option>
               ))}
+              <option value="OTRO">Otro (escribir el material)</option>
             </select>
           </Campo>
-          <Campo id={`material.${i}.desc`} etiqueta="Descripción" requerido falta={faltan.has(`material.${i}.desc`)}>
-            <Texto id={`material.${i}.desc`} valor={m.desc} onCambio={(v) => cambiar(i, { desc: v })} />
-          </Campo>
-          <Campo id={`material.${i}.unidad`} etiqueta="Unidad">
-            <Texto id={`material.${i}.unidad`} valor={m.unidad} placeholder="UN" onCambio={(v) => cambiar(i, { unidad: v.toUpperCase() })} />
-          </Campo>
-          <Campo id={`material.${i}.cant`} etiqueta="Cantidad" requerido falta={faltan.has(`material.${i}.cant`)}>
+          {otro(m) && (
+            <>
+              <Campo id={`material.${i}.desc`} etiqueta="Descripción" requerido falta={faltan.has(`material.${i}.desc`)}>
+                <Texto id={`material.${i}.desc`} valor={m.desc} onCambio={(v) => cambiar(i, { desc: v })} />
+              </Campo>
+              <Campo id={`material.${i}.unidad`} etiqueta="Unidad">
+                <Texto id={`material.${i}.unidad`} valor={m.unidad} placeholder="UN" onCambio={(v) => cambiar(i, { unidad: v.toUpperCase() })} />
+              </Campo>
+            </>
+          )}
+          <Campo id={`material.${i}.cant`} etiqueta={`Cantidad${m.unidad ? ` (${m.unidad})` : ''}`} requerido falta={faltan.has(`material.${i}.cant`)}>
             <Texto id={`material.${i}.cant`} valor={m.cant} numerico onCambio={(v) => cambiar(i, { cant: v })} />
           </Campo>
           <Campo id={`material.${i}.motivo`} etiqueta="Motivo">
@@ -533,7 +546,7 @@ export function Materiales({ b, set, faltan, cat }: PropsSeccion) {
       <button
         type="button"
         className="btn-secundario mb-4 w-full border-dashed"
-        onClick={() => set({ materiales: [...b.materiales, { codigo: '', desc: '', unidad: '', cant: '', motivo: '' }] })}
+        onClick={() => set({ materiales: [...b.materiales, { eleccion: '', codigo: '', desc: '', unidad: '', cant: '', motivo: '' }] })}
       >
         <Plus className="h-5 w-5" /> Agregar material
       </button>
@@ -544,12 +557,12 @@ export function Materiales({ b, set, faltan, cat }: PropsSeccion) {
   );
 }
 
-// ── 8 · Fotografías ─────────────────────────────────────────────────────────────────────────
+// ── 7 · Fotografías ─────────────────────────────────────────────────────────────────────────
 export function Fotografias({ fotos, setFotos, faltan }: PropsSeccion) {
   return <Fotos fotos={fotos} onCambio={setFotos} falta={faltan.has('fotos')} />;
 }
 
-// ── 9 · Observaciones ───────────────────────────────────────────────────────────────────────
+// ── 8 · Observaciones ───────────────────────────────────────────────────────────────────────
 export function Observaciones({ b, set }: PropsSeccion) {
   return (
     <Campo id="obs_generales" etiqueta="Observaciones generales">
@@ -564,7 +577,7 @@ export function Observaciones({ b, set }: PropsSeccion) {
   );
 }
 
-// ── 10 · Personal y firma ───────────────────────────────────────────────────────────────────
+// ── 9 · Personal y firma ───────────────────────────────────────────────────────────────────
 export function Personal({ b, set, faltan, cat }: PropsSeccion) {
   // El nombre del responsable se copia del técnico #1 mientras no se escriba a mano.
   const conPersonal = (personal: PersonaB[]) => set({ personal, ...(b.responsable_a_mano ? {} : { firma_responsable: personal[0]?.nombre ?? '' }) });
@@ -645,15 +658,4 @@ export function Personal({ b, set, faltan, cat }: PropsSeccion) {
   );
 }
 
-export const SECCIONES_FORMULARIO = [
-  DatosGenerales,
-  Reconectador,
-  Modems,
-  Tablero,
-  Corrientes,
-  EstadoFisico,
-  Materiales,
-  Fotografias,
-  Observaciones,
-  Personal,
-] as const;
+export const SECCIONES_FORMULARIO = [DatosGenerales, Reconectador, Modems, Tablero, EstadoFisico, Materiales, Fotografias, Observaciones, Personal] as const;

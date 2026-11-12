@@ -1,4 +1,4 @@
-/** Detalle de una visita (solo lectura): datos por sección, fotos originales y la ficha PDF archivada. */
+/** Detalle de una inspección (solo lectura): datos por sección, fotos originales y la ficha PDF archivada. */
 import { useQuery } from '@tanstack/react-query';
 import { SECCIONES, type Visita } from '@shared/visitas';
 import { FileDown } from 'lucide-react';
@@ -10,6 +10,7 @@ import { fecha, fechaHora } from '@/common/utils/fechas';
 import { urlFoto, urlPdf, verVisita } from '../../api';
 
 type Fila = [string, keyof Visita];
+// Un bloque por cada sección de SECCIONES (en el mismo orden).
 const DATOS: Fila[][] = [
   [
     ['Fecha', 'fecha_visita'],
@@ -64,8 +65,6 @@ const DATOS: Fila[][] = [
     ['Battery test', 'battery_test'],
     ['Cambio de baterías', 'cambio_baterias'],
     ['Tipo de batería', 'tipo_bateria'],
-  ],
-  [
     ['IA (A)', 'corr_ia'],
     ['IB (A)', 'corr_ib'],
     ['IC (A)', 'corr_ic'],
