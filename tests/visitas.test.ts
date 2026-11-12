@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { requisitosVisita, visitaEsquema } from '../shared/visitas';
+import { PATRON_FOLIO, folioNuevo, requisitosVisita, visitaEsquema } from '../shared/visitas';
 import { JPEG, PDF, visitaCompleta } from './datos';
 import { crearEntorno } from './entorno';
 
@@ -44,6 +44,14 @@ describe('registrar una visita', () => {
     // El mismo número usado por otra persona es un conflicto.
     const ana = await t.crearUsuario('ana', 'tecnico');
     expect((await registrar(ana.cookie)).status).toBe(409);
+  });
+
+  it('el folio es legible y único aunque se generen muchos en el mismo segundo', () => {
+    const ahora = new Date(2026, 10, 12, 9, 5, 7);
+    const folios = Array.from({ length: 500 }, () => folioNuevo(ahora));
+    expect(folios[0]).toMatch(/^IR-20261112-090507-[A-Z2-9]{4}$/);
+    expect(folios.every((f) => PATRON_FOLIO.test(f))).toBe(true);
+    expect(new Set(folios).size).toBeGreaterThan(495);
   });
 
   it('rechaza una visita incompleta con los campos que faltan', async () => {

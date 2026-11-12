@@ -1,9 +1,8 @@
-import { CloudOff, Menu, Plus, WifiOff } from 'lucide-react';
+import { CloudOff, Menu, WifiOff } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCola, useEnvioAutomatico } from '@/app/modules/visitas/components/envio';
-import { PermisosVisitas } from '@/app/modules/visitas/permisos';
 import { urlInspecciones, urlNuevaVisita } from '@/app/modules/visitas/urls';
 import { Cargando } from '@/common/components/ui';
 import { ErrorPantalla } from '@/common/components/ErrorPantalla';
@@ -56,7 +55,6 @@ export function Layout() {
   const { hasAccess } = useAccess();
   // Un solo menú: cada opción se muestra según su permiso.
   const nav = menuPrincipal.filter((o) => hasAccess(o.access));
-  const puedeRegistrar = hasAccess([PermisosVisitas.Registrar]);
   const enLinea = useEnLinea();
   const ruta = useLocation().pathname;
   // Excepción E1: lo guardado en el teléfono se envía solo (al abrir, al volver la señal o a la app).
@@ -101,7 +99,7 @@ export function Layout() {
             <NavLink
               to={urlInspecciones}
               className="flex h-9 items-center gap-1.5 rounded-full bg-amber-300 px-3 text-xs font-bold text-slate-900"
-              title="Visitas guardadas en el teléfono que faltan por enviar"
+              title="Inspecciones guardadas en el teléfono que faltan por enviar"
             >
               <CloudOff className="h-4 w-4" aria-hidden /> {pendientes.length} sin enviar
             </NavLink>
@@ -119,7 +117,7 @@ export function Layout() {
         </div>
         {!enLinea && (
           <div className="flex items-center justify-center gap-2 bg-amber-300 px-4 py-1.5 text-center text-sm font-semibold text-slate-900" role="status">
-            <WifiOff className="h-4 w-4" aria-hidden /> Sin conexión. Las visitas se guardan en el teléfono y se envían al volver la señal.
+            <WifiOff className="h-4 w-4" aria-hidden /> Sin conexión. Las inspecciones se guardan en el teléfono y se envían al volver la señal.
           </div>
         )}
       </header>
@@ -129,14 +127,6 @@ export function Layout() {
         id="menu-lateral"
         className={`fixed bottom-0 left-0 top-14 z-20 hidden w-60 overflow-y-auto border-r border-slate-200 bg-white px-3 py-4 transition-[transform,visibility] duration-200 ease-out lg:block ${menuAbierto ? '' : 'lg:invisible lg:-translate-x-full'}`}
       >
-        {puedeRegistrar && (
-          <NavLink
-            to={urlNuevaVisita}
-            className="mb-4 flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-amber-300 text-sm font-bold text-slate-900 hover:bg-amber-200"
-          >
-            <Plus className="h-5 w-5" aria-hidden /> Nueva visita
-          </NavLink>
-        )}
         <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Menú</p>
         <nav aria-label="Principal" className="space-y-1">
           {nav.map(({ a, texto, icono: Icono }) => (

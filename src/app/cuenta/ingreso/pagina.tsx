@@ -146,7 +146,7 @@ export function Login() {
   };
 
   return (
-    <Marco subtitulo="UTCD · Hojas de visita">
+    <Marco subtitulo="UTCD · Hojas de inspección">
       <form onSubmit={entrar} className="tarjeta w-full max-w-sm space-y-4 p-6">
         <Campo
           id="usuario"

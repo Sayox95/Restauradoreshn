@@ -297,7 +297,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   }
   line(46, 5, 46, 19, [60, 85, 120], 0.3);
   setFont(14, 'bold', WHITE);
-  txt('HOJA DE VISITA', 50, 11);
+  txt('HOJA DE INSPECCIÓN', 50, 11);
   setFont(7.5, 'normal', ACCENT);
   txt('Inspección de Restauradores · SCADA Distribución', 50, 16.5);
   // N° de visita: recuadro claro con buen contraste
@@ -305,7 +305,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     nvX = PW - MR - nvW;
   rect(nvX, 5, nvW, 14, WHITE, null, 1.5);
   setFont(6.2, 'bold', MUTED);
-  txt('N° DE VISITA', nvX + nvW / 2, 9.2, { align: 'center' });
+  txt('FOLIO', nvX + nvW / 2, 9.2, { align: 'center' });
   setFont(10.5, 'bold', NAVY);
   txt(d.visitaNum || '—', nvX + nvW / 2, 15.6, { align: 'center' });
   y = 28;
@@ -570,7 +570,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     cabP = 6.5;
   const altoTabla = cabP + Math.max(1, personal.length) * filaP;
   const altoBloque = Math.max(46, altoTabla);
-  seccion('PERSONAL DE VISITA Y FIRMA');
+  seccion('PERSONAL Y FIRMA');
   abrir(altoBloque);
   const gap = 5,
     persW = CW * 0.58 - gap / 2,
@@ -628,7 +628,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       doc.setPage(i);
       rect(0, PH - 10, PW, 10, NAVY);
       setFont(6.5, 'normal', [150, 170, 200]);
-      txt('SCADA Distribución — Hoja de Visita · ' + (d.visitaNum || '') + ' · ' + (d.fechaVisita || ''), ML, PH - 4);
+      txt('SCADA Distribución — Hoja de Inspección · ' + (d.visitaNum || '') + ' · ' + (d.fechaVisita || ''), ML, PH - 4);
       txt('Pág. ' + i + ' / ' + pages, PW - MR, PH - 4, { align: 'right' });
       txt('Generado: ' + new Date().toLocaleString('es-HN'), PW / 2, PH - 4, { align: 'center' });
     }

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
+import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
 
 const textoOpcional = (max: number) =>
   z
@@ -133,7 +133,11 @@ export const materialCatalogoEsquema = z.object({
 
 export const personaCatalogoEsquema = z.object({
   nombre: obligatorio('el nombre', 100),
-  cargo: textoOpcional(60),
+  /** Uno de CARGOS_PERSONAL: la misma lista de la hoja, para que el cargo pase tal cual a la inspección. */
+  cargo: z
+    .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
+    .optional()
+    .transform((v) => v || null),
   empleado_id: textoOpcional(40),
   activo,
 });

@@ -4,7 +4,7 @@ import { DESDE_VISITAS } from '../comun';
 import { filtrosVisitas } from './listar-visitas';
 
 const COLUMNAS: [string, string][] = [
-  ['visita_num', 'N° visita'],
+  ['visita_num', 'Folio'],
   ['fecha_visita', 'Fecha'],
   ['tipo_visita', 'Tipo de visita'],
   ['hora_llegada', 'Llegada'],

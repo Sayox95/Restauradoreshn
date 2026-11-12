@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { ELEMENTOS_MODEM } from '../../../../shared/constantes';
+import { CARGOS_PERSONAL, ELEMENTOS_MODEM } from '../../../../shared/constantes';
 import type {
   marcaCatalogoEsquema,
   materialCatalogoEsquema,
@@ -231,7 +231,12 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
   return {
     restauradores: rest!.results.map(fila) as unknown as CatalogosVisita['restauradores'],
     materiales: mats!.results.map(fila) as unknown as CatalogosVisita['materiales'],
-    personal: pers!.results.map(fila) as unknown as CatalogosVisita['personal'],
+    // Cargos escritos a mano en la versión anterior que no son de la lista de la hoja no se ofrecen (se
+    // corrigen en Catálogos → Personal); así la inspección solo recibe cargos válidos.
+    personal: pers!.results.map((p) => ({
+      ...fila(p),
+      cargo: (CARGOS_PERSONAL as readonly unknown[]).includes(p.cargo) ? p.cargo : null,
+    })) as unknown as CatalogosVisita['personal'],
     tipos: tipos!.results.map((t) => String(t.tipo)),
     marcas: [...restMap.values()],
     modems: [...modemMap.values()],

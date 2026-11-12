@@ -63,7 +63,7 @@ export function ActualizacionAutomatica() {
       <div className="fixed inset-x-0 top-14 z-[55] flex justify-center px-4 pt-2" role="status">
         <div className="flex w-full max-w-md items-center gap-3 rounded-xl bg-marca-900 px-4 py-2.5 text-sm text-white shadow-lg">
           <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="flex-1">Hay una versión nueva. Se aplicará al terminar la visita.</span>
+          <span className="flex-1">Hay una versión nueva. Se aplicará al terminar la inspección.</span>
         </div>
       </div>
     );

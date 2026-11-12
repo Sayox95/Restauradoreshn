@@ -10,3 +10,17 @@ export interface OpcionMenu {
   icono: LucideIcon;
   access: Permiso[];
 }
+
+/**
+ * Tipo de registro que se puede empezar desde «+ Nueva» (p. ej. «Inspección de restaurador»). Cada módulo
+ * declara los suyos; la pantalla «Nueva» los reúne según los permisos de cada quien.
+ */
+export interface OpcionNueva {
+  a: string;
+  texto: string;
+  descripcion: string;
+  icono: LucideIcon;
+  access: Permiso[];
+  /** Si hay uno a medio llenar en el teléfono, su descripción corta (para mostrar «Continuar»). */
+  enCurso?: () => Promise<string | null>;
+}

@@ -29,7 +29,7 @@ export function alCambiarPaso(fn: (paso: string) => void) {
 
 async function enviarUna(p: Pendiente, signal: AbortSignal): Promise<number> {
   if (!p.id) {
-    avisarPaso('Registrando la visita');
+    avisarPaso('Registrando la inspección');
     const r = await registrarVisita(p.visita, signal);
     p.id = r.visita.id;
     p.error = undefined;

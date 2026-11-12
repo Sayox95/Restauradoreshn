@@ -1,2 +1,2 @@
-export { menuVisitas } from './visitas-menu';
+export { menuVisitas, nuevasVisitas } from './visitas-menu';
 export { rutasVisitas } from './visitas-routing';

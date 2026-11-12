@@ -171,7 +171,7 @@ export function VerUsuario() {
           <Dato titulo="Cuenta creada">{fecha(u.creado_en)}</Dato>
           <Dato titulo="Último ingreso">{u.ultimo_ingreso_en ? fechaHora(u.ultimo_ingreso_en) : 'Nunca'}</Dato>
           <Dato titulo="Sesiones abiertas">{u.sesiones_activas}</Dato>
-          <Dato titulo="Visitas registradas">{u.visitas_registradas}</Dato>
+          <Dato titulo="Inspecciones registradas">{u.visitas_registradas}</Dato>
           {u.debe_cambiar_password && <Dato titulo="Contraseña">Temporal (pendiente de cambio)</Dato>}
         </dl>
         {!propia && (u.estado === 'activa' || u.estado === 'inactiva') && (

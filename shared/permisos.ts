@@ -26,7 +26,7 @@ export const PermisosUsuarios = {
 } as const;
 
 /**
- * Catálogos de la hoja de visita (restauradores, materiales, personal, tipos, marcas, tableros) y zona
+ * Catálogos de la hoja de inspección (restauradores, materiales, personal, tipos, marcas, tableros) y zona
  * horaria. Al migrar los reemplaza el servicio de Parámetros.
  */
 export const PermisosCatalogos = {
@@ -42,11 +42,11 @@ export type Permiso =
 export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Permiso; nombre: string }[] }[] = [
   {
     codigo: 'utcd_restauradores_visitas',
-    nombre: 'Visitas',
+    nombre: 'Inspecciones',
     permisos: [
-      { codigo: PermisosVisitas.Registrar, nombre: 'Registrar hojas de visita' },
-      { codigo: PermisosVisitas.Consultar, nombre: 'Consultar las visitas de todos' },
-      { codigo: PermisosVisitas.Exportar, nombre: 'Exportar visitas a CSV' },
+      { codigo: PermisosVisitas.Registrar, nombre: 'Registrar inspecciones' },
+      { codigo: PermisosVisitas.Consultar, nombre: 'Consultar las inspecciones de todos' },
+      { codigo: PermisosVisitas.Exportar, nombre: 'Exportar inspecciones a CSV' },
     ],
   },
   {

@@ -166,7 +166,7 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
         ))}
         <label className="flex min-h-[44px] items-center gap-3">
           <input type="checkbox" className="h-5 w-5" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
-          <span className="text-sm font-medium text-slate-700">Activo (aparece en la hoja de visita)</span>
+          <span className="text-sm font-medium text-slate-700">Activo (aparece en la hoja de inspección)</span>
         </label>
       </div>
     </Hoja>
@@ -386,7 +386,7 @@ export function Catalogos() {
   const [pestana, setPestana] = useState<Pestana>('restauradores');
   return (
     <div>
-      <Encabezado volver titulo="Catálogos" subtitulo="Lo que se elige en la hoja de visita. Los registros se desactivan, no se borran." />
+      <Encabezado volver titulo="Catálogos" subtitulo="Lo que se elige en la hoja de inspección. Los registros se desactivan, no se borran." />
       <div className="mb-4">
         <label className="etiqueta" htmlFor="cat-pestana">
           Catálogo

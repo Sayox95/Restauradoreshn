@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { CambiarPasswordObligatorio } from '@/app/cuenta/cambiar-password/pagina';
 import { Login } from '@/app/cuenta/ingreso/pagina';
-import { accesoAdministracion, menuPrincipal } from '@/app/menu';
+import { accesoAdministracion, accesoNueva, menuPrincipal } from '@/app/menu';
 import { Layout } from '@/app/Layout';
 import { rutasCatalogos } from '@/app/modules/catalogos';
 import { urlMiCuenta } from '@/app/cuenta/urls';
@@ -14,6 +14,7 @@ import { AuthRoute, useAccess } from '@/common/seguridad/acceso';
 import { useSesion } from '@/common/seguridad/sesion';
 
 const MiCuenta = lazy(() => import('@/app/cuenta/mi-cuenta/pagina').then((m) => ({ default: m.MiCuenta })));
+const Nueva = lazy(() => import('@/app/nueva/pagina').then((m) => ({ default: m.Nueva })));
 const Administracion = lazy(() => import('@/app/administracion/pagina').then((m) => ({ default: m.Administracion })));
 
 export function App() {
@@ -31,6 +32,14 @@ export function App() {
         <Route element={<Layout />}>
           <Route index element={<Navigate to={inicio} replace />} />
           {[...rutasVisitas, ...rutasUsuarios, ...rutasCatalogos]}
+          <Route
+            path="nueva"
+            element={
+              <AuthRoute access={accesoNueva}>
+                <Nueva />
+              </AuthRoute>
+            }
+          />
           <Route
             path="admin"
             element={

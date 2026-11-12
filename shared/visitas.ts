@@ -56,11 +56,18 @@ const numero = (min = -1e9, max = 1e9) =>
     });
 const entero = (max = 1000) => numero(0, max).refine((v) => v === null || Number.isInteger(v), 'Debe ser un número entero');
 
-/** Folio de la visita: lo genera el dispositivo (HV-AAAAMMDD-HHMMSS) y permite reenviar sin duplicar. */
+/**
+ * Folio de la inspección de restaurador: lo genera el dispositivo (excepción E1) y permite reenviar sin
+ * duplicar. Formato IR-AAAAMMDD-HHMMSS-XXXX: la fecha y hora lo hacen legible y las 4 letras al azar lo
+ * hacen único aunque dos personas guarden en el mismo segundo. Los folios anteriores (HV-…) siguen
+ * siendo válidos.
+ */
 export const PATRON_FOLIO = /^[A-Za-z0-9_-]{3,40}$/;
+const ALFABETO_FOLIO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I: se leen sin confusión
 export function folioNuevo(fecha = new Date()): string {
   const d = (n: number) => String(n).padStart(2, '0');
-  return `HV-${fecha.getFullYear()}${d(fecha.getMonth() + 1)}${d(fecha.getDate())}-${d(fecha.getHours())}${d(fecha.getMinutes())}${d(fecha.getSeconds())}`;
+  const azar = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => ALFABETO_FOLIO[b % ALFABETO_FOLIO.length]).join('');
+  return `IR-${fecha.getFullYear()}${d(fecha.getMonth() + 1)}${d(fecha.getDate())}-${d(fecha.getHours())}${d(fecha.getMinutes())}${d(fecha.getSeconds())}-${azar}`;
 }
 
 export const materialEsquema = z.object({
@@ -77,7 +84,7 @@ export const personaEsquema = z.object({
 });
 
 export const visitaEsquema = z.object({
-  visita_num: z.string().trim().regex(PATRON_FOLIO, 'Número de visita no válido'),
+  visita_num: z.string().trim().regex(PATRON_FOLIO, 'Folio no válido'),
   // Datos generales
   fecha_visita: z
     .string()

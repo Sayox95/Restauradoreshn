@@ -1,5 +1,5 @@
 /**
- * Nueva visita: formulario por secciones (una columna; excepción E4 en mediciones), validación por
+ * Inspección de restaurador: formulario por secciones (una columna; excepción E4 en mediciones), validación por
  * sección con las mismas reglas del servidor y avance real. Excepción E1: la visita se guarda primero en
  * el teléfono y se envía sola al haber señal; el borrador se conserva aunque se cierre la app.
  */
@@ -167,7 +167,7 @@ export function RegistrarVisita() {
     }
     if (
       !(await confirmar({
-        titulo: 'Guardar visita',
+        titulo: 'Guardar inspección',
         mensaje: 'Se enviará ahora. Si no hay señal, queda guardada en el teléfono y se envía sola al volver la señal.',
         confirmar: 'Guardar',
       }))
@@ -206,7 +206,7 @@ export function RegistrarVisita() {
         senalDebil = vencido && !id;
       }
       setResultado({ visita_num: entrada.visita_num, id, pdf, senalDebil });
-      avisar(id ? 'Visita registrada' : 'Visita guardada en el teléfono', { tipo: id ? 'exito' : 'info' });
+      avisar(id ? 'Inspección registrada' : 'Inspección guardada en el teléfono', { tipo: id ? 'exito' : 'info' });
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });
     } finally {
@@ -227,8 +227,8 @@ export function RegistrarVisita() {
   const salir = async () => {
     if (conDatos) {
       const descartar = await confirmar({
-        titulo: '¿Descartar la visita?',
-        mensaje: 'Tiene datos llenados. Si sale, se borra lo escrito en esta visita.',
+        titulo: '¿Descartar la inspección?',
+        mensaje: 'Tiene datos llenados. Si sale, se borra lo escrito en esta inspección.',
         confirmar: 'Descartar y salir',
         cancelar: 'Seguir llenando',
         peligro: true,
@@ -257,7 +257,7 @@ export function RegistrarVisita() {
           <X className="h-5 w-5" aria-hidden /> Salir
         </button>
         <div className="min-w-0 flex-1">
-          <h1 className="text-xl font-bold text-slate-900">Nueva visita</h1>
+          <h1 className="text-xl font-bold text-slate-900">Inspección de restaurador</h1>
           <p className="truncate text-xs text-slate-500">{b.visita_num}</p>
         </div>
       </div>
@@ -307,7 +307,7 @@ export function RegistrarVisita() {
           </button>
           {ultimo ? (
             <button type="button" className="btn-primario flex-1" disabled={guardando} onClick={guardar}>
-              <Save className="h-5 w-5" /> Guardar visita
+              <Save className="h-5 w-5" /> Guardar
             </button>
           ) : (
             <button type="button" className="btn-primario flex-1" onClick={siguiente}>
@@ -325,20 +325,20 @@ export function RegistrarVisita() {
  * terminar o al vencer el tiempo máximo (ESPERA_MAX_MS).
  */
 function EnvioEnCurso() {
-  const [paso, setPaso] = useState('Guardando la visita');
+  const [paso, setPaso] = useState('Guardando la inspección');
   useEffect(() => alCambiarPaso(setPaso), []);
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
-      aria-label="Enviando visita"
+      aria-label="Enviando inspección"
     >
       <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" role="status" aria-live="polite">
         <Loader2 className="mx-auto h-10 w-10 animate-spin text-marca-600" aria-hidden />
-        <p className="mt-4 text-lg font-bold text-slate-900">Enviando visita</p>
+        <p className="mt-4 text-lg font-bold text-slate-900">Enviando inspección</p>
         <p className="mt-1 text-sm text-slate-600">{paso}…</p>
-        <p className="mt-3 text-xs text-slate-500">No cierre la app. La visita ya quedó guardada en el teléfono.</p>
+        <p className="mt-3 text-xs text-slate-500">No cierre la app. La inspección ya quedó guardada en el teléfono.</p>
       </div>
     </div>,
     document.body,
@@ -365,7 +365,7 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
       ) : (
         <CloudOff className="mx-auto h-14 w-14 text-amber-500" aria-hidden />
       )}
-      <h1 className="mt-3 text-xl font-bold text-slate-900">{r.id ? 'Visita registrada' : 'Visita guardada en el teléfono'}</h1>
+      <h1 className="mt-3 text-xl font-bold text-slate-900">{r.id ? 'Inspección registrada' : 'Inspección guardada en el teléfono'}</h1>
       <p className="mt-1 text-sm text-slate-600">{r.visita_num}</p>
       {!r.id && (
         <p className="mt-2 text-sm text-slate-600">
@@ -379,7 +379,7 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
         </button>
         {r.id ? (
           <Link to={urlVisita(r.id)} className="btn-secundario w-full">
-            Ver visita
+            Ver inspección
           </Link>
         ) : (
           <Link to={urlInspecciones} className="btn-secundario w-full">
@@ -387,7 +387,7 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
           </Link>
         )}
         <button type="button" className="btn-primario w-full" onClick={onNueva}>
-          Nueva visita
+          Nueva inspección
         </button>
       </div>
     </div>

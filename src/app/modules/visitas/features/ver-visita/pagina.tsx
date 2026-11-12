@@ -122,10 +122,10 @@ export function VerVisita() {
   const id = Number(useParams().id);
   const consulta = useQuery({ queryKey: ['visita', id], queryFn: () => verVisita(id), enabled: Number.isInteger(id) });
   const [foto, setFoto] = useState<number | null>(null);
-  if (consulta.isPending && consulta.fetchStatus === 'paused') return <Vacio texto="Sin conexión: la visita se mostrará al volver la señal." />;
+  if (consulta.isPending && consulta.fetchStatus === 'paused') return <Vacio texto="Sin conexión: la inspección se mostrará al volver la señal." />;
   if (consulta.isPending) return <Cargando />;
   if (consulta.isError || !consulta.data)
-    return <CajaError error={consulta.error ?? new Error('Visita no encontrada')} reintentar={() => void consulta.refetch()} />;
+    return <CajaError error={consulta.error ?? new Error('Inspección no encontrada')} reintentar={() => void consulta.refetch()} />;
   const d = consulta.data;
   const v = d.datos;
   const fotos = d.fotos.map((f) => ({ src: urlFoto(d.id, f.orden, f.v), alt: f.observacion ?? `Foto ${f.orden}`, obs: f.observacion }));
@@ -135,7 +135,7 @@ export function VerVisita() {
     <div className="mx-auto max-w-3xl">
       <Encabezado
         volver
-        titulo={`${v.codigo_energis ?? 'Visita'} · ${v.tipo_visita ?? ''}`}
+        titulo={`${v.codigo_energis ?? 'Inspección'} · ${v.tipo_visita ?? ''}`}
         subtitulo={
           <span className="flex flex-wrap items-center gap-2">
             <BadgeVisita estado={d.estado} /> {d.visita_num}
@@ -150,7 +150,7 @@ export function VerVisita() {
         }
       />
       <p className="mb-4 px-1 text-xs text-slate-500">
-        {v.fecha_visita ? `Visita del ${fecha(`${v.fecha_visita}T12:00:00`)}` : ''}
+        {v.fecha_visita ? `Inspección del ${fecha(`${v.fecha_visita}T12:00:00`)}` : ''}
         {d.registrado_en ? ` · registrada ${fechaHora(d.registrado_en)}` : ''}
         {d.registrado_por ? ` por ${d.registrado_por}` : ''}
       </p>

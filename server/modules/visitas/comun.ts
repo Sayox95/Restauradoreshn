@@ -167,7 +167,7 @@ export async function cargarVisita(ctx: Ctx, id: number) {
   )
     .bind(id, ...fv.binds)
     .first<Record<string, unknown>>();
-  if (!f) throw noEncontrado('La visita');
+  if (!f) throw noEncontrado('La inspección');
   return f;
 }
 

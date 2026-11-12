@@ -107,7 +107,7 @@ export function DatosGenerales({ b, set, faltan, cat }: PropsSeccion) {
     });
   return (
     <>
-      <Bloque titulo="Visita">
+      <Bloque titulo="Inspección">
         <Campo id="fecha_visita" etiqueta="Fecha de visita" requerido falta={faltan.has('fecha_visita')}>
           <input id="v-fecha_visita" type="date" className="campo" value={b.fecha_visita ?? ''} onChange={(e) => set({ fecha_visita: e.target.value })} />
         </Campo>
@@ -117,7 +117,7 @@ export function DatosGenerales({ b, set, faltan, cat }: PropsSeccion) {
         <Campo id="hora_llegada" etiqueta="Hora de llegada" requerido falta={faltan.has('hora_llegada')}>
           <input id="v-hora_llegada" type="time" className="campo" value={b.hora_llegada ?? ''} onChange={(e) => set({ hora_llegada: e.target.value })} />
         </Campo>
-        <Campo id="hora_salida" etiqueta="Hora de salida" requerido falta={faltan.has('hora_salida')} ayuda="Se pide al guardar la visita.">
+        <Campo id="hora_salida" etiqueta="Hora de salida" requerido falta={faltan.has('hora_salida')} ayuda="Se pide al guardar la inspección.">
           <input id="v-hora_salida" type="time" className="campo" value={b.hora_salida ?? ''} onChange={(e) => set({ hora_salida: e.target.value })} />
         </Campo>
       </Bloque>
@@ -484,7 +484,7 @@ export function Materiales({ b, set, faltan, cat }: PropsSeccion) {
   const cambiar = (i: number, c: Partial<MaterialB>) => set({ materiales: b.materiales.map((m, j) => (j === i ? { ...m, ...c } : m)) });
   return (
     <>
-      <p className="mb-4 text-sm text-slate-600">Materiales reemplazados o utilizados en la visita (opcional).</p>
+      <p className="mb-4 text-sm text-slate-600">Materiales reemplazados o utilizados en la inspección (opcional).</p>
       {b.materiales.map((m, i) => (
         <div key={i} className="tarjeta mb-4 space-y-3 p-4">
           <div className="flex items-center justify-between">
@@ -557,7 +557,7 @@ export function Observaciones({ b, set }: PropsSeccion) {
         id="obs_generales"
         valor={b.obs_generales}
         multilinea
-        placeholder="Observaciones relevantes de la visita"
+        placeholder="Observaciones relevantes de la inspección"
         onCambio={(v) => set({ obs_generales: v })}
       />
     </Campo>
@@ -571,7 +571,7 @@ export function Personal({ b, set, faltan, cat }: PropsSeccion) {
   const cambiar = (i: number, c: Partial<PersonaB>) => conPersonal(b.personal.map((p, j) => (j === i ? { ...p, ...c } : p)));
   return (
     <>
-      <Bloque titulo="Personal de la visita">
+      <Bloque titulo="Personal de la inspección">
         {b.personal.map((p, i) => (
           <div key={i} className="tarjeta space-y-3 p-4">
             <div className="flex items-center justify-between">
@@ -595,9 +595,11 @@ export function Personal({ b, set, faltan, cat }: PropsSeccion) {
                 onChange={(e) => {
                   const v = e.target.value;
                   const per = cat?.personal.find((x) => x.nombre === v);
-                  // El cargo del catálogo es texto libre: solo se copia si es uno de la lista de la hoja.
-                  const cargo = per?.cargo && (CARGOS_PERSONAL as readonly string[]).includes(per.cargo) ? per.cargo : p.cargo;
-                  cambiar(i, v === 'OTRO' ? { eleccion: v, nombre: '' } : { eleccion: v, nombre: v, cargo, id: per?.empleado_id ?? p.id });
+                  // El catálogo solo entrega cargos de la lista de la hoja (CARGOS_PERSONAL): se copian tal cual.
+                  cambiar(
+                    i,
+                    v === 'OTRO' ? { eleccion: v, nombre: '' } : { eleccion: v, nombre: v, cargo: per?.cargo ?? p.cargo, id: per?.empleado_id ?? p.id },
+                  );
                 }}
               >
                 <option value="">— Elegir —</option>

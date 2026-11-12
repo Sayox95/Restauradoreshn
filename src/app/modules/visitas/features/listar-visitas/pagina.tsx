@@ -4,20 +4,19 @@
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { VisitaResumen } from '@shared/tipos';
-import { ChevronRight, CloudOff, Download, FilePlus2, PencilLine, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
+import { CalendarDays, ChevronRight, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
 import { useAvisos } from '@/common/components/Toast';
-import { TONO } from '@/common/tonos';
 import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
-import { type Borrador, alCambiarCola, leerBorrador } from '../../components/almacen';
+import { alCambiarCola } from '../../components/almacen';
 import { useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
-import { urlNuevaVisita, urlVisita } from '../../urls';
+import { urlVisita } from '../../urls';
 
 function FilaVisita({ v }: { v: VisitaResumen }) {
   return (
@@ -44,37 +43,6 @@ function FilaVisita({ v }: { v: VisitaResumen }) {
   );
 }
 
-/** «Nueva visita», o «Continuar» si hay una visita en curso guardada en el teléfono. */
-function EmpezarVisita() {
-  const [enCurso, setEnCurso] = useState<Borrador | null>(null);
-  useEffect(() => {
-    leerBorrador()
-      .then((g) => setEnCurso(g ?? null))
-      .catch(() => {});
-  }, []);
-  if (!enCurso)
-    return (
-      <Link to={urlNuevaVisita} className="btn-primario mb-5 min-h-[56px] w-full text-base">
-        <FilePlus2 className="h-5 w-5" aria-hidden /> Nueva visita
-      </Link>
-    );
-  const d = enCurso.datos as Record<string, string | undefined>;
-  return (
-    <Link to={urlNuevaVisita} className={`mb-5 flex items-center gap-3 rounded-2xl border p-4 ${TONO.atencion.caja}`}>
-      <PencilLine className="h-6 w-6 shrink-0" aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className="font-bold">Visita en curso</p>
-        <p className="truncate text-sm">
-          {d.codigo_energis ? `${d.codigo_energis} · ` : ''}
-          Guardada {fechaHora(enCurso.guardado_en)}
-        </p>
-      </div>
-      <span className="shrink-0 font-bold">Continuar</span>
-      <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
-    </Link>
-  );
-}
-
 function Pendientes() {
   const { pendientes, enviando, enviar } = useCola();
   const avisar = useAvisos();
@@ -83,8 +51,8 @@ function Pendientes() {
     const r = await enviar();
     if (r.detenido === 'sin_conexion') avisar('Sin conexión: se enviarán al volver la señal', { tipo: 'error' });
     else if (r.detenido === 'sin_sesion') avisar('Inicie sesión de nuevo para enviar', { tipo: 'error' });
-    else if (r.rechazadas) avisar(`${r.rechazadas} visita(s) no se pudieron enviar`, { tipo: 'error' });
-    else avisar(r.enviadas.length === 1 ? 'Visita enviada' : `${r.enviadas.length} visitas enviadas`);
+    else if (r.rechazadas) avisar(`${r.rechazadas} inspección(es) no se pudieron enviar`, { tipo: 'error' });
+    else avisar(r.enviadas.length === 1 ? 'Inspección enviada' : `${r.enviadas.length} inspecciones enviadas`);
   };
   return (
     <Seccion
@@ -127,6 +95,7 @@ export function ListarVisitas() {
   const [q, setQ] = useState('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
+  const [verFechas, setVerFechas] = useState(false);
   const [pagina, setPagina] = useState(1);
   const filtros = { q: q.trim() || undefined, desde: desde || undefined, hasta: hasta || undefined, pagina };
   const consulta = useQuery({
@@ -157,21 +126,35 @@ export function ListarVisitas() {
           ) : undefined
         }
       />
-      {registra && <EmpezarVisita />}
       {registra && <Pendientes />}
       <div className="mb-4 space-y-2">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden />
-          <input
-            className="campo pl-9"
-            inputMode="search"
-            placeholder="Buscar por Energis, circuito, ubicación o número"
-            value={q}
-            onChange={(e) => filtrar(() => setQ(e.target.value))}
-            aria-label="Buscar"
-          />
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden />
+            <input
+              className="campo pl-9"
+              inputMode="search"
+              placeholder="Buscar por Energis, circuito, ubicación o folio"
+              value={q}
+              onChange={(e) => filtrar(() => setQ(e.target.value))}
+              aria-label="Buscar"
+            />
+          </div>
+          {/* Las fechas van plegadas: en el teléfono ocupan pantalla y se usan poco. */}
+          <button
+            type="button"
+            onClick={() => setVerFechas(!verFechas)}
+            aria-expanded={verFechas}
+            aria-controls="filtro-fechas"
+            className={`relative flex w-12 shrink-0 items-center justify-center rounded-xl border ${verFechas ? 'border-marca-300 bg-marca-50 text-marca-700' : 'border-slate-300 bg-white text-slate-600'}`}
+            aria-label="Filtrar por fechas"
+            title="Filtrar por fechas"
+          >
+            <CalendarDays className="h-5 w-5" aria-hidden />
+            {(desde || hasta) && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-marca-600" aria-hidden />}
+          </button>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div id="filtro-fechas" className={verFechas ? 'grid grid-cols-2 gap-2' : 'hidden'}>
           <label className="text-xs font-semibold text-slate-600">
             Desde
             <input type="date" className="campo mt-1" value={desde} onChange={(e) => filtrar(() => setDesde(e.target.value))} />
@@ -183,7 +166,7 @@ export function ListarVisitas() {
         </div>
       </div>
       {consulta.isPending && consulta.fetchStatus === 'paused' ? (
-        // Sin señal la consulta queda en pausa (no es «no hay visitas»): se hace sola al volver la señal.
+        // Sin señal la consulta queda en pausa (no es «no hay inspecciones»): se hace sola al volver la señal.
         <Vacio texto="Sin conexión: la lista se mostrará al volver la señal." />
       ) : consulta.isPending ? (
         <Cargando />

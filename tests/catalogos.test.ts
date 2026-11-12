@@ -29,6 +29,20 @@ describe('catálogos de la hoja de visita', () => {
     expect((await t.DB.prepare("SELECT COUNT(*) AS n FROM auditoria WHERE entidad = 'restauradores'").first<{ n: number }>())!.n).toBe(2);
   });
 
+  it('el cargo del personal es de la lista de la hoja; uno escrito a mano antes no pasa a la inspección', async () => {
+    const c = (await t.crearUsuario('ana', 'admin')).cookie;
+    const persona = (cargo: string) => t.pedir('POST', '/api/v1/catalogos/personal', { cookie: c, cuerpo: { nombre: `P ${cargo}`, cargo } });
+    expect((await persona('Técnico SCADA')).status).toBe(201);
+    expect((await persona('Técnico')).status).toBe(422);
+    // Un cargo libre guardado por la versión anterior.
+    await t.DB.prepare("INSERT INTO personal (nombre, cargo) VALUES ('Antiguo', 'Técnico')").run();
+    const f = (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie: c })).datos.datos;
+    expect(f.personal.map((p: { nombre: string; cargo: string | null }) => [p.nombre, p.cargo])).toEqual([
+      ['Antiguo', null],
+      ['P Técnico SCADA', 'Técnico SCADA'],
+    ]);
+  });
+
   it('arma marcas, módems y tableros para el formulario', async () => {
     const c = (await t.crearUsuario('ana', 'admin')).cookie;
     const marca = (cuerpo: object) => t.pedir('POST', '/api/v1/catalogos/marcas', { cookie: c, cuerpo });

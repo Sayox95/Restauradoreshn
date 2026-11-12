@@ -4,7 +4,14 @@ Sistema de hojas de visita para la inspección de restauradores. Sigue los **Lin
 en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
 
 > Estado: versión 3, migrada a la estructura de los lineamientos (React + TS, módulos, cuentas y
-> permisos). Por ahora la visita tiene un solo estado: **registrada**.
+> permisos). Por ahora la inspección tiene un solo estado: **registrada**.
+
+## Términos y navegación
+
+- En pantalla se dice **inspección** (no «visita»); internamente el módulo es `visitas`. «Fecha de
+  visita» y «Tipo de visita» (Visita 1/2/3) son campos de la hoja y se quedan.
+- Menú: «Inspecciones y registros» (una sola sección: con Consultar, todas; si no, las propias) y
+  «+ Nueva», que reúne los tipos que declara cada módulo (`OpcionNueva`). Sin botones repetidos.
 
 ## Reglas del proyecto
 

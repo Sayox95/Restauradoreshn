@@ -23,10 +23,20 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 
 | Módulo | Servidor | App |
 | --- | --- | --- |
-| visitas | registrar, listar (todas / mías), ver, fotos, PDF, exportar CSV | nueva visita (10 secciones), inspecciones y registros (con lo pendiente de envío), detalle |
+| visitas | registrar, listar (todas / mías), ver, fotos, PDF, exportar CSV | inspección de restaurador (10 secciones), inspecciones y registros (con lo pendiente de envío), detalle |
 | usuarios | listar, ver, crear, editar, aprobar / rechazar solicitudes | administración de cuentas |
 | catalogos | catálogos de la hoja, tableros por marca, zona horaria | administración de catálogos |
 | sesion | ingreso, salida, solicitud de cuenta, cambio de contraseña | ingreso, mi cuenta |
+
+## Menú y «+ Nueva»
+
+- Cada módulo declara sus opciones de menú (`<modulo>-menu.ts`) y lo que se puede empezar desde
+  «+ Nueva» (`OpcionNueva`: hoy «Inspección de restaurador»; después, regulador y otros).
+  `src/app/menu.ts` las reúne y `src/app/nueva/pagina.tsx` las muestra según los permisos.
+- En pantalla el registro se llama **inspección**; en el código y la base el módulo sigue siendo
+  `visitas` (tabla `registros`).
+- Folio generado en el dispositivo: `IR-AAAAMMDD-HHMMSS-XXXX` (4 caracteres al azar para que no choque
+  aunque dos personas guarden en el mismo segundo). Los folios anteriores `HV-…` siguen válidos.
 
 ## Decisiones
 

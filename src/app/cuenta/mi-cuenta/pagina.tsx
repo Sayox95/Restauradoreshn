@@ -68,7 +68,7 @@ export function MiCuenta() {
           ))}
           {hasAccess([PermisosVisitas.Registrar]) && !hasAccess([PermisosVisitas.Consultar]) && (
             <li className="flex gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden /> Ver las visitas que registró
+              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden /> Ver las inspecciones que registró
             </li>
           )}
         </ul>

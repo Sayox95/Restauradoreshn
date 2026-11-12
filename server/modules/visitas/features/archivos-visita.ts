@@ -87,8 +87,8 @@ export async function subirPdf(ctx: Ctx, id: number) {
 export async function descargarPdf(ctx: Ctx, id: number) {
   const v = await cargarVisita(ctx, id);
   const clave = v.pdf_r2_key as string | null;
-  if (!clave) throw noEncontrado('El PDF de la visita');
+  if (!clave) throw noEncontrado('El PDF de la inspección');
   const obj = await ctx.env.ARCHIVOS.get(clave);
-  if (!obj) throw noEncontrado('El PDF de la visita');
+  if (!obj) throw noEncontrado('El PDF de la inspección');
   return respuestaArchivo(obj, 'application/pdf', `${clave}-${obj.size ?? ''}`, `Ficha_${nombreSeguro(String(v.visita_num))}.pdf`);
 }

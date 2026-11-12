@@ -38,7 +38,7 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
   if (falta.length)
     throw new ApiError(
       422,
-      `La visita está incompleta: ${falta
+      `La inspección está incompleta: ${falta
         .slice(0, 4)
         .map((x) => x.etiqueta)
         .join(', ')}${falta.length > 4 ? '…' : ''}.`,
@@ -54,7 +54,7 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
       .bind(v.visita_num)
       .first<Record<string, unknown>>();
     if (!f) return null;
-    if (f.registrado_por_id !== ctx.usuario.id) throw new ApiError(409, `Ya existe otra visita con el número ${v.visita_num}.`);
+    if (f.registrado_por_id !== ctx.usuario.id) throw new ApiError(409, `Ya existe otra inspección con el folio ${v.visita_num}.`);
     return { visita: resumen(f), creada: false };
   };
   const previa = await existente();
