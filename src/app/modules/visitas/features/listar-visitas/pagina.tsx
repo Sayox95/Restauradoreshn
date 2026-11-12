@@ -6,6 +6,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { VisitaResumen } from '@shared/tipos';
 import { CalendarDays, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
 import { type Columna, Tabla } from '@/common/components/Tabla';
 import { useAvisos } from '@/common/components/Toast';
@@ -109,6 +110,8 @@ function Pendientes() {
  */
 export function ListarVisitas() {
   const { hasAccess } = useAccess();
+  // La inspección que se acaba de guardar se resalta al llegar desde la pantalla final.
+  const resaltar = (useLocation().state as { resaltar?: string } | null)?.resaltar;
   const todas = hasAccess([PermisosVisitas.Consultar]);
   const registra = hasAccess([PermisosVisitas.Registrar]);
   const [q, setQ] = useState('');
@@ -203,6 +206,7 @@ export function ListarVisitas() {
             columnas={columnas(todas)}
             tarjeta={(v) => <TarjetaVisita v={v} todas={todas} />}
             enlace={(v) => urlVisita(v.id)}
+            resaltada={(v) => v.visita_num === resaltar}
           />
           <Paginacion pagina={pagina} paginas={paginas} onCambiar={setPagina} />
         </>

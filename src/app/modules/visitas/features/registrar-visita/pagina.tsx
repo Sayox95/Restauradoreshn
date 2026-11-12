@@ -11,6 +11,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
+import { fijarModoCaptura } from '@/common/menu/modo-captura';
 import { marcarTrabajo } from '@/common/pwa/trabajo';
 import { mensajeError } from '@/common/http/api';
 import { type FotoLocal, borrarBorrador, guardarBorrador, guardarEnCola, leerBorrador } from '../../components/almacen';
@@ -111,6 +112,12 @@ export function RegistrarVisita() {
     [reqs, alGuardar, revisadas],
   );
 
+  // Modo captura (sin la barra del menú) mientras se llena; la pantalla final ya no lo es.
+  useEffect(() => {
+    fijarModoCaptura(!resultado);
+    return () => fijarModoCaptura(false);
+  }, [resultado]);
+
   if (!b) return <Cargando texto="Abriendo el formulario…" />;
 
   const set = (cambios: Cambios) => setB((prev) => ({ ...prev!, ...cambios }) as Borrador);
@@ -207,15 +214,6 @@ export function RegistrarVisita() {
     }
   };
 
-  const nueva = () => {
-    setB(borradorNuevo());
-    setFotos([]);
-    setPaso(0);
-    setRevisadas(new Set());
-    setAlGuardar(false);
-    setResultado(null);
-  };
-
   // «Salir»: sin datos, sale; con datos, pregunta si descarta lo escrito (cancelar = seguir llenando).
   const salir = async () => {
     if (conDatos) {
@@ -233,7 +231,7 @@ export function RegistrarVisita() {
     navegar(urlInspecciones);
   };
 
-  if (resultado) return <Terminada r={resultado} onNueva={nueva} />;
+  if (resultado) return <Terminada r={resultado} />;
 
   const Seccion = SECCIONES_FORMULARIO[paso]!;
   const ultimo = paso === SECCIONES.length - 1;
@@ -338,9 +336,16 @@ function EnvioEnCurso() {
   );
 }
 
-function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
+/**
+ * Pantalla final. «Listo» (o la ✕) lleva a «Inspecciones y registros», donde la inspección aparece
+ * resaltada (o en «Sin enviar» si quedó en el teléfono). Nada se pierde al cerrar: el PDF se puede
+ * descargar después desde el detalle.
+ */
+function Terminada({ r }: { r: Resultado }) {
   const [generando, setGenerando] = useState(false);
   const avisar = useAvisos();
+  const navegar = useNavigate();
+  const cerrar = () => navegar(urlInspecciones, { state: { resaltar: r.visita_num } });
   const pdf = async () => {
     setGenerando(true);
     try {
@@ -352,36 +357,42 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
     }
   };
   return (
-    <div className="mx-auto max-w-md py-8 text-center">
-      {r.id ? (
-        <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" aria-hidden />
-      ) : (
-        <CloudOff className="mx-auto h-14 w-14 text-amber-500" aria-hidden />
-      )}
-      <h1 className="mt-3 text-xl font-bold text-slate-900">{r.id ? 'Inspección registrada' : 'Inspección guardada en el teléfono'}</h1>
-      <p className="mt-1 text-sm text-slate-600">{r.visita_num}</p>
-      {!r.id && (
-        <p className="mt-2 text-sm text-slate-600">
-          {r.senalDebil ? 'La señal es débil y no se pudo enviar ahora. ' : ''}
-          Quedó guardada en el teléfono y se enviará sola cuando haya señal.
-        </p>
-      )}
-      <div className="mt-6 space-y-3">
-        <button type="button" className="btn-secundario w-full" disabled={generando} onClick={pdf}>
-          {generando ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />} Descargar PDF
-        </button>
+    <div className="mx-auto max-w-md">
+      <button
+        type="button"
+        onClick={cerrar}
+        className="-ml-2 flex h-11 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
+        aria-label="Cerrar"
+      >
+        <X className="h-5 w-5" aria-hidden /> Cerrar
+      </button>
+      <div className="pb-8 pt-2 text-center">
         {r.id ? (
-          <Link to={urlVisita(r.id)} className="btn-secundario w-full">
-            Ver inspección
-          </Link>
+          <CheckCircle2 className="mx-auto h-14 w-14 text-emerald-500" aria-hidden />
         ) : (
-          <Link to={urlInspecciones} className="btn-secundario w-full">
-            Ver pendientes de envío
-          </Link>
+          <CloudOff className="mx-auto h-14 w-14 text-amber-500" aria-hidden />
         )}
-        <button type="button" className="btn-primario w-full" onClick={onNueva}>
-          Nueva inspección
-        </button>
+        <h1 className="mt-3 text-xl font-bold text-slate-900">{r.id ? 'Inspección registrada' : 'Inspección guardada en el teléfono'}</h1>
+        <p className="mt-1 text-sm text-slate-600">{r.visita_num}</p>
+        {!r.id && (
+          <p className="mt-2 text-sm text-slate-600">
+            {r.senalDebil ? 'La señal es débil y no se pudo enviar ahora. ' : ''}
+            Quedó guardada en el teléfono y se enviará sola cuando haya señal.
+          </p>
+        )}
+        <div className="mt-6 space-y-3">
+          <button type="button" className="btn-primario w-full" onClick={cerrar}>
+            Listo
+          </button>
+          <button type="button" className="btn-secundario w-full" disabled={generando} onClick={pdf}>
+            {generando ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />} Descargar PDF
+          </button>
+          {r.id && (
+            <Link to={urlVisita(r.id)} className="btn-secundario w-full">
+              Ver inspección
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

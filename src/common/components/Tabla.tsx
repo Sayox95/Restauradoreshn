@@ -26,10 +26,12 @@ interface Props<T> {
   alElegir?: (fila: T) => void;
   /** Fila atenuada (p. ej. registros inactivos). */
   apagada?: (fila: T) => boolean;
+  /** Fila resaltada unos segundos (p. ej. la que se acaba de registrar). */
+  resaltada?: (fila: T) => boolean;
   etiqueta: string;
 }
 
-export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, apagada, etiqueta }: Props<T>) {
+export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, apagada, resaltada, etiqueta }: Props<T>) {
   const navegar = useNavigate();
   const elegir = (f: T) => (enlace ? navegar(enlace(f)) : alElegir?.(f));
   const interactiva = !!(enlace || alElegir);
@@ -55,7 +57,7 @@ export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, ap
                 onClick={interactiva ? () => elegir(f) : undefined}
                 onKeyDown={interactiva ? (e) => e.key === 'Enter' && elegir(f) : undefined}
                 tabIndex={interactiva ? 0 : undefined}
-                className={`${interactiva ? 'cursor-pointer hover:bg-marca-50/50 focus:bg-marca-50 focus:outline-none' : ''} ${apagada?.(f) ? 'text-slate-400' : 'text-slate-800'}`}
+                className={`${interactiva ? 'cursor-pointer hover:bg-marca-50/50 focus:bg-marca-50 focus:outline-none' : ''} ${apagada?.(f) ? 'text-slate-400' : 'text-slate-800'} ${resaltada?.(f) ? 'anim-resaltar' : ''}`}
               >
                 {columnas.map((c) => (
                   <td key={c.titulo} className={`px-4 py-3 align-middle ${c.clase ?? ''}`}>
@@ -84,7 +86,7 @@ export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, ap
           );
           const clase = 'flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50';
           return (
-            <li key={clave(f)}>
+            <li key={clave(f)} className={resaltada?.(f) ? 'anim-resaltar' : undefined}>
               {enlace ? (
                 <Link to={enlace(f)} className={clase}>
                   {contenido}

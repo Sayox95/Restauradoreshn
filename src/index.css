@@ -255,3 +255,25 @@
     animation: none;
   }
 }
+
+/* Registro recién creado: fondo ámbar suave que se desvanece (p. ej. la inspección que se acaba de guardar). */
+@layer utilities {
+  .anim-resaltar {
+    animation: resaltar 3.5s ease-out both;
+  }
+}
+@keyframes resaltar {
+  0%,
+  40% {
+    background-color: rgb(254 243 199);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-resaltar {
+    animation: none;
+    background-color: rgb(254 243 199);
+  }
+}
