@@ -99,6 +99,12 @@ let enCurso: Promise<ResultadoEnvio> | null = null;
 /** Pantallas que muestran si hay un envío en curso (p. ej. «Enviando…» en el encabezado). */
 const oyentesEnvio = new Set<(enviando: boolean) => void>();
 const avisarEnvio = (enviando: boolean) => oyentesEnvio.forEach((f) => f(enviando));
+/** Pantallas que muestran lo registrado: se avisa una vez por tanda, al terminar, si se envió algo. */
+const oyentesEnviadas = new Set<() => void>();
+export function alEnviarInspecciones(fn: () => void) {
+  oyentesEnviadas.add(fn);
+  return () => void oyentesEnviadas.delete(fn);
+}
 
 let controlador: AbortController | null = null;
 
@@ -116,11 +122,16 @@ export function enviarPendientes(): Promise<ResultadoEnvio> {
   const tarea = () => procesar(control.signal);
   avisarEnvio(true);
   const envio = (navigator.locks ? navigator.locks.request('cola-visitas', tarea) : tarea()) as Promise<ResultadoEnvio>;
-  enCurso = envio.finally(() => {
-    enCurso = null;
-    if (controlador === control) controlador = null;
-    avisarEnvio(false);
-  });
+  enCurso = envio
+    .then((r) => {
+      if (r.enviadas.length) oyentesEnviadas.forEach((f) => f());
+      return r;
+    })
+    .finally(() => {
+      enCurso = null;
+      if (controlador === control) controlador = null;
+      avisarEnvio(false);
+    });
   return enCurso as Promise<ResultadoEnvio>;
 }
 

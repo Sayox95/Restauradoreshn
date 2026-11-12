@@ -13,8 +13,7 @@ import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
-import { alCambiarCola } from '../../components/almacen';
-import { useCola } from '../../components/envio';
+import { alEnviarInspecciones, useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
 
@@ -124,9 +123,10 @@ export function ListarVisitas() {
     placeholderData: keepPreviousData,
   });
   useTiempoReal(['visitas'], () => void consulta.refetch());
-  // Al enviarse algo guardado en el teléfono, la lista lo muestra sin esperar al canal.
+  // Al terminar de enviarse lo guardado en el teléfono, la lista lo muestra sin esperar al canal: una
+  // recarga por tanda (no en cada paso del envío: registrar, cada foto, el PDF).
   const { refetch } = consulta;
-  useEffect(() => alCambiarCola(() => void refetch()), [refetch]);
+  useEffect(() => alEnviarInspecciones(() => void refetch()), [refetch]);
   const filtrar = (fn: () => void) => {
     fn();
     setPagina(1);
