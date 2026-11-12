@@ -149,7 +149,6 @@ export function ListarVisitas() {
     <div className="mx-auto max-w-3xl">
       <Encabezado
         titulo="Inspecciones y registros"
-        subtitulo={datos ? `${datos.total} ${datos.total === 1 ? 'inspección' : 'inspecciones'}${todas ? '' : ' registradas por usted'}` : undefined}
         accion={
           hasAccess([PermisosVisitas.Exportar]) ? (
             <a href={urlExportar(filtros)} className="btn-secundario min-h-[40px] px-3 text-sm" download>

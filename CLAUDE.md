@@ -60,3 +60,7 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   `visita_materiales`, personal (hoy JSON) → `visita_personal`; el resto se queda en columnas.
   Requiere mover los datos de producción: antes presentar el plan (qué se mueve, respaldo y
   verificación) y esperar la confirmación del dueño del proyecto.
+- **Alcance por sector** — cuando se sectorice: el técnico ve sus inspecciones, el supervisor las de
+  su sector y el administrador todas. Como en el sistema de referencia: sectores asignados al usuario
+  (`usuarios_sectores`, sin sectores = todos) aplicados en `filtroVisitas`; el código sigue preguntando
+  solo por permisos. Hoy el supervisor (permiso Consultar) ve todas.
