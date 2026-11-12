@@ -1,7 +1,7 @@
 /** Llamadas HTTP del módulo Visitas (ruta base /api/v1/visitas). */
 import type { VisitaDetalle, VisitaResumen } from '@shared/tipos';
 import type { VisitaEntrada } from '@shared/visitas';
-import { get, pedir, post, qs } from '@/common/http/api';
+import { get, pedir, qs, subirArchivo } from '@/common/http/api';
 
 const BASE = '/api/v1/visitas';
 
@@ -26,13 +26,10 @@ export const urlFoto = (id: number, orden: number, v = '') => `${BASE}/${id}/fot
 export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
 
 /** Registra la visita (idempotente por número de visita: reenviarla no la duplica). */
-export const registrarVisita = (v: VisitaEntrada) => post<{ visita: VisitaResumen; creada: boolean }>(BASE, v);
+export const registrarVisita = (v: VisitaEntrada, signal?: AbortSignal) =>
+  pedir<{ visita: VisitaResumen; creada: boolean }>(BASE, { method: 'POST', json: v, signal });
 /** Sube una foto ORIGINAL, como archivo binario (excepción E2). */
-export const subirFoto = (id: number, orden: number, archivo: Blob, observacion: string | null) =>
-  pedir(`${BASE}/${id}/fotos/${orden}${qs({ obs: observacion })}`, {
-    method: 'PUT',
-    body: archivo,
-    headers: { 'Content-Type': archivo.type || 'application/octet-stream' },
-  });
+export const subirFoto = (id: number, orden: number, archivo: Blob, observacion: string | null, signal?: AbortSignal) =>
+  subirArchivo(`${BASE}/${id}/fotos/${orden}${qs({ obs: observacion })}`, archivo, { signal });
 /** Archiva el PDF de la ficha (excepción E3). */
-export const subirPdf = (id: number, pdf: Blob) => pedir(`${BASE}/${id}/pdf`, { method: 'PUT', body: pdf, headers: { 'Content-Type': 'application/pdf' } });
+export const subirPdf = (id: number, pdf: Blob, signal?: AbortSignal) => subirArchivo(`${BASE}/${id}/pdf`, pdf, { tipo: 'application/pdf', signal });

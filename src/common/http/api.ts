@@ -39,8 +39,9 @@ export async function pedir<T>(camino: string, opciones: RequestInit & { json?: 
   // Quien hace el cambio no recibe su propio aviso de tiempo real (ya ve el resultado).
   const conexion = conexionActual();
   if (!esConsulta && conexion) headers.set(CABECERA_CONEXION, conexion);
-  const signal =
-    opciones.signal ?? (typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(esConsulta ? LIMITE_CONSULTA_MS : LIMITE_ESCRITURA_MS) : undefined);
+  // El límite de tiempo aplica siempre; una señal de quien llama (p. ej. cancelar un envío) se suma a él.
+  const limite = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(esConsulta ? LIMITE_CONSULTA_MS : LIMITE_ESCRITURA_MS) : undefined;
+  const signal = opciones.signal && limite && typeof AbortSignal.any === 'function' ? AbortSignal.any([opciones.signal, limite]) : (opciones.signal ?? limite);
   let res: Response;
   try {
     res = await fetch(camino, { ...opciones, headers, body, signal, credentials: 'same-origin' });
@@ -67,6 +68,67 @@ export const post = <T>(camino: string, json?: unknown, headers?: HeadersInit) =
 export const patch = <T>(camino: string, json: unknown) => pedir<T>(camino, { method: 'PATCH', json });
 export const put = <T>(camino: string, json: unknown) => pedir<T>(camino, { method: 'PUT', json });
 export const subir = <T>(camino: string, form: FormData) => pedir<T>(camino, { method: 'POST', body: form });
+
+/**
+ * Sube un archivo grande (fotos originales, PDF). A diferencia de `pedir`, no tiene un límite de tiempo
+ * total: se cancela solo si la subida deja de avanzar durante `inactividadMs` (señal débil pero viva
+ * puede tardar varios minutos con una foto de 25 MB) o si quien llama lo cancela con `signal`.
+ */
+export function subirArchivo<T>(
+  camino: string,
+  archivo: Blob,
+  opciones: { metodo?: string; tipo?: string; signal?: AbortSignal; inactividadMs?: number } = {},
+): Promise<T> {
+  const { metodo = 'PUT', tipo = archivo.type || 'application/octet-stream', signal, inactividadMs = 60_000 } = opciones;
+  return new Promise<T>((ok, mal) => {
+    const xhr = new XMLHttpRequest();
+    let vigilancia: ReturnType<typeof setTimeout> | undefined;
+    const sinAvance = () => {
+      clearTimeout(vigilancia);
+      vigilancia = setTimeout(() => xhr.abort(), inactividadMs);
+    };
+    const terminar = () => {
+      clearTimeout(vigilancia);
+      signal?.removeEventListener('abort', cancelar);
+    };
+    const cancelar = () => xhr.abort();
+    if (signal?.aborted) return mal(new ErrorApi(0, SIN_CONEXION));
+    signal?.addEventListener('abort', cancelar);
+    xhr.open(metodo, camino);
+    xhr.withCredentials = true;
+    xhr.setRequestHeader('Content-Type', tipo);
+    const conexion = conexionActual();
+    if (conexion) xhr.setRequestHeader(CABECERA_CONEXION, conexion);
+    xhr.upload.onprogress = sinAvance;
+    xhr.onprogress = sinAvance;
+    xhr.onabort = xhr.onerror = () => {
+      terminar();
+      mal(new ErrorApi(0, SIN_CONEXION));
+    };
+    xhr.onload = () => {
+      terminar();
+      let datos: (Respuesta<T> & { error?: string }) | null = null;
+      try {
+        datos = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+      } catch {
+        datos = null;
+      }
+      if (xhr.status < 200 || xhr.status >= 300) {
+        if (xhr.status === 401) alExpirarSesion();
+        return mal(
+          new ErrorApi(
+            xhr.status,
+            datos?.error ?? (xhr.status >= 500 ? 'El servidor no respondió correctamente.' : 'Solicitud rechazada.'),
+            datos as unknown as Record<string, unknown>,
+          ),
+        );
+      }
+      ok((datos && 'datos' in datos ? datos.datos : datos) as T);
+    };
+    sinAvance();
+    xhr.send(archivo);
+  });
+}
 
 export const mensajeError = (e: unknown) => (e instanceof Error ? e.message : 'Ocurrió un error inesperado.');
 

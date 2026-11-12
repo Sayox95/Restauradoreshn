@@ -15,7 +15,7 @@ import { marcarTrabajo } from '@/common/pwa/trabajo';
 import { mensajeError } from '@/common/http/api';
 import { type FotoLocal, borrarBorrador, guardarBorrador, guardarEnCola, leerBorrador } from '../../components/almacen';
 import { useCatalogosVisita } from '../../components/catalogos';
-import { alCambiarPaso, enviarPendientes } from '../../components/envio';
+import { alCambiarPaso, cancelarEnvio, enviarPendientes } from '../../components/envio';
 import { generarFicha } from '../../components/ficha-pdf';
 import { type Borrador, type Cambios, aEntrada, borradorNuevo, requisitos, tieneDatos } from '../../components/formulario';
 import { SECCIONES_FORMULARIO } from '../../components/secciones';
@@ -26,7 +26,12 @@ interface Resultado {
   /** Id en el servidor si ya se envió; si no, quedó en el teléfono. */
   id: number | null;
   pdf: () => Promise<Blob>;
+  /** Se cortó el envío por tiempo (señal débil). */
+  senalDebil?: boolean;
 }
+
+/** Tiempo máximo con la pantalla bloqueada esperando el envío al guardar. */
+const ESPERA_MAX_MS = 60_000;
 
 function descargar(blob: Blob, nombre: string) {
   const url = URL.createObjectURL(blob);
@@ -47,7 +52,6 @@ export function RegistrarVisita() {
   const [alGuardar, setAlGuardar] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
-  const seguirSinEsperar = useRef<(() => void) | null>(null);
   const arriba = useRef<HTMLDivElement>(null);
 
   // Recupera el borrador del teléfono (si el sistema cerró la app, p. ej. al abrir la cámara).
@@ -172,16 +176,22 @@ export function RegistrarVisita() {
           fotosVisita.filter((x) => x.copia).map((x) => ({ base64: x.copia!, observacion: x.observacion })),
         );
       let id: number | null = null;
+      let senalDebil = false;
       if (navigator.onLine) {
-        // Se espera el envío con la pantalla bloqueada; con señal lenta la persona puede seguir sin
-        // esperar y el envío continúa solo (la visita ya está a salvo en el teléfono).
-        const sinEsperar = new Promise<null>((ok) => (seguirSinEsperar.current = () => ok(null)));
-        const r = await Promise.race([enviarPendientes().catch(() => null), sinEsperar]);
-        seguirSinEsperar.current = null;
+        // Se espera el envío con la pantalla bloqueada, como máximo ESPERA_MAX_MS: si no terminó, se
+        // corta (señal débil). La visita ya está en el teléfono y se retoma sola desde donde quedó.
+        let vencido = false;
+        const reloj = setTimeout(() => {
+          vencido = true;
+          cancelarEnvio();
+        }, ESPERA_MAX_MS);
+        const r = await enviarPendientes().catch(() => null);
+        clearTimeout(reloj);
         id = r?.enviadas.find((e) => e.visita_num === entrada.visita_num)?.id ?? null;
+        senalDebil = vencido && !id;
       }
-      setResultado({ visita_num: entrada.visita_num, id, pdf });
-      avisar(id ? 'Visita registrada' : 'Visita guardada en el teléfono');
+      setResultado({ visita_num: entrada.visita_num, id, pdf, senalDebil });
+      avisar(id ? 'Visita registrada' : 'Visita guardada en el teléfono', { tipo: id ? 'exito' : 'info' });
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });
     } finally {
@@ -210,7 +220,7 @@ export function RegistrarVisita() {
   const ultimo = paso === SECCIONES.length - 1;
   return (
     <div ref={arriba} className="mx-auto max-w-2xl scroll-mt-20">
-      {guardando && <EnvioEnCurso onSeguir={() => seguirSinEsperar.current?.()} />}
+      {guardando && <EnvioEnCurso />}
       <div className="mb-3 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-slate-900">Nueva visita</h1>
@@ -286,17 +296,12 @@ export function RegistrarVisita() {
 }
 
 /**
- * Pantalla bloqueante mientras se guarda y envía la visita, con el paso en curso. Si tarda (señal
- * lenta), ofrece seguir sin esperar: la visita ya está guardada en el teléfono y se envía sola.
+ * Pantalla bloqueante mientras se guarda y envía la visita, con el paso en curso. Se quita sola al
+ * terminar o al vencer el tiempo máximo (ESPERA_MAX_MS).
  */
-function EnvioEnCurso({ onSeguir }: { onSeguir: () => void }) {
+function EnvioEnCurso() {
   const [paso, setPaso] = useState('Guardando la visita');
-  const [lento, setLento] = useState(false);
   useEffect(() => alCambiarPaso(setPaso), []);
-  useEffect(() => {
-    const t = setTimeout(() => setLento(true), 15_000);
-    return () => clearTimeout(t);
-  }, []);
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm"
@@ -309,11 +314,6 @@ function EnvioEnCurso({ onSeguir }: { onSeguir: () => void }) {
         <p className="mt-4 text-lg font-bold text-slate-900">Enviando visita</p>
         <p className="mt-1 text-sm text-slate-600">{paso}…</p>
         <p className="mt-3 text-xs text-slate-500">No cierre la app. La visita ya quedó guardada en el teléfono.</p>
-        {lento && (
-          <button type="button" className="btn-secundario mt-5 w-full" onClick={onSeguir}>
-            Seguir sin esperar
-          </button>
-        )}
       </div>
     </div>,
     document.body,
@@ -341,10 +341,13 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
         <CloudOff className="mx-auto h-14 w-14 text-amber-500" aria-hidden />
       )}
       <h1 className="mt-3 text-xl font-bold text-slate-900">{r.id ? 'Visita registrada' : 'Visita guardada en el teléfono'}</h1>
-      <p className="mt-1 text-sm text-slate-600">
-        {r.visita_num}
-        {r.id ? '' : ' · se enviará sola al haber señal.'}
-      </p>
+      <p className="mt-1 text-sm text-slate-600">{r.visita_num}</p>
+      {!r.id && (
+        <p className="mt-2 text-sm text-slate-600">
+          {r.senalDebil ? 'La señal es débil y no se pudo enviar ahora. ' : ''}
+          Quedó guardada en el teléfono y se enviará sola cuando haya señal.
+        </p>
+      )}
       <div className="mt-6 space-y-3">
         <button type="button" className="btn-secundario w-full" disabled={generando} onClick={pdf}>
           {generando ? <Loader2 className="h-5 w-5 animate-spin" /> : <FileDown className="h-5 w-5" />} Descargar PDF
