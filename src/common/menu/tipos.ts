@@ -18,7 +18,6 @@ export interface OpcionMenu {
 export interface OpcionNueva {
   a: string;
   texto: string;
-  descripcion: string;
   icono: LucideIcon;
   access: Permiso[];
   /** Si hay uno a medio llenar en el teléfono, su descripción corta (para mostrar «Continuar»). */

@@ -26,15 +26,13 @@ function Opcion({ o }: { o: OpcionNueva }) {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold text-slate-900">{o.texto}</span>
-          {enCurso ? (
+          {enCurso && (
             <span
               className={`mt-1 inline-flex max-w-full items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${TONO.atencion.etiqueta}`}
             >
               <PencilLine className="h-3.5 w-3.5 shrink-0" aria-hidden />
               <span className="truncate">Continuar · {enCurso}</span>
             </span>
-          ) : (
-            <span className="block text-sm text-slate-500">{o.descripcion}</span>
           )}
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden />

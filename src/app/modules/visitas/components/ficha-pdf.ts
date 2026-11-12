@@ -1,7 +1,8 @@
 /**
- * PDF de la ficha de visita (excepción E3: se genera en la app porque no hay formato oficial seriado;
- * la base es la fuente oficial). Diseño: grilla de celdas de igual altura, títulos que no quedan solos
- * al final de una página, fotos sin deformar y firma en su recuadro.
+^ * PDF de la ficha de inspección (excepción E3: se genera en la app porque no hay formato oficial seriado;
+ * la base es la fuente oficial). Diseño compacto en 2 páginas: página 1 el equipo, página 2 materiales,
+ * fotos (2 × 2), observaciones, personal y firma. Títulos que no quedan solos al final de una página,
+ * fotos sin deformar y firma en su recuadro.
  *
  * El dibujo es el de la ficha validada con el área usuaria; `adaptar` traduce los datos de la visita
  * a los nombres que usa.
@@ -132,37 +133,26 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     if (y + needed > PH - 14) {
       doc.addPage();
       y = MT;
-      drawPageFooter();
     }
   };
-  // Numeración automática: las secciones vacías (p. ej. sin módems) no dejan saltos
+  // Numeración automática: las secciones vacías (p. ej. sin materiales) no dejan saltos
   let numSeccion = 0;
 
   // ══════════════════════════════════════════════════════
-  //  SISTEMA DE MAQUETACIÓN
-  //  Todo se dibuja en celdas de una grilla de 4 columnas con la misma
-  //  altura: etiqueta arriba, valor (texto o pastilla de color) abajo.
-  //  La última celda de cada fila se estira para no dejar huecos.
+  //  SISTEMA DE MAQUETACIÓN (compacto: la ficha cabe en 2 páginas)
+  //  · grid: datos en celdas de hasta 6 columnas (etiqueta pequeña arriba, valor abajo).
+  //  · estados: respuestas SI/NO, OK/NOK, ON/OFF en una sola línea («Gabinete ● OK»).
+  //  Página 1: el equipo. Página 2: materiales, fotos, observaciones, personal y firma.
   // ══════════════════════════════════════════════════════
   const TXT: Color = [30, 41, 59];
   const SUBBG: Color = [232, 240, 254];
-  const CELL_H = 11;
+  const CELL_H = 9;
+  const ESTADO_H = 6;
   const vacio = (v: unknown) => v === undefined || v === null || String(v).trim() === '';
-  const esToggle = (v: unknown) =>
-    ['SI', 'NO', 'OK', 'NOK', 'ON', 'OFF'].includes(
-      String(v || '')
-        .trim()
-        .toUpperCase(),
-    );
   const ajustar = (t: unknown, w: number): string => doc.splitTextToSize(String(t), w)[0] || '';
-
-  const pastilla = (val: unknown, x: number, yy: number) => {
-    const v = String(val || '').toUpperCase();
-    const pos = ['SI', 'ON', 'OK'].includes(v),
-      neg = ['NO', 'OFF', 'NOK'].includes(v);
-    rect(x, yy, 15, 5, pos ? OK : neg ? NOK : BLUE, null, 2.4);
-    setFont(6.8, 'bold', WHITE);
-    txt(v, x + 7.5, yy + 3.6, { align: 'center' });
+  const tono = (v: unknown): Color => {
+    const t = String(v || '').toUpperCase();
+    return ['SI', 'ON', 'OK'].includes(t) ? OK : ['NO', 'OFF', 'NOK'].includes(t) ? NOK : BLUE;
   };
 
   // Títulos de sección y subtítulos quedan "pendientes" y se dibujan junto
@@ -175,21 +165,21 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   const subtitulo = (t: string) => {
     _subPendiente = t;
   };
-  const altoPendiente = () => (_secPendiente ? 8.5 : 0) + (_subPendiente ? 5.2 : 0);
+  const altoPendiente = () => (_secPendiente ? 7 : 0) + (_subPendiente ? 4.2 : 0);
   const dibujarSubtitulo = () => {
     if (_secPendiente) {
-      rect(ML, y, CW, 7, NAVY, null, 1);
-      rect(ML, y, 1.6, 7, ACCENT);
-      setFont(8.5, 'bold', WHITE);
-      txt(++numSeccion + '  ·  ' + _secPendiente, ML + 4.5, y + 4.9);
-      y += 8.5;
+      rect(ML, y, CW, 5.6, NAVY, null, 1);
+      rect(ML, y, 1.4, 5.6, ACCENT);
+      setFont(7.6, 'bold', WHITE);
+      txt(++numSeccion + '  ·  ' + _secPendiente, ML + 4, y + 3.9);
+      y += 7;
       _secPendiente = null;
     }
     if (_subPendiente) {
-      rect(ML, y, CW, 5.2, SUBBG);
-      setFont(6.8, 'bold', BLUE);
-      txt(_subPendiente.toUpperCase(), ML + 2.5, y + 3.7);
-      y += 5.2;
+      rect(ML, y, CW, 4.2, SUBBG);
+      setFont(6.2, 'bold', BLUE);
+      txt(_subPendiente.toUpperCase(), ML + 2.5, y + 3);
+      y += 4.2;
       _subPendiente = null;
     }
   };
@@ -199,11 +189,8 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     dibujarSubtitulo();
   };
 
-  // items: [{l: etiqueta, v: valor, s: columnas que ocupa}]
-  const grid = (lista: (Celda | null)[], cols = 4) => {
-    const items = lista.filter((x): x is Celda => !!x);
-    if (!items.length) return;
-    const cw = CW / cols;
+  /** Reparte celdas en filas de `cols` columnas; la última celda de cada fila se estira. */
+  const enFilas = (items: Celda[], cols: number) => {
     const filas: Celda[][] = [];
     let fila: Celda[] = [],
       usadas = 0;
@@ -218,62 +205,134 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       usadas += s;
     });
     if (fila.length) filas.push(fila);
-    // Grupos pequeños (hasta 4 filas) no se parten entre páginas
-    const alto = altoPendiente() + Math.min(filas.length, 4) * CELL_H;
-    checkPage(alto);
+    filas.forEach((f) => {
+      const total = f.reduce((a, it) => a + (it.s ?? 1), 0);
+      f[f.length - 1]!.s = (f[f.length - 1]!.s ?? 1) + cols - total;
+    });
+    return filas;
+  };
+
+  // Datos: etiqueta pequeña arriba y valor abajo.
+  const grid = (lista: (Celda | null)[], cols = 6) => {
+    const items = lista.filter((x): x is Celda => !!x);
+    if (!items.length) return;
+    const cw = CW / cols;
+    const filas = enFilas(items, cols);
+    checkPage(altoPendiente() + Math.min(filas.length, 3) * CELL_H);
     dibujarSubtitulo();
     filas.forEach((f, fi) => {
-      const total = f.reduce((a, it) => a + (it.s ?? 1), 0);
-      f[f.length - 1]!.s = (f[f.length - 1]!.s ?? 1) + cols - total; // estirar la última celda
       checkPage(CELL_H);
       let x = ML;
       f.forEach((it) => {
         const w = cw * (it.s ?? 1);
         rect(x, y, w, CELL_H, fi % 2 === 0 ? BGROW : WHITE);
-        line(x, y + CELL_H, x + w, y + CELL_H, BORDER, 0.2);
-        if (x > ML) line(x, y + 1.5, x, y + CELL_H - 1.5, BORDER, 0.2);
-        setFont(6.2, 'normal', MUTED);
-        txt(ajustar(String(it.l).toUpperCase(), w - 4), x + 2.5, y + 3.9);
+        if (x > ML) line(x, y + 1.2, x, y + CELL_H - 1.2, BORDER, 0.2);
+        setFont(5.6, 'normal', MUTED);
+        txt(ajustar(String(it.l).toUpperCase(), w - 3.5), x + 2, y + 3.2);
         if (vacio(it.v)) {
-          setFont(8.5, 'normal', [148, 163, 184]);
-          txt('—', x + 2.5, y + 9.1);
-        } else if (esToggle(it.v)) pastilla(it.v, x + 2.5, y + 5.2);
-        else {
-          setFont(8.6, 'bold', TXT);
-          txt(ajustar(it.v, w - 5), x + 2.5, y + 9.1);
+          setFont(8, 'normal', [148, 163, 184]);
+          txt('—', x + 2, y + 7.4);
+        } else {
+          setFont(8, 'bold', TXT);
+          txt(ajustar(it.v, w - 4), x + 2, y + 7.4);
         }
         x += w;
       });
+      line(ML, y + CELL_H, ML + CW, y + CELL_H, BORDER, 0.2);
       y += CELL_H;
     });
-    y += 2.5;
+    y += 1.8;
+  };
+
+  // Estados: «Etiqueta ● VALOR» en una línea; punto y valor en verde (SI/OK/ON) o rojo (NO/NOK/OFF).
+  const estados = (lista: (Celda | null)[], cols = 4) => {
+    const items = lista.filter((x): x is Celda => !!x && !vacio(x.v));
+    if (!items.length) return;
+    const cw = CW / cols;
+    const filas = enFilas(items, cols);
+    checkPage(altoPendiente() + Math.min(filas.length, 3) * ESTADO_H);
+    dibujarSubtitulo();
+    filas.forEach((f, fi) => {
+      checkPage(ESTADO_H);
+      let x = ML;
+      f.forEach((it) => {
+        const w = cw * (it.s ?? 1);
+        rect(x, y, w, ESTADO_H, fi % 2 === 0 ? BGROW : WHITE);
+        if (x > ML) line(x, y + 1, x, y + ESTADO_H - 1, BORDER, 0.2);
+        // «Etiqueta  ● VALOR»: el valor va junto a su campo. Solo SI/NO, OK/NOK y ON/OFF llevan punto de color.
+        const valor = String(it.v);
+        const esEstado = ['SI', 'NO', 'OK', 'NOK', 'ON', 'OFF'].includes(valor.toUpperCase());
+        setFont(7, 'normal', TXT);
+        const etiqueta = ajustar(it.l, w * 0.62);
+        txt(etiqueta, x + 2, y + 4.1);
+        let vx = x + 2 + doc.getTextWidth(etiqueta) + 2.5;
+        if (esEstado) {
+          const c = tono(valor);
+          doc.setFillColor(...c);
+          doc.circle(vx + 0.9, y + 3.05, 0.9, 'F');
+          vx += 2.8;
+          setFont(7.6, 'bold', c);
+          txt(valor.toUpperCase(), vx, y + 4.1);
+        } else {
+          setFont(7.6, 'bold', TXT);
+          txt(ajustar(valor, x + w - vx - 2), vx, y + 4.1);
+        }
+        x += w;
+      });
+      line(ML, y + ESTADO_H, ML + CW, y + ESTADO_H, BORDER, 0.2);
+      y += ESTADO_H;
+    });
+    y += 1.8;
   };
 
   // Recuadro de texto largo (observaciones, descripción de alarma, etc.)
-  const textoLargo = (etiqueta: string, texto: unknown, tono = 'normal') => {
+  const textoLargo = (etiqueta: string, texto: unknown, tono2 = 'normal') => {
     if (vacio(texto)) return;
-    setFont(8.2, 'normal');
+    setFont(7.6, 'normal');
     const lineas = doc.splitTextToSize(String(texto), CW - 6);
     let i = 0,
       primera = true;
-    checkPage(altoPendiente() + 12);
+    checkPage(altoPendiente() + 10);
     dibujarSubtitulo();
     while (i < lineas.length) {
-      checkPage(12);
-      const cabe = Math.max(1, Math.floor((PH - 14 - y - 7) / 4.2));
+      checkPage(10);
+      const cabe = Math.max(1, Math.floor((PH - 14 - y - 6) / 3.6));
       const trozo = lineas.slice(i, i + cabe);
-      const h = 6 + trozo.length * 4.2 + 1.5;
-      const fondo: Color = tono === 'aviso' ? [255, 251, 235] : BGROW;
-      const borde = tono === 'aviso' ? ACCENT : BORDER;
+      const h = 5 + trozo.length * 3.6 + 1;
+      const fondo: Color = tono2 === 'aviso' ? [255, 251, 235] : BGROW;
+      const borde = tono2 === 'aviso' ? ACCENT : BORDER;
       rect(ML, y, CW, h, fondo, borde, 1);
-      setFont(6.2, 'normal', tono === 'aviso' ? [146, 64, 14] : MUTED);
-      txt((etiqueta + (primera ? '' : ' (cont.)')).toUpperCase(), ML + 3, y + 4);
-      setFont(8.2, 'normal', TXT);
-      doc.text(trozo, ML + 3, y + 8.6);
-      y += h + 2.5;
+      setFont(5.6, 'normal', tono2 === 'aviso' ? [146, 64, 14] : MUTED);
+      txt((etiqueta + (primera ? '' : ' (cont.)')).toUpperCase(), ML + 2.5, y + 3.4);
+      setFont(7.6, 'normal', TXT);
+      doc.text(trozo, ML + 2.5, y + 7.2);
+      y += h + 1.8;
       i += trozo.length;
       primera = false;
     }
+  };
+
+  // Varias observaciones cortas lado a lado (si alguna es larga, cada una va en su propio recuadro).
+  const observacionesJuntas = (lista: [string, unknown][]) => {
+    const con = lista.filter(([, t]) => !vacio(t));
+    if (con.length < 2) return con.forEach(([e, t]) => textoLargo(e, t));
+    const gap = 3,
+      w = (CW - gap * (con.length - 1)) / con.length;
+    setFont(7.6, 'normal');
+    const lineas = con.map(([, t]) => doc.splitTextToSize(String(t), w - 5) as string[]);
+    if (lineas.some((l) => l.length > 6)) return con.forEach(([e, t]) => textoLargo(e, t));
+    const h = 5 + Math.max(...lineas.map((l) => l.length)) * 3.6 + 1;
+    checkPage(altoPendiente() + h);
+    dibujarSubtitulo();
+    con.forEach(([e], i) => {
+      const x = ML + i * (w + gap);
+      rect(x, y, w, h, BGROW, BORDER, 1);
+      setFont(5.6, 'normal', MUTED);
+      txt(e.toUpperCase(), x + 2.5, y + 3.4);
+      setFont(7.6, 'normal', TXT);
+      doc.text(lineas[i]!, x + 2.5, y + 7.2);
+    });
+    y += h + 1.8;
   };
 
   const esCooperPdf = String(d.marcaReconectador || '')
@@ -283,34 +342,33 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   // ══════════════════════════════════════════════════════
   //  ENCABEZADO
   // ══════════════════════════════════════════════════════
-  rect(0, 0, PW, 24, NAVY);
-  rect(0, 0, 3, 24, ACCENT);
+  rect(0, 0, PW, 22, NAVY);
+  rect(0, 0, 3, 22, ACCENT);
   if (logoBase64) {
     try {
       const pr = doc.getImageProperties(logoBase64);
-      const lh = 11,
-        lw = Math.min(34, (lh * pr.width) / pr.height);
-      doc.addImage(logoBase64, 'PNG', 8, (24 - lh) / 2, lw, lh, '', 'FAST');
+      const lh = 10,
+        lw = Math.min(32, (lh * pr.width) / pr.height);
+      doc.addImage(logoBase64, 'PNG', 8, (22 - lh) / 2, lw, lh, '', 'FAST');
     } catch {
       // sin logo: el encabezado sigue legible
     }
   }
-  line(46, 5, 46, 19, [60, 85, 120], 0.3);
-  setFont(14, 'bold', WHITE);
-  txt('HOJA DE INSPECCIÓN', 50, 11);
-  setFont(7.5, 'normal', ACCENT);
-  txt('Inspección de Restauradores · SCADA Distribución', 50, 16.5);
-  // N° de visita: recuadro claro con buen contraste
+  line(44, 5, 44, 17, [60, 85, 120], 0.3);
+  setFont(13, 'bold', WHITE);
+  txt('HOJA DE INSPECCIÓN', 48, 10.5);
+  setFont(7.2, 'normal', ACCENT);
+  txt('Inspección de Restauradores · SCADA Distribución', 48, 15.5);
   const nvW = 54,
     nvX = PW - MR - nvW;
-  rect(nvX, 5, nvW, 14, WHITE, null, 1.5);
-  setFont(6.2, 'bold', MUTED);
-  txt('FOLIO', nvX + nvW / 2, 9.2, { align: 'center' });
-  setFont(10.5, 'bold', NAVY);
-  txt(d.visitaNum || '—', nvX + nvW / 2, 15.6, { align: 'center' });
-  y = 28;
+  rect(nvX, 4.5, nvW, 13, WHITE, null, 1.5);
+  setFont(5.8, 'bold', MUTED);
+  txt('FOLIO', nvX + nvW / 2, 8.4, { align: 'center' });
+  setFont(10, 'bold', NAVY);
+  txt(d.visitaNum || '—', nvX + nvW / 2, 14.4, { align: 'center' });
+  y = 25;
 
-  // Franja de datos de la visita
+  // Franja de datos de la inspección
   const rapidos = [
     ['Fecha', d.fechaVisita],
     ['Tipo de visita', d.tipoVisita],
@@ -320,19 +378,19 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     ['Circuito', d.codigoCircuito],
   ];
   const qw = CW / rapidos.length;
-  rect(ML, y, CW, 11, WHITE, BORDER, 1.2);
+  rect(ML, y, CW, 10, WHITE, BORDER, 1.2);
   rapidos.forEach(([l, v], i) => {
     const cx = ML + qw * i + qw / 2;
-    if (i > 0) line(ML + qw * i, y + 2, ML + qw * i, y + 9, BORDER, 0.2);
-    setFont(6, 'normal', MUTED);
-    txt(l.toUpperCase(), cx, y + 4, { align: 'center' });
-    setFont(8.8, 'bold', NAVY);
-    txt(ajustar(vacio(v) ? '—' : v, qw - 3), cx, y + 9, { align: 'center' });
+    if (i > 0) line(ML + qw * i, y + 2, ML + qw * i, y + 8, BORDER, 0.2);
+    setFont(5.6, 'normal', MUTED);
+    txt(l.toUpperCase(), cx, y + 3.6, { align: 'center' });
+    setFont(8.4, 'bold', NAVY);
+    txt(ajustar(vacio(v) ? '—' : v, qw - 3), cx, y + 8.2, { align: 'center' });
   });
-  y += 15;
+  y += 13;
 
   // ══════════════════════════════════════════════════════
-  //  DATOS DEL RESTAURADOR
+  //  PÁGINA 1 · EL EQUIPO
   // ══════════════════════════════════════════════════════
   seccion('DATOS DEL RESTAURADOR');
   const coord = !vacio(d.latitud) || !vacio(d.longitud) ? `${d.latitud || '—'} , ${d.longitud || '—'}` : '';
@@ -340,42 +398,33 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     { l: 'Ubicación', v: d.nombreUbicacion, s: 2 },
     { l: 'Subestación', v: d.subestacion },
     { l: 'Zona', v: d.zona },
-    { l: 'Sector', v: d.sector },
+    { l: 'Sector', v: d.sector, s: 2 },
     { l: 'Coordenadas (lat , long)', v: coord, s: 2 },
     { l: 'Generación distribuida', v: d.genDistribuida },
   ]);
 
-  // ══════════════════════════════════════════════════════
-  //  RECONECTADOR
-  // ══════════════════════════════════════════════════════
   seccion('RECONECTADOR');
   grid([
     { l: 'Tipo', v: d.tipoRecon },
     { l: 'Marca', v: d.marcaReconectador },
     { l: 'Modelo', v: d.modeloRecon },
     { l: 'Medio de extinción', v: d.medioExtincion },
-    { l: 'Serie reconectador', v: d.serieRecon },
+    { l: 'Serie reconectador', v: d.serieRecon, s: 2 },
     { l: 'Tipo de control', v: d.tipoControl },
-    { l: 'Serie control', v: d.serieControl },
+    { l: 'Serie control', v: d.serieControl, s: 2 },
     esCooperPdf ? { l: 'Firmware / Proview', v: d.proviewControl } : null,
   ]);
-  if (esCooperPdf) {
-    subtitulo('Mangueras extras');
-    grid([
+  if (esCooperPdf)
+    estados([
       { l: 'Terminal p/sensores V', v: d.termSensV },
       { l: 'Manguera sensores V', v: d.manguSensV },
       { l: 'Terminal manguera aux', v: d.termManguAux },
       { l: 'Manguera auxiliar', v: d.manguAux },
     ]);
-  }
 
-  // ══════════════════════════════════════════════════════
-  //  MÓDEMS
-  // ══════════════════════════════════════════════════════
   seccion('MÓDEMS Y COMUNICACIONES');
   [1, 2].forEach((n) => {
-    const tiene = d['hasModem' + n];
-    if (!tiene) return;
+    if (!d['hasModem' + n]) return;
     subtitulo('Módem ' + n);
     const ant = d['antenaModem' + n],
       tAnt = d['tipoAntena' + n];
@@ -384,98 +433,101 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       { l: 'Marca', v: d['marcaModem' + n] },
       { l: 'Modelo', v: d['modeloModem' + n] },
       { l: 'Serie', v: d['serieModem' + n] },
-      { l: 'Antena', v: ant ? ant + (tAnt ? ' · ' + tAnt : '') : '', s: 2 },
-      { l: 'Tecnología', v: d['tecModem' + n], s: 2 },
+      { l: 'Antena', v: ant ? ant + (tAnt ? ' · ' + tAnt : '') : '' },
+      { l: 'Tecnología', v: d['tecModem' + n] },
     ]);
   });
-  if (!d.hasModem1 && !d.hasModem2)
-    grid([
-      { l: 'Módem 1', v: 'NO' },
-      { l: 'Módem 2', v: 'NO' },
-    ]);
+  if (!d.hasModem1 || !d.hasModem2) estados([!d.hasModem1 ? { l: 'Módem 1', v: 'NO' } : null, !d.hasModem2 ? { l: 'Módem 2', v: 'NO' } : null]);
 
-  // ══════════════════════════════════════════════════════
-  //  TABLERO DE CONTROL
-  // ══════════════════════════════════════════════════════
+  // Tablero, alarma, batería y corrientes: una sola sección, como en la app
+  seccion('TABLERO Y MEDICIONES');
   const tablero = Object.entries(d.tableroCampos || {}).filter(([, v]) => v);
   if (tablero.length || d.grupoActivo) {
-    seccion('TABLERO DE CONTROL' + (d.tableroMarca ? ' · ' + String(d.tableroMarca).toUpperCase() : ''));
-    grid([...tablero.map(([l, v]) => ({ l, v })), d.grupoActivo ? { l: 'Grupo activo', v: d.grupoActivo } : null]);
+    subtitulo('Tablero de control' + (d.tableroMarca ? ' · ' + String(d.tableroMarca).toUpperCase() : ''));
+    estados([...tablero.map(([l, v]) => ({ l, v })), d.grupoActivo ? { l: 'Grupo activo', v: d.grupoActivo } : null]);
   }
-
-  // ══════════════════════════════════════════════════════
-  //  ALARMA Y BATERÍA
-  // ══════════════════════════════════════════════════════
-  seccion('ALARMA Y BATERÍA');
-  grid([
-    { l: 'Alarma presente', v: d.alarmaPresente },
-    { l: 'Battery test', v: d.batteryTest },
-    { l: 'Cambio de baterías', v: d.cambioBaterias },
-    { l: 'Batería instalada', v: d.cambioBaterias === 'SI' ? d.tipoBateria : 'N/A' },
-    { l: 'Medición AC (V)', v: d.medicionAC },
-    { l: 'Medición baterías (V)', v: d.medicionBat },
-    { l: 'Medición cargador (V)', v: d.medicionCargador, s: 2 },
-  ]);
+  subtitulo('Alarma');
+  estados([{ l: 'Alarma presente', v: d.alarmaPresente }]);
   textoLargo('Descripción de la alarma', d.descAlarma);
+  subtitulo('Batería');
+  estados(
+    [
+      { l: 'Battery test', v: d.batteryTest },
+      { l: 'Cambio de baterías', v: d.cambioBaterias },
+      d.cambioBaterias === 'SI' ? { l: 'Batería instalada', v: d.tipoBateria } : null,
+    ],
+    3,
+  );
+  grid(
+    [
+      { l: 'Voltaje AC (V)', v: d.medicionAC },
+      { l: 'Voltaje baterías (V)', v: d.medicionBat },
+      { l: 'Voltaje cargador (V)', v: d.medicionCargador },
+    ],
+    3,
+  );
+  subtitulo('Corrientes instantáneas (A)');
+  grid(
+    [
+      { l: 'IA', v: d.corrIA },
+      { l: 'IB', v: d.corrIB },
+      { l: 'IC', v: d.corrIC },
+      { l: 'IN (neutro)', v: d.corrIN },
+    ],
+    4,
+  );
 
-  // ══════════════════════════════════════════════════════
-  //  CORRIENTES
-  // ══════════════════════════════════════════════════════
-  seccion('CORRIENTES INSTANTÁNEAS (A)');
-  grid([
-    { l: 'IA', v: d.corrIA },
-    { l: 'IB', v: d.corrIB },
-    { l: 'IC', v: d.corrIC },
-    { l: 'IN (neutro)', v: d.corrIN },
-  ]);
-
-  // ══════════════════════════════════════════════════════
-  //  ESTADO FÍSICO
-  // ══════════════════════════════════════════════════════
   seccion('ESTADO FÍSICO');
-  subtitulo('Equipo y aterrizaje');
-  grid([
+  const potSi = d.tienePotencial === 'SI';
+  estados([
     { l: 'Gabinete', v: d.gabinete },
     { l: 'Borneras', v: d.borneras },
     { l: 'Aterrizaje restaurador', v: d.aterRestState },
     { l: 'Aterrizaje control', v: d.aterCtrlState },
     { l: 'Cable de tierra', v: d.cableTierra },
-    { l: 'N° varillas', v: d.numVarillas },
-    { l: 'Resistencia control (ohm)', v: d.aterControl },
-    { l: 'Resistencia restaurador (ohm)', v: d.aterRestaurador },
-    !vacio(d.aterOtros) ? { l: 'Resistencia otros (ohm)', v: d.aterOtros } : null,
-  ]);
-  textoLargo('Observación del estado físico', d.obsEstadoFisico);
-  subtitulo('Bypass');
-  grid([
-    { l: 'Tipo de cuchilla', v: d.tipoCuchilla, s: 2 },
     { l: 'Estado cuchillas', v: d.estadoCuchillas },
-    { l: 'N° cuchillas', v: d.numCuchillas },
     { l: 'Pararrayos', v: d.pararrayos },
-    { l: 'N° pararrayos', v: d.numPararrayos },
+    { l: 'Tiene potencial', v: d.tienePotencial },
+    potSi ? { l: 'Pararrayos potencial', v: d.potPararrayos } : null,
+    potSi ? { l: 'Cuchilla potencial', v: d.potCuchilla } : null,
+    potSi ? { l: 'Aterrizaje potencial', v: d.aterPotState } : null,
+    d.tienePotencial === 'NO' ? { l: 'Alimentado por acometida', v: d.alimentadoAcometida } : null,
   ]);
-  subtitulo('Potencial');
-  if (d.tienePotencial === 'SI') {
-    grid([
-      { l: 'Tiene potencial', v: 'SI' },
-      { l: 'Cantidad', v: d.potCantidad },
-      { l: 'Fase de conexión', v: d.faseConexion },
-      { l: 'Aterrizaje potencial', v: d.aterPotState },
-      { l: 'Pararrayos', v: d.potPararrayos },
-      { l: 'Cuchilla', v: d.potCuchilla },
-    ]);
-  } else {
-    grid([{ l: 'Tiene potencial', v: d.tienePotencial }, d.tienePotencial === 'NO' ? { l: 'Alimentado por acometida', v: d.alimentadoAcometida } : null]);
-    textoLargo('Observación de la alimentación', d.obsPotencial);
-  }
+  grid([
+    { l: 'Tipo de cuchilla', v: d.tipoCuchilla, s: 3 },
+    { l: 'N° cuchillas', v: d.numCuchillas },
+    { l: 'N° pararrayos', v: d.numPararrayos },
+    { l: 'N° varillas', v: d.numVarillas },
+    potSi ? { l: 'Cantidad de potencial', v: d.potCantidad, s: 3 } : null,
+    potSi ? { l: 'Fase de conexión', v: d.faseConexion, s: 3 } : null,
+  ]);
+  // Sin «Ω»: la fuente del PDF no lo tiene (se veía desarmado).
+  subtitulo('Resistencia de aterrizaje (ohm)');
+  grid(
+    [
+      { l: 'Control', v: d.aterControl },
+      { l: 'Restaurador', v: d.aterRestaurador },
+      { l: 'Otros', v: d.aterOtros },
+    ],
+    3,
+  );
+  observacionesJuntas([
+    ['Observación del estado físico', d.obsEstadoFisico],
+    ['Observación de la alimentación', d.obsPotencial],
+  ]);
 
   // ══════════════════════════════════════════════════════
-  //  MATERIALES
+  //  PÁGINA 2 · LO QUE SE HIZO Y QUIÉN
   // ══════════════════════════════════════════════════════
+  if (doc.getNumberOfPages() === 1) {
+    doc.addPage();
+    y = MT;
+  }
+
   const mats = d.materialesUtilizados || [];
   if (mats.length > 0) {
     seccion('MATERIALES UTILIZADOS');
-    abrir(6.5 + 7.5 * Math.min(mats.length, 3));
+    abrir(5.5 + 6 * Math.min(mats.length, 3));
     const cols = [
       { l: 'Código', w: 0.13 },
       { l: 'Descripción', w: 0.43 },
@@ -484,122 +536,121 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       { l: 'Motivo', w: 0.24 },
     ];
     const encabezado = () => {
-      rect(ML, y, CW, 6.5, BLUE, null, 1);
+      rect(ML, y, CW, 5.5, BLUE, null, 1);
       let mx = ML;
       cols.forEach((c) => {
-        setFont(6.8, 'bold', WHITE);
-        txt(c.l.toUpperCase(), c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 4.4, c.c ? { align: 'center' } : {});
+        setFont(6.2, 'bold', WHITE);
+        txt(c.l.toUpperCase(), c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 3.8, c.c ? { align: 'center' } : {});
         mx += CW * c.w;
       });
-      y += 6.5;
+      y += 5.5;
     };
     encabezado();
     mats.forEach((m: any, idx: number) => {
-      if (y + 8 > PH - 14) {
+      if (y + 6.5 > PH - 14) {
         checkPage(20);
         encabezado();
       }
-      rect(ML, y, CW, 7.5, idx % 2 === 0 ? BGROW : WHITE);
-      line(ML, y + 7.5, ML + CW, y + 7.5, BORDER, 0.2);
+      rect(ML, y, CW, 6, idx % 2 === 0 ? BGROW : WHITE);
+      line(ML, y + 6, ML + CW, y + 6, BORDER, 0.2);
       let mx = ML;
       [m.codigo, m.desc, m.unidad, m.cant, m.motivo].forEach((v, ci) => {
-        const c = cols[ci];
-        setFont(7.8, ci === 1 ? 'bold' : 'normal', ci === 0 ? BLUE : TXT);
+        const c = cols[ci]!;
+        setFont(7.4, ci === 1 ? 'bold' : 'normal', ci === 0 ? BLUE : TXT);
         const t = ajustar(vacio(v) ? '—' : v, CW * c.w - 4);
-        txt(t, c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 5, c.c ? { align: 'center' } : {});
+        txt(t, c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 4.1, c.c ? { align: 'center' } : {});
         mx += CW * c.w;
       });
-      y += 7.5;
+      y += 6;
     });
-    y += 2.5;
+    y += 1.8;
     textoLargo('Observación de materiales', d.obsMateriales, 'aviso');
   }
 
-  // ══════════════════════════════════════════════════════
-  //  FOTOGRAFÍAS (filas de 2; una foto sola queda centrada)
-  // ══════════════════════════════════════════════════════
+  // Fotografías: cuadrícula de 2 × 2 (las 4 caben en media página); con 1 o 2 fotos van más grandes
+  // y una sola queda centrada
   const fotos = (d.fotografias || []).filter((f: FotoFicha) => f && f.base64);
   if (fotos.length > 0) {
-    const FW = (CW - 5) / 2,
-      FH = 66,
-      CAP = 7;
+    const FW = (CW - 4) / 2,
+      FH = fotos.length <= 2 ? 80 : 50,
+      CAP = 5.5;
     seccion('REGISTRO FOTOGRÁFICO');
     abrir(FH + CAP + 2);
     for (let i = 0; i < fotos.length; i += 2) {
       checkPage(FH + CAP + 2);
       const enFila = fotos.slice(i, i + 2);
-      const x0 = enFila.length === 1 ? ML + (CW - FW) / 2 : ML;
+      const x0 = enFila.length === 1 && fotos.length === 1 ? ML + (CW - FW) / 2 : ML;
       enFila.forEach((foto: FotoFicha, j: number) => {
-        const x = x0 + j * (FW + 5);
-        rect(x, y, FW, FH + CAP, WHITE, BORDER, 1.5);
+        const x = x0 + j * (FW + 4);
+        rect(x, y, FW, FH + CAP, WHITE, BORDER, 1.2);
         try {
           const pr = doc.getImageProperties(foto.base64);
-          const k = Math.min((FW - 3) / pr.width, (FH - 3) / pr.height);
+          const k = Math.min((FW - 2.4) / pr.width, (FH - 2.4) / pr.height);
           const iw = pr.width * k,
             ih = pr.height * k;
-          doc.addImage(foto.base64, 'JPEG', x + (FW - iw) / 2, y + 1.5 + (FH - 3 - ih) / 2, iw, ih, '', 'FAST');
+          doc.addImage(foto.base64, 'JPEG', x + (FW - iw) / 2, y + 1.2 + (FH - 2.4 - ih) / 2, iw, ih, '', 'FAST');
         } catch {
-          setFont(8, 'normal', MUTED);
+          setFont(7.6, 'normal', MUTED);
           txt('Imagen no disponible', x + FW / 2, y + FH / 2, { align: 'center' });
         }
         line(x, y + FH, x + FW, y + FH, BORDER, 0.2);
-        setFont(7.2, 'bold', NAVY);
-        txt('Foto ' + (i + j + 1), x + 2.5, y + FH + 4.6);
+        setFont(6.8, 'bold', NAVY);
+        txt('Foto ' + (i + j + 1), x + 2.2, y + FH + 3.8);
         if (foto.observacion) {
-          setFont(7.2, 'normal', MUTED);
-          txt(ajustar(foto.observacion, FW - 18), x + 15, y + FH + 4.6);
+          setFont(6.8, 'normal', MUTED);
+          txt(ajustar(foto.observacion, FW - 16), x + 13, y + FH + 3.8);
         }
       });
-      y += FH + CAP + 4;
+      y += FH + CAP + 3;
     }
   }
 
-  // ══════════════════════════════════════════════════════
-  //  OBSERVACIONES GENERALES
-  // ══════════════════════════════════════════════════════
-  if (!vacio(d.obsGenerales)) {
-    seccion('OBSERVACIONES GENERALES');
-    textoLargo('Observaciones', d.obsGenerales);
-  }
-
-  // ══════════════════════════════════════════════════════
-  //  PERSONAL Y FIRMA (bloques lado a lado, misma altura)
-  // ══════════════════════════════════════════════════════
+  // Observaciones generales, personal y firma: al final, lado a lado con la firma
   const personal = d.personal || [];
-  const filaP = 8,
-    cabP = 6.5;
-  const altoTabla = cabP + Math.max(1, personal.length) * filaP;
-  const altoBloque = Math.max(46, altoTabla);
-  seccion('PERSONAL Y FIRMA');
-  abrir(altoBloque);
-  const gap = 5,
-    persW = CW * 0.58 - gap / 2,
+  const filaP = 6.2,
+    cabP = 5.5;
+  setFont(7.6, 'normal');
+  const gap = 4,
+    persW = CW * 0.6 - gap / 2,
     firmaW = CW - persW - gap,
     firmaX = ML + persW + gap;
+  const lineasObs = vacio(d.obsGenerales) ? [] : (doc.splitTextToSize(String(d.obsGenerales), persW - 5) as string[]);
+  const altoObs = lineasObs.length ? 5 + lineasObs.length * 3.6 + 2 : 0;
+  const altoTabla = cabP + Math.max(1, personal.length) * filaP;
+  const altoBloque = Math.max(36, altoObs + altoTabla);
+  seccion('OBSERVACIONES, PERSONAL Y FIRMA');
+  abrir(altoBloque);
   const y0 = y;
-  // Tabla de personal
-  rect(ML, y0, persW, altoBloque, WHITE, BORDER, 1.2);
-  rect(ML, y0, persW, cabP, BLUE, null, 1.2);
-  setFont(6.8, 'bold', WHITE);
-  txt('NOMBRE', ML + 2.5, y0 + 4.4);
-  txt('CARGO', ML + persW * 0.56, y0 + 4.4);
-  txt('N° EMP.', ML + persW * 0.84, y0 + 4.4);
+  let yy = y0;
+  if (lineasObs.length) {
+    rect(ML, yy, persW, altoObs - 2, BGROW, BORDER, 1);
+    setFont(5.6, 'normal', MUTED);
+    txt('OBSERVACIONES GENERALES', ML + 2.5, yy + 3.4);
+    setFont(7.6, 'normal', TXT);
+    doc.text(lineasObs, ML + 2.5, yy + 7.2);
+    yy += altoObs;
+  }
+  rect(ML, yy, persW, y0 + altoBloque - yy, WHITE, BORDER, 1.2);
+  rect(ML, yy, persW, cabP, BLUE, null, 1.2);
+  setFont(6.2, 'bold', WHITE);
+  txt('NOMBRE', ML + 2.5, yy + 3.8);
+  txt('CARGO', ML + persW * 0.56, yy + 3.8);
+  txt('N° EMP.', ML + persW * 0.84, yy + 3.8);
   personal.forEach((p: any, i: number) => {
-    const ry = y0 + cabP + i * filaP;
+    const ry = yy + cabP + i * filaP;
     if (i % 2 === 0) rect(ML + 0.3, ry, persW - 0.6, filaP, BGROW);
-    setFont(8, 'bold', TXT);
-    txt(ajustar(p.nombre || '—', persW * 0.54 - 3), ML + 2.5, ry + 5.3);
-    setFont(7.4, 'normal', MUTED);
-    txt(ajustar(p.cargo || '—', persW * 0.28 - 2), ML + persW * 0.56, ry + 5.3);
-    setFont(7.4, 'normal', TXT);
-    txt(ajustar(p.id || '—', persW * 0.16 - 2), ML + persW * 0.84, ry + 5.3);
+    setFont(7.6, 'bold', TXT);
+    txt(ajustar(p.nombre || '—', persW * 0.54 - 3), ML + 2.5, ry + 4.2);
+    setFont(7, 'normal', MUTED);
+    txt(ajustar(p.cargo || '—', persW * 0.28 - 2), ML + persW * 0.56, ry + 4.2);
+    setFont(7, 'normal', TXT);
+    txt(ajustar(p.id || '—', persW * 0.16 - 2), ML + persW * 0.84, ry + 4.2);
   });
-  // Firma
   rect(firmaX, y0, firmaW, altoBloque, BGROW, BORDER, 1.2);
-  setFont(6.2, 'bold', MUTED);
-  txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4.6, { align: 'center' });
-  const fTop = y0 + 7,
-    fBot = y0 + altoBloque - 10;
+  setFont(5.8, 'bold', MUTED);
+  txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4, { align: 'center' });
+  const fTop = y0 + 6,
+    fBot = y0 + altoBloque - 9;
   if (d.firmaImg && String(d.firmaImg).startsWith('data:image')) {
     try {
       const pr = doc.getImageProperties(d.firmaImg);
@@ -611,29 +662,27 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       // firma ilegible: queda el recuadro con el nombre
     }
   } else {
-    setFont(8, 'italic', MUTED);
+    setFont(7.6, 'italic', MUTED);
     txt('Sin firma digital', firmaX + firmaW / 2, (fTop + fBot) / 2, { align: 'center' });
   }
   line(firmaX + 6, fBot + 1, firmaX + firmaW - 6, fBot + 1, MUTED, 0.3);
-  setFont(8.4, 'bold', NAVY);
-  txt(ajustar(d.firmaResponsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 6, { align: 'center' });
+  setFont(8, 'bold', NAVY);
+  txt(ajustar(d.firmaResponsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 5.5, { align: 'center' });
   y = y0 + altoBloque + 4;
 
   // ══════════════════════════════════════════════════════
-  //  PIE DE PÁGINA EN TODAS LAS PÁGINAS
+  //  PIE DE PÁGINA EN TODAS LAS PÁGINAS (se dibuja una vez, al final)
   // ══════════════════════════════════════════════════════
-  function drawPageFooter() {
-    const pages = doc.getNumberOfPages();
-    for (let i = 1; i <= pages; i++) {
-      doc.setPage(i);
-      rect(0, PH - 10, PW, 10, NAVY);
-      setFont(6.5, 'normal', [150, 170, 200]);
-      txt('SCADA Distribución — Hoja de Inspección · ' + (d.visitaNum || '') + ' · ' + (d.fechaVisita || ''), ML, PH - 4);
-      txt('Pág. ' + i + ' / ' + pages, PW - MR, PH - 4, { align: 'right' });
-      txt('Generado: ' + new Date().toLocaleString('es-HN'), PW / 2, PH - 4, { align: 'center' });
-    }
+  const paginas = doc.getNumberOfPages();
+  const generado = 'Generado: ' + new Date().toLocaleString('es-HN');
+  for (let i = 1; i <= paginas; i++) {
+    doc.setPage(i);
+    rect(0, PH - 9, PW, 9, NAVY);
+    setFont(6.2, 'normal', [150, 170, 200]);
+    txt('Hoja de inspección · ' + (d.visitaNum || '') + ' · ' + (d.fechaVisita || ''), ML, PH - 3.6);
+    txt(generado, PW / 2, PH - 3.6, { align: 'center' });
+    txt('Pág. ' + i + ' / ' + paginas, PW - MR, PH - 3.6, { align: 'right' });
   }
-  drawPageFooter();
 
   return doc.output('blob');
 }

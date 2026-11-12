@@ -22,7 +22,6 @@ export const nuevasVisitas: OpcionNueva[] = [
   {
     a: urlNuevaVisita,
     texto: 'Inspección de restaurador',
-    descripcion: 'Hoja de inspección del restaurador, su control, módems y estado físico.',
     icono: Zap,
     access: [PermisosVisitas.Registrar],
     enCurso: async () => {
