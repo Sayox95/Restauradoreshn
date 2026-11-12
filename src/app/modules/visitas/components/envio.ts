@@ -19,8 +19,17 @@ export interface ResultadoEnvio {
   rechazadas: number;
 }
 
+/** Paso del envío en curso, para mostrarlo en la pantalla que espera (p. ej. «Subiendo foto 1 de 2»). */
+const oyentesPaso = new Set<(paso: string) => void>();
+const avisarPaso = (paso: string) => oyentesPaso.forEach((f) => f(paso));
+export function alCambiarPaso(fn: (paso: string) => void) {
+  oyentesPaso.add(fn);
+  return () => void oyentesPaso.delete(fn);
+}
+
 async function enviarUna(p: Pendiente): Promise<number> {
   if (!p.id) {
+    avisarPaso('Registrando la visita');
     const r = await registrarVisita(p.visita);
     p.id = r.visita.id;
     p.error = undefined;
@@ -30,11 +39,13 @@ async function enviarUna(p: Pendiente): Promise<number> {
     const orden = i + 1;
     if (p.fotos_subidas.includes(orden)) continue;
     const f = p.fotos[i]!;
+    avisarPaso(`Subiendo foto ${orden} de ${p.fotos.length}`);
     await subirFoto(p.id, orden, f.original, f.observacion);
     p.fotos_subidas = [...p.fotos_subidas, orden];
     await guardarEnCola(p);
   }
   if (!p.pdf_subido) {
+    avisarPaso('Generando y archivando el PDF');
     const pdf = await generarFicha(
       visitaEsquema.parse(p.visita),
       p.fotos.filter((f) => f.copia).map((f) => ({ base64: f.copia!, observacion: f.observacion })),

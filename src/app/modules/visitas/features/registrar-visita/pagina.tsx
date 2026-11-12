@@ -6,6 +6,7 @@
 import { SECCIONES, avance, faltantes, visitaEsquema } from '@shared/visitas';
 import { CheckCircle2, ChevronLeft, ChevronRight, CloudOff, FileDown, Loader2, Save } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
@@ -14,7 +15,7 @@ import { marcarTrabajo } from '@/common/pwa/trabajo';
 import { mensajeError } from '@/common/http/api';
 import { type FotoLocal, borrarBorrador, guardarBorrador, guardarEnCola, leerBorrador } from '../../components/almacen';
 import { useCatalogosVisita } from '../../components/catalogos';
-import { enviarPendientes } from '../../components/envio';
+import { alCambiarPaso, enviarPendientes } from '../../components/envio';
 import { generarFicha } from '../../components/ficha-pdf';
 import { type Borrador, type Cambios, aEntrada, borradorNuevo, requisitos, tieneDatos } from '../../components/formulario';
 import { SECCIONES_FORMULARIO } from '../../components/secciones';
@@ -46,6 +47,7 @@ export function RegistrarVisita() {
   const [alGuardar, setAlGuardar] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [resultado, setResultado] = useState<Resultado | null>(null);
+  const seguirSinEsperar = useRef<(() => void) | null>(null);
   const arriba = useRef<HTMLDivElement>(null);
 
   // Recupera el borrador del teléfono (si el sistema cerró la app, p. ej. al abrir la cámara).
@@ -171,7 +173,11 @@ export function RegistrarVisita() {
         );
       let id: number | null = null;
       if (navigator.onLine) {
-        const r = await enviarPendientes().catch(() => null);
+        // Se espera el envío con la pantalla bloqueada; con señal lenta la persona puede seguir sin
+        // esperar y el envío continúa solo (la visita ya está a salvo en el teléfono).
+        const sinEsperar = new Promise<null>((ok) => (seguirSinEsperar.current = () => ok(null)));
+        const r = await Promise.race([enviarPendientes().catch(() => null), sinEsperar]);
+        seguirSinEsperar.current = null;
         id = r?.enviadas.find((e) => e.visita_num === entrada.visita_num)?.id ?? null;
       }
       setResultado({ visita_num: entrada.visita_num, id, pdf });
@@ -204,6 +210,7 @@ export function RegistrarVisita() {
   const ultimo = paso === SECCIONES.length - 1;
   return (
     <div ref={arriba} className="mx-auto max-w-2xl scroll-mt-20">
+      {guardando && <EnvioEnCurso onSeguir={() => seguirSinEsperar.current?.()} />}
       <div className="mb-3 flex items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-slate-900">Nueva visita</h1>
@@ -265,15 +272,7 @@ export function RegistrarVisita() {
           </button>
           {ultimo ? (
             <button type="button" className="btn-primario flex-1" disabled={guardando} onClick={guardar}>
-              {guardando ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin" /> Enviando…
-                </>
-              ) : (
-                <>
-                  <Save className="h-5 w-5" /> Guardar visita
-                </>
-              )}
+              <Save className="h-5 w-5" /> Guardar visita
             </button>
           ) : (
             <button type="button" className="btn-primario flex-1" onClick={siguiente}>
@@ -283,6 +282,41 @@ export function RegistrarVisita() {
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * Pantalla bloqueante mientras se guarda y envía la visita, con el paso en curso. Si tarda (señal
+ * lenta), ofrece seguir sin esperar: la visita ya está guardada en el teléfono y se envía sola.
+ */
+function EnvioEnCurso({ onSeguir }: { onSeguir: () => void }) {
+  const [paso, setPaso] = useState('Guardando la visita');
+  const [lento, setLento] = useState(false);
+  useEffect(() => alCambiarPaso(setPaso), []);
+  useEffect(() => {
+    const t = setTimeout(() => setLento(true), 15_000);
+    return () => clearTimeout(t);
+  }, []);
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Enviando visita"
+    >
+      <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl" role="status" aria-live="polite">
+        <Loader2 className="mx-auto h-10 w-10 animate-spin text-marca-600" aria-hidden />
+        <p className="mt-4 text-lg font-bold text-slate-900">Enviando visita</p>
+        <p className="mt-1 text-sm text-slate-600">{paso}…</p>
+        <p className="mt-3 text-xs text-slate-500">No cierre la app. La visita ya quedó guardada en el teléfono.</p>
+        {lento && (
+          <button type="button" className="btn-secundario mt-5 w-full" onClick={onSeguir}>
+            Seguir sin esperar
+          </button>
+        )}
+      </div>
+    </div>,
+    document.body,
   );
 }
 
