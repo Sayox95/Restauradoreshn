@@ -25,7 +25,7 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 | --- | --- | --- |
 | visitas | registrar, listar (todas / mías), ver, fotos, PDF, exportar CSV | inspección de restaurador (10 secciones), inspecciones y registros (con lo pendiente de envío), detalle |
 | usuarios | listar, ver, crear, editar, aprobar / rechazar solicitudes | administración de cuentas |
-| catalogos | catálogos de la hoja, tableros por marca, zona horaria | administración de catálogos |
+| catalogos | catálogos de la hoja, tableros por marca, zona horaria | lista de catálogos (`/admin/catalogos`) y una pantalla por catálogo (`/admin/catalogos/<clave>`) para crear y editar |
 | sesion | ingreso, salida, solicitud de cuenta, cambio de contraseña | ingreso, mi cuenta |
 
 ## Menú y «+ Nueva»

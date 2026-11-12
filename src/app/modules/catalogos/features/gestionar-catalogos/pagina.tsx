@@ -2,6 +2,7 @@ import { CARGOS_PERSONAL, ELEMENTOS_MARCA } from '@shared/constantes';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { Navigate, useParams } from 'react-router-dom';
 import { Hoja } from '@/common/components/Hoja';
 import { useAvisos } from '@/common/components/Toast';
 import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/components/ui';
@@ -17,6 +18,8 @@ import {
   listarCatalogo,
   listarTableros,
 } from '@/app/modules/catalogos/api';
+import { SECCION, esSeccionCatalogo } from '../../secciones';
+import { urlCatalogos } from '../../urls';
 
 interface DefCampo {
   clave: string;
@@ -27,9 +30,8 @@ interface DefCampo {
 }
 
 /** Campos de cada catálogo, el texto principal y el detalle de cada fila. */
-const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; principal: (r: Fila) => string; detalle: (r: Fila) => string }> = {
+const DEFINICIONES: Record<TipoCatalogo, { campos: DefCampo[]; principal: (r: Fila) => string; detalle: (r: Fila) => string }> = {
   restauradores: {
-    titulo: 'Restauradores',
     campos: [
       { clave: 'energis', etiqueta: 'Código Energis', obligatorio: true },
       { clave: 'circuito', etiqueta: 'Circuito' },
@@ -44,7 +46,6 @@ const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; p
     detalle: (r) => [r.ubicacion, r.subestacion, r.zona].filter(Boolean).join(' · '),
   },
   materiales: {
-    titulo: 'Materiales',
     campos: [
       { clave: 'codigo', etiqueta: 'Código', obligatorio: true },
       { clave: 'nombre', etiqueta: 'Nombre', obligatorio: true },
@@ -55,7 +56,6 @@ const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; p
     detalle: (r) => [r.codigo, r.unidad, r.stock !== null && r.stock !== undefined ? `Stock ${r.stock}` : ''].filter(Boolean).join(' · '),
   },
   personal: {
-    titulo: 'Personal',
     campos: [
       { clave: 'nombre', etiqueta: 'Nombre completo', obligatorio: true },
       { clave: 'cargo', etiqueta: 'Cargo', tipo: 'lista', opciones: CARGOS_PERSONAL },
@@ -65,7 +65,6 @@ const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; p
     detalle: (r) => [r.cargo, r.empleado_id].filter(Boolean).join(' · '),
   },
   tipos: {
-    titulo: 'Tipos de restaurador',
     campos: [
       { clave: 'tipo', etiqueta: 'Tipo (p. ej. 1F, 3F)', obligatorio: true },
       { clave: 'elemento', etiqueta: 'Elemento' },
@@ -74,7 +73,6 @@ const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; p
     detalle: (r) => String(r.elemento ?? ''),
   },
   marcas: {
-    titulo: 'Marcas y modelos',
     campos: [
       { clave: 'elemento', etiqueta: 'Elemento', tipo: 'lista', opciones: ELEMENTOS_MARCA, obligatorio: true },
       { clave: 'marca', etiqueta: 'Marca', obligatorio: true },
@@ -87,13 +85,6 @@ const DEFINICIONES: Record<TipoCatalogo, { titulo: string; campos: DefCampo[]; p
 };
 
 type Fila = Record<string, unknown> & { id: number; activo: boolean };
-const PESTANAS = [...(Object.keys(DEFINICIONES) as TipoCatalogo[]), 'tableros', 'zona'] as const;
-type Pestana = (typeof PESTANAS)[number];
-const TITULO_PESTANA: Record<Pestana, string> = {
-  ...Object.fromEntries(Object.entries(DEFINICIONES).map(([k, v]) => [k, v.titulo])),
-  tableros: 'Tableros de control',
-  zona: 'Zona horaria',
-} as Record<Pestana, string>;
 
 function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | null; onCerrar: () => void }) {
   const def = DEFINICIONES[tipo];
@@ -124,7 +115,7 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
   return (
     <Hoja
       abierta
-      titulo={item ? `Editar · ${def.titulo}` : `Nuevo · ${def.titulo}`}
+      titulo={item ? `Editar · ${SECCION[tipo].titulo}` : `Nuevo · ${SECCION[tipo].titulo}`}
       onCerrar={onCerrar}
       pie={
         <div>
@@ -193,7 +184,7 @@ function Catalogo({ tipo }: { tipo: TipoCatalogo }) {
   }, [q.data, buscar]);
   return (
     <Seccion
-      titulo={`${def.titulo}${q.data ? ` · ${q.data.filter((r) => r.activo).length} activos` : ''}`}
+      titulo={q.data ? `${q.data.filter((r) => r.activo).length} activos` : 'Registros'}
       accion={
         <button className="btn-primario min-h-[40px] px-3 text-sm" onClick={() => setEditando('nuevo')}>
           <Plus className="h-4 w-4" /> Nuevo
@@ -319,7 +310,7 @@ function Tableros() {
   }, [q.data]);
   return (
     <Seccion
-      titulo="Tableros de control"
+      titulo="Marcas con tablero"
       accion={
         <button className="btn-primario min-h-[40px] px-3 text-sm" onClick={() => setEditando({ marca: '', campos: [] })}>
           <Plus className="h-4 w-4" /> Nuevo
@@ -367,7 +358,7 @@ function ZonaHoraria() {
     }
   };
   return (
-    <Seccion titulo="Zona horaria">
+    <Seccion titulo="Zona horaria de la app">
       <div className="tarjeta flex gap-2 p-4">
         <select className="campo" value={zona} onChange={(e) => setZona(e.target.value)} aria-label="Zona horaria">
           {[...new Set([zona, ...ZONAS])].map((z) => (
@@ -382,24 +373,14 @@ function ZonaHoraria() {
   );
 }
 
-export function Catalogos() {
-  const [pestana, setPestana] = useState<Pestana>('restauradores');
+/** Un catálogo (según la dirección /admin/catalogos/<clave>): su lista, con crear y editar. */
+export function GestionarCatalogo() {
+  const { catalogo } = useParams();
+  if (!esSeccionCatalogo(catalogo)) return <Navigate to={urlCatalogos} replace />;
   return (
-    <div>
-      <Encabezado volver titulo="Catálogos" subtitulo="Lo que se elige en la hoja de inspección. Los registros se desactivan, no se borran." />
-      <div className="mb-4">
-        <label className="etiqueta" htmlFor="cat-pestana">
-          Catálogo
-        </label>
-        <select id="cat-pestana" className="campo" value={pestana} onChange={(e) => setPestana(e.target.value as Pestana)}>
-          {PESTANAS.map((p) => (
-            <option key={p} value={p}>
-              {TITULO_PESTANA[p]}
-            </option>
-          ))}
-        </select>
-      </div>
-      {pestana === 'tableros' ? <Tableros /> : pestana === 'zona' ? <ZonaHoraria /> : <Catalogo key={pestana} tipo={pestana} />}
+    <div className="mx-auto max-w-3xl">
+      <Encabezado volver titulo={SECCION[catalogo].titulo} subtitulo={SECCION[catalogo].descripcion} />
+      {catalogo === 'tableros' ? <Tableros /> : catalogo === 'zona' ? <ZonaHoraria /> : <Catalogo key={catalogo} tipo={catalogo} />}
     </div>
   );
 }
