@@ -1,6 +1,6 @@
 /**
- * Listas de visitas. «Mis visitas»: lo propio (sin permiso extra) más lo guardado en el teléfono que
- * falta enviar (excepción E1). «Todas las visitas»: requiere Consultar; filtros y CSV con Exportar.
+ * «Inspecciones y registros»: las inspecciones que la persona puede ver (todas con Consultar; si no,
+ * las suyas), lo guardado en el teléfono que falta enviar (excepción E1), filtros y CSV con Exportar.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { VisitaResumen } from '@shared/tipos';
@@ -116,8 +116,14 @@ function Pendientes() {
   );
 }
 
-export function ListarVisitas({ todas = false }: { todas?: boolean }) {
+/**
+ * «Inspecciones y registros»: una sola sección. Con permiso de consultar muestra las inspecciones de
+ * todos; sin él, las que registró la persona. Quien registra ve además lo pendiente de envío.
+ */
+export function ListarVisitas() {
   const { hasAccess } = useAccess();
+  const todas = hasAccess([PermisosVisitas.Consultar]);
+  const registra = hasAccess([PermisosVisitas.Registrar]);
   const [q, setQ] = useState('');
   const [desde, setDesde] = useState('');
   const [hasta, setHasta] = useState('');
@@ -142,18 +148,18 @@ export function ListarVisitas({ todas = false }: { todas?: boolean }) {
   return (
     <div className="mx-auto max-w-3xl">
       <Encabezado
-        titulo={todas ? 'Todas las visitas' : 'Mis visitas'}
-        subtitulo={datos ? `${datos.total} visita(s)` : undefined}
+        titulo="Inspecciones y registros"
+        subtitulo={datos ? `${datos.total} ${datos.total === 1 ? 'inspección' : 'inspecciones'}${todas ? '' : ' registradas por usted'}` : undefined}
         accion={
-          todas && hasAccess([PermisosVisitas.Exportar]) ? (
+          hasAccess([PermisosVisitas.Exportar]) ? (
             <a href={urlExportar(filtros)} className="btn-secundario min-h-[40px] px-3 text-sm" download>
               <Download className="h-4 w-4" /> CSV
             </a>
           ) : undefined
         }
       />
-      {!todas && hasAccess([PermisosVisitas.Registrar]) && <EmpezarVisita />}
-      {!todas && <Pendientes />}
+      {registra && <EmpezarVisita />}
+      {registra && <Pendientes />}
       <div className="mb-4 space-y-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden />
@@ -185,7 +191,7 @@ export function ListarVisitas({ todas = false }: { todas?: boolean }) {
       ) : consulta.isError ? (
         <CajaError error={consulta.error} reintentar={() => void consulta.refetch()} />
       ) : !datos?.filas.length ? (
-        <Vacio texto={q || desde || hasta ? 'No hay visitas con esos filtros.' : 'Todavía no hay visitas registradas.'} />
+        <Vacio texto={q || desde || hasta ? 'No hay inspecciones con esos filtros.' : 'Todavía no hay inspecciones registradas.'} />
       ) : (
         <>
           <ul className="tarjeta divide-y divide-slate-100">

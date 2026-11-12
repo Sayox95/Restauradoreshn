@@ -233,3 +233,25 @@
     display: none;
   }
 }
+
+/* Dato que se acaba de llenar (p. ej. al elegir el restaurador): aparece con un resaltado suave. */
+@layer utilities {
+  .anim-dato {
+    animation: dato-nuevo 700ms ease-out both;
+  }
+}
+@keyframes dato-nuevo {
+  from {
+    opacity: 0;
+    background-color: rgb(254 243 199);
+  }
+  to {
+    opacity: 1;
+    background-color: transparent;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .anim-dato {
+    animation: none;
+  }
+}

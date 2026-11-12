@@ -1,5 +1,5 @@
 import { lazy } from 'react';
-import { Route } from 'react-router-dom';
+import { Navigate, Route } from 'react-router-dom';
 import { AuthRoute } from '@/common/seguridad/acceso';
 import { PermisosVisitas } from './permisos';
 
@@ -18,23 +18,16 @@ export const rutasVisitas = [
     }
   />,
   <Route
-    key="visitas-mias"
-    path="visitas/mias"
+    key="visitas-inspecciones"
+    path="visitas"
     element={
-      <AuthRoute access={[PermisosVisitas.Registrar]}>
+      <AuthRoute access={[PermisosVisitas.Registrar, PermisosVisitas.Consultar]}>
         <ListarVisitas />
       </AuthRoute>
     }
   />,
-  <Route
-    key="visitas-todas"
-    path="visitas"
-    element={
-      <AuthRoute access={[PermisosVisitas.Consultar]}>
-        <ListarVisitas todas />
-      </AuthRoute>
-    }
-  />,
+  // Direcciones anteriores: llevan a la sección única.
+  <Route key="visitas-mias" path="visitas/mias" element={<Navigate to="/visitas" replace />} />,
   // Lo propio: el servidor solo entrega la visita si es de quien la pide o si tiene Consultar.
   <Route key="visitas-ver" path="visitas/:id" element={<VerVisita />} />,
 ];

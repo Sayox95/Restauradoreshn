@@ -122,38 +122,41 @@ export function DatosGenerales({ b, set, faltan, cat }: PropsSeccion) {
         </Campo>
       </Bloque>
       <Bloque titulo="Restaurador">
-        <Campo id="codigo_energis" etiqueta={elegido ? 'Cambiar restaurador' : 'Restaurador'} requerido falta={faltan.has('codigo_energis')}>
+        <Campo id="codigo_energis" etiqueta={elegido ? 'Cambiar restaurador' : 'Buscar restaurador'} requerido falta={faltan.has('codigo_energis')}>
           <BuscarRestaurador cat={cat} onElegir={elegir} />
         </Campo>
-        {elegido && (
-          <>
-            {(
-              [
-                ['codigo_energis', 'Código Energis'],
-                ['ubicacion', 'Ubicación'],
-                ['circuito', 'Circuito'],
-                ['subestacion', 'Subestación'],
-                ['zona', 'Zona'],
-                ['sector', 'Sector'],
-              ] as const
-            ).map(([k, t]) => (
-              <Campo key={k} id={`${k}_ver`} etiqueta={t}>
-                <Texto id={`${k}_ver`} valor={b[k]} onCambio={() => {}} bloqueado />
-              </Campo>
-            ))}
-            <Campo
-              id="latitud"
-              etiqueta="Latitud"
-              falta={faltan.has('latitud')}
-              ayuda={faltan.has('latitud') ? 'Fuera de Honduras: revise si está invertida con la longitud.' : undefined}
-            >
-              <Texto id="latitud" valor={b.latitud} numerico onCambio={(v) => set({ latitud: v })} />
-            </Campo>
-            <Campo id="longitud" etiqueta="Longitud" falta={faltan.has('longitud')}>
-              <Texto id="longitud" valor={b.longitud} numerico onCambio={(v) => set({ longitud: v })} />
-            </Campo>
-          </>
-        )}
+        {/* Los datos del restaurador siempre están en su lugar (con «—» mientras no se elige): al elegir
+            se llenan sin mover la pantalla, que en el teléfono se sentía brusco. */}
+        <dl className={`divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 ${elegido ? 'bg-slate-50' : 'bg-slate-50/60'}`}>
+          {(
+            [
+              ['codigo_energis', 'Código Energis'],
+              ['ubicacion', 'Ubicación'],
+              ['circuito', 'Circuito'],
+              ['subestacion', 'Subestación'],
+              ['zona', 'Zona'],
+              ['sector', 'Sector'],
+            ] as const
+          ).map(([k, t]) => (
+            <div key={k} className="flex items-baseline gap-3 px-3 py-2.5 text-sm">
+              <dt className="w-32 shrink-0 text-slate-500">{t}</dt>
+              <dd key={b[k] ?? ''} className={`min-w-0 flex-1 break-words font-semibold ${b[k] ? 'anim-dato text-slate-900' : 'text-slate-400'}`}>
+                {b[k] || '—'}
+              </dd>
+            </div>
+          ))}
+        </dl>
+        <Campo
+          id="latitud"
+          etiqueta="Latitud"
+          falta={faltan.has('latitud')}
+          ayuda={faltan.has('latitud') ? 'Fuera de Honduras: revise si está invertida con la longitud.' : undefined}
+        >
+          <Texto id="latitud" valor={b.latitud} numerico placeholder="Se llena al elegir el restaurador" onCambio={(v) => set({ latitud: v })} />
+        </Campo>
+        <Campo id="longitud" etiqueta="Longitud" falta={faltan.has('longitud')}>
+          <Texto id="longitud" valor={b.longitud} numerico placeholder="Se llena al elegir el restaurador" onCambio={(v) => set({ longitud: v })} />
+        </Campo>
         <Campo id="gen_distribuida" etiqueta="Generación distribuida" requerido falta={faltan.has('gen_distribuida')}>
           <Opciones id="gen_distribuida" valor={b.gen_distribuida} opciones={SI_NO} onCambio={(v) => set({ gen_distribuida: v })} />
         </Campo>

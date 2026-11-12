@@ -14,8 +14,9 @@ El código **nunca pregunta por un rol**: solo por permisos.
 
 ## Datos visibles sin permiso adicional (lo propio)
 
-- **Mis visitas** (`GET /api/v1/visitas/mios`) y el detalle, fotos y PDF de una visita: quien no tiene
-  `visitas_consultar` solo ve lo que registró (`filtroVisitas` en `server/plumbing/contexto.ts`).
+- **Inspecciones y registros** (una sola sección): con `visitas_consultar` muestra las de todos
+  (`GET /api/v1/visitas`); sin él, las que registró la persona (`GET /api/v1/visitas/mios`). El detalle,
+  las fotos y el PDF siguen la misma regla (`filtroVisitas` en `server/plumbing/contexto.ts`).
 - **Mi cuenta** y **cambiar contraseña**: los datos del propio usuario.
 
 ## Roles

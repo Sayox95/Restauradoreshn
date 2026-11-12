@@ -7,7 +7,7 @@ import { SECCIONES, avance, faltantes, visitaEsquema } from '@shared/visitas';
 import { CheckCircle2, ChevronLeft, ChevronRight, CloudOff, FileDown, Loader2, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
@@ -19,7 +19,7 @@ import { alCambiarPaso, cancelarEnvio, enviarPendientes } from '../../components
 import { generarFicha } from '../../components/ficha-pdf';
 import { type Borrador, type Cambios, aEntrada, borradorNuevo, requisitos, tieneDatos } from '../../components/formulario';
 import { SECCIONES_FORMULARIO } from '../../components/secciones';
-import { urlMisVisitas, urlVisita } from '../../urls';
+import { urlInspecciones, urlVisita } from '../../urls';
 
 interface Resultado {
   visita_num: string;
@@ -44,6 +44,7 @@ export function RegistrarVisita() {
   const { data: cat } = useCatalogosVisita();
   const avisar = useAvisos();
   const confirmar = useConfirmar();
+  const navegar = useNavigate();
   const [b, setB] = useState<Borrador | null>(null);
   const [fotos, setFotos] = useState<FotoLocal[]>([]);
   const [paso, setPaso] = useState(0);
@@ -79,13 +80,15 @@ export function RegistrarVisita() {
     return () => clearTimeout(t);
   }, [b, fotos, paso, conDatos, resultado]);
   // Al salir de la pantalla se guarda lo último (lo escrito en los 400 ms previos no se pierde).
+  const descartada = useRef(false);
   const ultimoEstado = useRef({ b, fotos, paso, conDatos, resultado });
   ultimoEstado.current = { b, fotos, paso, conDatos, resultado };
   useEffect(
     () => () => {
       marcarTrabajo('visita', false);
       const u = ultimoEstado.current;
-      if (u.b && u.conDatos && !u.resultado)
+      // Descartada con «Salir»: no se vuelve a guardar.
+      if (u.b && u.conDatos && !u.resultado && !descartada.current)
         void guardarBorrador({ datos: u.b, fotos: u.fotos, paso: u.paso, guardado_en: new Date().toISOString() }).catch(() => {});
     },
     [],
@@ -220,10 +223,21 @@ export function RegistrarVisita() {
     setResultado(null);
   };
 
-  const descartar = async () => {
-    if (!(await confirmar({ titulo: 'Descartar visita', mensaje: 'Se borra todo lo escrito en esta visita.', confirmar: 'Descartar', peligro: true }))) return;
-    await borrarBorrador().catch(() => {});
-    nueva();
+  // «Salir»: sin datos, sale; con datos, pregunta si descarta lo escrito (cancelar = seguir llenando).
+  const salir = async () => {
+    if (conDatos) {
+      const descartar = await confirmar({
+        titulo: '¿Descartar la visita?',
+        mensaje: 'Tiene datos llenados. Si sale, se borra lo escrito en esta visita.',
+        confirmar: 'Descartar y salir',
+        cancelar: 'Seguir llenando',
+        peligro: true,
+      });
+      if (!descartar) return;
+      descartada.current = true;
+      await borrarBorrador().catch(() => {});
+    }
+    navegar(urlInspecciones);
   };
 
   if (resultado) return <Terminada r={resultado} onNueva={nueva} />;
@@ -234,23 +248,18 @@ export function RegistrarVisita() {
     <div ref={arriba} className="mx-auto max-w-2xl scroll-mt-20">
       {guardando && <EnvioEnCurso />}
       <div className="mb-3 flex items-center gap-2">
-        {/* Modo captura: sin el menú inferior; «Salir» vuelve a Mis visitas y la visita queda en curso. */}
-        <Link
-          to={urlMisVisitas}
+        {/* Modo captura: sin el menú inferior; «Salir» vuelve a Inspecciones y registros. */}
+        <button
+          type="button"
+          onClick={salir}
           className="-ml-2 flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
-          aria-label="Salir del formulario (la visita queda guardada en curso)"
         >
           <X className="h-5 w-5" aria-hidden /> Salir
-        </Link>
+        </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-slate-900">Nueva visita</h1>
           <p className="truncate text-xs text-slate-500">{b.visita_num}</p>
         </div>
-        {conDatos && (
-          <button type="button" className="text-sm font-semibold text-slate-500 underline" onClick={descartar}>
-            Descartar
-          </button>
-        )}
       </div>
 
       {/* Indicador de secciones: fijo, sin desplazamiento; un segmento por sección (se puede tocar para ir). */}
@@ -373,7 +382,7 @@ function Terminada({ r, onNueva }: { r: Resultado; onNueva: () => void }) {
             Ver visita
           </Link>
         ) : (
-          <Link to={urlMisVisitas} className="btn-secundario w-full">
+          <Link to={urlInspecciones} className="btn-secundario w-full">
             Ver pendientes de envío
           </Link>
         )}

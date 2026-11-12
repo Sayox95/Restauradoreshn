@@ -23,7 +23,7 @@ export function App() {
   if (!usuario) return <Login />;
   if (usuario.debe_cambiar_password) return <CambiarPasswordObligatorio />;
   // Todas las rutas existen para todos (cada una protegida por su permiso). El inicio («/») es la primera
-  // opción del menú a la que tiene acceso (Nueva visita o, sin Registrar, Todas las visitas).
+  // opción del menú a la que tiene acceso (Inspecciones y registros).
   const inicio = menuPrincipal.find((o) => hasAccess(o.access))?.a ?? urlMiCuenta;
   return (
     <Suspense fallback={<Cargando />}>

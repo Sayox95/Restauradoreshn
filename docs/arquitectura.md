@@ -23,7 +23,7 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 
 | Módulo | Servidor | App |
 | --- | --- | --- |
-| visitas | registrar, listar (todas / mías), ver, fotos, PDF, exportar CSV | nueva visita (10 secciones), mis visitas (con lo pendiente de envío), todas, detalle |
+| visitas | registrar, listar (todas / mías), ver, fotos, PDF, exportar CSV | nueva visita (10 secciones), inspecciones y registros (con lo pendiente de envío), detalle |
 | usuarios | listar, ver, crear, editar, aprobar / rechazar solicitudes | administración de cuentas |
 | catalogos | catálogos de la hoja, tableros por marca, zona horaria | administración de catálogos |
 | sesion | ingreso, salida, solicitud de cuenta, cambio de contraseña | ingreso, mi cuenta |

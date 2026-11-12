@@ -1,12 +1,17 @@
-import { ClipboardList, FilePlus2, FolderSearch } from 'lucide-react';
+import { ClipboardList, FilePlus2 } from 'lucide-react';
 import type { OpcionMenu } from '@/common/menu/tipos';
 import { PermisosVisitas } from './permisos';
-import { urlMisVisitas, urlNuevaVisita, urlVisitas } from './urls';
+import { urlInspecciones, urlNuevaVisita } from './urls';
 
-// El primero es el inicio de la app: «Mis visitas» (lo pendiente y lo registrado, con «Nueva visita»).
+// El primero es el inicio de la app. Una sola sección de inspecciones: con «Consultar» muestra las de
+// todos; sin él, las que registró la persona (lo propio, sin permiso adicional).
 export const menuVisitas: OpcionMenu[] = [
-  // Lo propio: sin permiso adicional, cada quien ve las visitas que registró (y las que tiene sin enviar).
-  { a: urlMisVisitas, texto: 'Mis visitas', corto: 'Mías', icono: ClipboardList, access: [PermisosVisitas.Registrar] },
+  {
+    a: urlInspecciones,
+    texto: 'Inspecciones y registros',
+    corto: 'Inspecciones',
+    icono: ClipboardList,
+    access: [PermisosVisitas.Registrar, PermisosVisitas.Consultar],
+  },
   { a: urlNuevaVisita, texto: 'Nueva visita', corto: 'Nueva', icono: FilePlus2, access: [PermisosVisitas.Registrar] },
-  { a: urlVisitas, texto: 'Todas las visitas', corto: 'Todas', icono: FolderSearch, access: [PermisosVisitas.Consultar] },
 ];

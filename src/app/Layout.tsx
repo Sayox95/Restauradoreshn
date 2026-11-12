@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useCola, useEnvioAutomatico } from '@/app/modules/visitas/components/envio';
 import { PermisosVisitas } from '@/app/modules/visitas/permisos';
-import { urlMisVisitas, urlNuevaVisita } from '@/app/modules/visitas/urls';
+import { urlInspecciones, urlNuevaVisita } from '@/app/modules/visitas/urls';
 import { Cargando } from '@/common/components/ui';
 import { ErrorPantalla } from '@/common/components/ErrorPantalla';
 import { useAccess } from '@/common/seguridad/acceso';
@@ -99,7 +99,7 @@ export function Layout() {
           {/* Mientras se envía no se muestra: no es «sin señal» (al guardar, la pantalla muestra el avance). */}
           {pendientes.length > 0 && !enviando && (
             <NavLink
-              to={urlMisVisitas}
+              to={urlInspecciones}
               className="flex h-9 items-center gap-1.5 rounded-full bg-amber-300 px-3 text-xs font-bold text-slate-900"
               title="Visitas guardadas en el teléfono que faltan por enviar"
             >
