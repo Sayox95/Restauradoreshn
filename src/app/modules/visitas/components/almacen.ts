@@ -38,6 +38,8 @@ export interface Borrador {
   datos: Record<string, unknown>;
   fotos: FotoLocal[];
   guardado_en: string;
+  /** Sección en la que iba (para retomar donde quedó). */
+  paso?: number;
 }
 
 let abierta: Promise<IDBDatabase> | null = null;

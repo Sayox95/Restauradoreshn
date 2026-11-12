@@ -4,7 +4,7 @@
  * el teléfono y se envía sola al haber señal; el borrador se conserva aunque se cierre la app.
  */
 import { SECCIONES, avance, faltantes, visitaEsquema } from '@shared/visitas';
-import { CheckCircle2, ChevronLeft, ChevronRight, CloudOff, FileDown, Loader2, Save } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, CloudOff, FileDown, Loader2, Save, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
@@ -61,6 +61,7 @@ export function RegistrarVisita() {
         if (g) {
           setB({ ...borradorNuevo(), ...(g.datos as Partial<Borrador>) } as Borrador);
           setFotos(g.fotos ?? []);
+          setPaso(Math.min(Math.max(g.paso ?? 0, 0), SECCIONES.length - 1));
         } else setB(borradorNuevo());
       })
       .catch(() => setB(borradorNuevo()));
@@ -74,10 +75,21 @@ export function RegistrarVisita() {
     // se aplica al pasar a otra visita o a otra pantalla.
     marcarTrabajo('visita', conDatos || !!resultado);
     if (!conDatos || resultado) return;
-    const t = setTimeout(() => void guardarBorrador({ datos: b, fotos, guardado_en: new Date().toISOString() }).catch(() => {}), 400);
+    const t = setTimeout(() => void guardarBorrador({ datos: b, fotos, paso, guardado_en: new Date().toISOString() }).catch(() => {}), 400);
     return () => clearTimeout(t);
-  }, [b, fotos, conDatos, resultado]);
-  useEffect(() => () => marcarTrabajo('visita', false), []);
+  }, [b, fotos, paso, conDatos, resultado]);
+  // Al salir de la pantalla se guarda lo último (lo escrito en los 400 ms previos no se pierde).
+  const ultimoEstado = useRef({ b, fotos, paso, conDatos, resultado });
+  ultimoEstado.current = { b, fotos, paso, conDatos, resultado };
+  useEffect(
+    () => () => {
+      marcarTrabajo('visita', false);
+      const u = ultimoEstado.current;
+      if (u.b && u.conDatos && !u.resultado)
+        void guardarBorrador({ datos: u.b, fotos: u.fotos, paso: u.paso, guardado_en: new Date().toISOString() }).catch(() => {});
+    },
+    [],
+  );
 
   const reqs = useMemo(() => (b ? requisitos(b, cat, fotos.length) : []), [b, cat, fotos.length]);
   const pct = avance(reqs);
@@ -221,7 +233,15 @@ export function RegistrarVisita() {
   return (
     <div ref={arriba} className="mx-auto max-w-2xl scroll-mt-20">
       {guardando && <EnvioEnCurso />}
-      <div className="mb-3 flex items-center gap-3">
+      <div className="mb-3 flex items-center gap-2">
+        {/* Modo captura: sin el menú inferior; «Salir» vuelve a Mis visitas y la visita queda en curso. */}
+        <Link
+          to={urlMisVisitas}
+          className="-ml-2 flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
+          aria-label="Salir del formulario (la visita queda guardada en curso)"
+        >
+          <X className="h-5 w-5" aria-hidden /> Salir
+        </Link>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-slate-900">Nueva visita</h1>
           <p className="truncate text-xs text-slate-500">{b.visita_num}</p>
@@ -270,8 +290,8 @@ export function RegistrarVisita() {
         <Seccion b={b} set={set} faltan={faltan} cat={cat} fotos={fotos} setFotos={setFotos} />
       </div>
 
-      {/* Botones fijos al pie del formulario, encima de la barra del menú en el teléfono. */}
-      <div className="sticky bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 py-3 backdrop-blur lg:bottom-0 lg:mx-0 lg:rounded-t-2xl">
+      {/* Botones fijos al pie del formulario (en modo captura no está la barra del menú). */}
+      <div className="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:mx-0 lg:rounded-t-2xl">
         <div className="flex gap-3">
           <button type="button" className="btn-secundario flex-1" disabled={paso === 0} onClick={() => irA(paso - 1)}>
             <ChevronLeft className="h-5 w-5" /> Anterior

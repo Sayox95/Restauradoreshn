@@ -4,16 +4,17 @@
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { VisitaResumen } from '@shared/tipos';
-import { ChevronRight, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
+import { ChevronRight, CloudOff, Download, FilePlus2, PencilLine, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
 import { useAvisos } from '@/common/components/Toast';
+import { TONO } from '@/common/tonos';
 import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
-import { alCambiarCola } from '../../components/almacen';
+import { type Borrador, alCambiarCola, leerBorrador } from '../../components/almacen';
 import { useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlNuevaVisita, urlVisita } from '../../urls';
@@ -40,6 +41,37 @@ function FilaVisita({ v }: { v: VisitaResumen }) {
         <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden />
       </Link>
     </li>
+  );
+}
+
+/** «Nueva visita», o «Continuar» si hay una visita en curso guardada en el teléfono. */
+function EmpezarVisita() {
+  const [enCurso, setEnCurso] = useState<Borrador | null>(null);
+  useEffect(() => {
+    leerBorrador()
+      .then((g) => setEnCurso(g ?? null))
+      .catch(() => {});
+  }, []);
+  if (!enCurso)
+    return (
+      <Link to={urlNuevaVisita} className="btn-primario mb-5 min-h-[56px] w-full text-base">
+        <FilePlus2 className="h-5 w-5" aria-hidden /> Nueva visita
+      </Link>
+    );
+  const d = enCurso.datos as Record<string, string | undefined>;
+  return (
+    <Link to={urlNuevaVisita} className={`mb-5 flex items-center gap-3 rounded-2xl border p-4 ${TONO.atencion.caja}`}>
+      <PencilLine className="h-6 w-6 shrink-0" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <p className="font-bold">Visita en curso</p>
+        <p className="truncate text-sm">
+          {d.codigo_energis ? `${d.codigo_energis} · ` : ''}
+          Guardada {fechaHora(enCurso.guardado_en)}
+        </p>
+      </div>
+      <span className="shrink-0 font-bold">Continuar</span>
+      <ChevronRight className="h-5 w-5 shrink-0" aria-hidden />
+    </Link>
   );
 }
 
@@ -117,13 +149,10 @@ export function ListarVisitas({ todas = false }: { todas?: boolean }) {
             <a href={urlExportar(filtros)} className="btn-secundario min-h-[40px] px-3 text-sm" download>
               <Download className="h-4 w-4" /> CSV
             </a>
-          ) : !todas && hasAccess([PermisosVisitas.Registrar]) ? (
-            <Link to={urlNuevaVisita} className="btn-primario min-h-[40px] px-3 text-sm">
-              Nueva visita
-            </Link>
           ) : undefined
         }
       />
+      {!todas && hasAccess([PermisosVisitas.Registrar]) && <EmpezarVisita />}
       {!todas && <Pendientes />}
       <div className="mb-4 space-y-2">
         <div className="relative">
