@@ -165,14 +165,7 @@ export function RegistrarVisita() {
       enfocarFaltante(campo);
       return;
     }
-    if (
-      !(await confirmar({
-        titulo: 'Guardar inspección',
-        mensaje: 'Se enviará ahora. Si no hay señal, queda guardada en el teléfono y se envía sola al volver la señal.',
-        confirmar: 'Guardar',
-      }))
-    )
-      return;
+    // Sin confirmación: «Guardar» guarda y envía (la pantalla de envío muestra el avance).
     setGuardando(true);
     try {
       const fotosVisita = fotos;
