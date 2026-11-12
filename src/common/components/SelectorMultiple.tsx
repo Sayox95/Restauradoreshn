@@ -41,7 +41,8 @@ export function SelectorMultiple<T extends string>({
 
   return (
     <div ref={caja} className={`relative ${className}`}>
-      <span className="etiqueta" id={`${id}-etiqueta`}>
+      {/* La etiqueta la leen los lectores de pantalla; a la vista, el resumen dice qué está elegido. */}
+      <span className="sr-only" id={`${id}-etiqueta`}>
         {etiqueta}
       </span>
       <button

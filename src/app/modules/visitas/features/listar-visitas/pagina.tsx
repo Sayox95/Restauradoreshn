@@ -4,10 +4,10 @@
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { VisitaResumen } from '@shared/tipos';
-import { CalendarDays, ChevronRight, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
+import { CalendarDays, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
+import { type Columna, Tabla } from '@/common/components/Tabla';
 import { useAvisos } from '@/common/components/Toast';
 import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
@@ -18,28 +18,48 @@ import { useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
 
-function FilaVisita({ v }: { v: VisitaResumen }) {
+const fechaDe = (v: VisitaResumen) => (v.fecha_visita ? fecha(`${v.fecha_visita}T12:00:00`) : '—');
+
+const Archivos = ({ v }: { v: VisitaResumen }) => (
+  <span className="inline-flex items-center gap-3 text-slate-500">
+    <span className="inline-flex items-center gap-1" title="Fotos">
+      <Imagen className="h-4 w-4" aria-hidden /> {v.num_fotos}
+    </span>
+    {v.tiene_pdf ? <FileText className="h-4 w-4" aria-label="Con PDF" /> : <span className="w-4" aria-hidden />}
+  </span>
+);
+
+/** Columnas de la tabla (PC). «Registró» solo para quien ve las de todos. */
+function columnas(todas: boolean): Columna<VisitaResumen>[] {
+  return [
+    { titulo: 'Folio', celda: (v) => <span className="font-mono text-xs">{v.visita_num}</span>, clase: 'whitespace-nowrap' },
+    { titulo: 'Fecha', celda: fechaDe, clase: 'whitespace-nowrap' },
+    { titulo: 'Energis', celda: (v) => <span className="font-semibold">{v.codigo_energis ?? '—'}</span> },
+    { titulo: 'Circuito', celda: (v) => v.circuito ?? '—', clase: 'whitespace-nowrap' },
+    { titulo: 'Ubicación', celda: (v) => v.ubicacion ?? '—' },
+    { titulo: 'Tipo', celda: (v) => v.tipo_visita ?? '—', clase: 'whitespace-nowrap' },
+    ...(todas ? [{ titulo: 'Registró', celda: (v: VisitaResumen) => v.registrado_por ?? '—' }] : []),
+    { titulo: 'Estado', celda: (v) => <BadgeVisita estado={v.estado} /> },
+    { titulo: 'Archivos', celda: (v) => <Archivos v={v} /> },
+  ];
+}
+
+function TarjetaVisita({ v, todas }: { v: VisitaResumen; todas: boolean }) {
   return (
-    <li>
-      <Link to={urlVisita(v.id)} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50">
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-semibold text-slate-900">{v.codigo_energis ?? '—'}</span>
-            <BadgeVisita estado={v.estado} />
-          </div>
-          <p className="truncate text-sm text-slate-600">{[v.circuito, v.ubicacion].filter(Boolean).join(' · ') || 'Sin ubicación'}</p>
-          <p className="mt-0.5 flex items-center gap-3 text-xs text-slate-500">
-            <span>{v.fecha_visita ? fecha(`${v.fecha_visita}T12:00:00`) : '—'}</span>
-            <span>{v.tipo_visita}</span>
-            <span className="inline-flex items-center gap-1">
-              <Imagen className="h-3.5 w-3.5" aria-hidden /> {v.num_fotos}
-            </span>
-            {v.tiene_pdf && <FileText className="h-3.5 w-3.5" aria-label="Con PDF" />}
-          </p>
-        </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden />
-      </Link>
-    </li>
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="font-semibold text-slate-900">{v.codigo_energis ?? '—'}</span>
+        <BadgeVisita estado={v.estado} />
+      </div>
+      <p className="truncate text-sm text-slate-600">{[v.circuito, v.ubicacion].filter(Boolean).join(' · ') || 'Sin ubicación'}</p>
+      <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
+        <span>{fechaDe(v)}</span>
+        <span>{v.tipo_visita}</span>
+        <span className="font-mono">{v.visita_num}</span>
+        {todas && v.registrado_por && <span>{v.registrado_por}</span>}
+        <Archivos v={v} />
+      </p>
+    </>
   );
 }
 
@@ -115,7 +135,7 @@ export function ListarVisitas() {
   const paginas = datos ? Math.max(1, Math.ceil(datos.total / datos.por_pagina)) : 1;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <Encabezado
         titulo="Inspecciones y registros"
         accion={
@@ -176,11 +196,14 @@ export function ListarVisitas() {
         <Vacio texto={q || desde || hasta ? 'No hay inspecciones con esos filtros.' : 'Todavía no hay inspecciones registradas.'} />
       ) : (
         <>
-          <ul className="tarjeta divide-y divide-slate-100">
-            {datos.filas.map((v) => (
-              <FilaVisita key={v.id} v={v} />
-            ))}
-          </ul>
+          <Tabla
+            etiqueta="Inspecciones"
+            filas={datos.filas}
+            clave={(v) => v.id}
+            columnas={columnas(todas)}
+            tarjeta={(v) => <TarjetaVisita v={v} todas={todas} />}
+            enlace={(v) => urlVisita(v.id)}
+          />
           <Paginacion pagina={pagina} paginas={paginas} onCambiar={setPagina} />
         </>
       )}

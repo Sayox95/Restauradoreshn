@@ -127,7 +127,7 @@ export function DatosGenerales({ b, set, faltan, cat }: PropsSeccion) {
         </Campo>
         {/* Los datos del restaurador siempre están en su lugar (con «—» mientras no se elige): al elegir
             se llenan sin mover la pantalla, que en el teléfono se sentía brusco. */}
-        <dl className={`divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 ${elegido ? 'bg-slate-50' : 'bg-slate-50/60'}`}>
+        <dl className={`grid overflow-hidden rounded-xl border border-slate-200 sm:grid-cols-2 ${elegido ? 'bg-slate-50' : 'bg-slate-50/60'}`}>
           {(
             [
               ['codigo_energis', 'Código Energis'],
@@ -138,8 +138,8 @@ export function DatosGenerales({ b, set, faltan, cat }: PropsSeccion) {
               ['sector', 'Sector'],
             ] as const
           ).map(([k, t]) => (
-            <div key={k} className="flex items-baseline gap-3 px-3 py-2.5 text-sm">
-              <dt className="w-32 shrink-0 text-slate-500">{t}</dt>
+            <div key={k} className="-mb-px flex items-baseline gap-3 border-b border-slate-200 px-3 py-2.5 text-sm sm:odd:border-r">
+              <dt className="w-28 shrink-0 text-slate-500">{t}</dt>
               <dd key={b[k] ?? ''} className={`min-w-0 flex-1 break-words font-semibold ${b[k] ? 'anim-dato text-slate-900' : 'text-slate-400'}`}>
                 {b[k] || '—'}
               </dd>

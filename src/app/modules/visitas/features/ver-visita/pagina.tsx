@@ -2,7 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { SECCIONES, type Visita } from '@shared/visitas';
 import { FileDown } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/components/ui';
 import { VisorFotos } from '@/common/components/VisorFotos';
@@ -131,14 +131,22 @@ export function VerVisita() {
   const fotos = d.fotos.map((f) => ({ src: urlFoto(d.id, f.orden, f.v), alt: f.observacion ?? `Foto ${f.orden}`, obs: f.observacion }));
   const tablero = Object.entries(v.tablero_campos ?? {}) as [string, string][];
 
+  // En PC las secciones van en dos columnas (de arriba abajo, sin huecos); fotos y firma, a lo ancho.
+  const bloque = (titulo: string, contenido: ReactNode) => (
+    <Seccion key={titulo} titulo={titulo} className="break-inside-avoid">
+      <div className="tarjeta">{contenido}</div>
+    </Seccion>
+  );
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <Encabezado
         volver
-        titulo={`${v.codigo_energis ?? 'Inspección'} · ${v.tipo_visita ?? ''}`}
+        titulo={`${v.codigo_energis ?? 'Inspección'}${v.circuito ? ` · ${v.circuito}` : ''}`}
         subtitulo={
-          <span className="flex flex-wrap items-center gap-2">
-            <BadgeVisita estado={d.estado} /> {d.visita_num}
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <BadgeVisita estado={d.estado} />
+            <span className="font-mono text-xs">{d.visita_num}</span>
+            {v.tipo_visita && <span>· {v.tipo_visita}</span>}
           </span>
         }
         accion={
@@ -155,16 +163,10 @@ export function VerVisita() {
         {d.registrado_por ? ` por ${d.registrado_por}` : ''}
       </p>
 
-      {DATOS.map((filas, i) => (
-        <Seccion key={i} titulo={SECCIONES[i]!}>
-          <div className="tarjeta">
-            <Datos v={v} filas={filas} extra={i === 3 ? tablero : undefined} />
-          </div>
-        </Seccion>
-      ))}
-
-      <Seccion titulo="Materiales">
-        <div className="tarjeta">
+      <div className="gap-6 lg:columns-2">
+        {DATOS.map((filas, i) => bloque(SECCIONES[i]!, <Datos v={v} filas={filas} extra={i === 3 ? tablero : undefined} />))}
+        {bloque(
+          'Materiales',
           <Datos
             v={v}
             filas={[['Observación', 'obs_materiales']]}
@@ -172,13 +174,14 @@ export function VerVisita() {
               `#${i + 1}${m.codigo ? ` · ${m.codigo}` : ''}`,
               `${m.desc} — ${m.cant ?? ''} ${m.unidad ?? ''}${m.motivo ? ` (${m.motivo})` : ''}`,
             ])}
-          />
-        </div>
-      </Seccion>
+          />,
+        )}
+        {bloque('Observaciones', <Datos v={v} filas={[['Generales', 'obs_generales']]} />)}
+      </div>
 
       <Seccion titulo={`Fotografías (${fotos.length})`}>
         {fotos.length ? (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {fotos.map((f, i) => (
               <button key={f.src} type="button" className="tarjeta overflow-hidden text-left" onClick={() => setFoto(i)}>
                 <img src={f.src} alt={f.alt} loading="lazy" className="aspect-[4/3] w-full bg-slate-100 object-cover" />
@@ -191,20 +194,25 @@ export function VerVisita() {
         )}
       </Seccion>
 
-      <Seccion titulo="Observaciones">
-        <div className="tarjeta">
-          <Datos v={v} filas={[['Generales', 'obs_generales']]} />
-        </div>
-      </Seccion>
-
       <Seccion titulo="Personal y firma">
-        <div className="tarjeta">
-          <Datos
-            v={v}
-            filas={[['Responsable', 'firma_responsable']]}
-            extra={v.personal.map((p, i) => [`Técnico #${i + 1}`, [p.nombre, p.cargo, p.id].filter(Boolean).join(' · ')])}
-          />
-          {v.firma_img && <img src={v.firma_img} alt="Firma del responsable" className="mx-4 mb-4 max-h-32 rounded-lg border border-slate-200 bg-white" />}
+        <div className="grid items-start gap-3 lg:grid-cols-2">
+          <div className="tarjeta">
+            <Datos
+              v={v}
+              filas={[['Responsable', 'firma_responsable']]}
+              extra={v.personal.map((p, i) => [`Técnico #${i + 1}`, [p.nombre, p.cargo, p.id].filter(Boolean).join(' · ')])}
+            />
+          </div>
+          <figure className="tarjeta flex flex-col items-center justify-center p-4">
+            {v.firma_img ? (
+              <img src={v.firma_img} alt="Firma del responsable" className="max-h-32 w-auto" />
+            ) : (
+              <p className="text-sm text-slate-500">Sin firma.</p>
+            )}
+            <figcaption className="mt-2 w-full border-t border-slate-200 pt-2 text-center text-xs text-slate-500">
+              Firma del responsable{v.firma_responsable ? ` · ${v.firma_responsable}` : ''}
+            </figcaption>
+          </figure>
         </div>
       </Seccion>
 

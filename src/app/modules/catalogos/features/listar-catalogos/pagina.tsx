@@ -7,9 +7,9 @@ import { urlCatalogo } from '../../urls';
 
 export function ListarCatalogos() {
   return (
-    <div className="mx-auto max-w-3xl">
+    <div>
       <Encabezado volver titulo="Catálogos" subtitulo="Lo que se elige en la hoja de inspección. Los registros se desactivan, no se borran." />
-      <ul className="grid gap-3 md:grid-cols-2">
+      <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {SECCIONES_CATALOGO.map((clave) => {
           const { titulo, descripcion, icono: Icono } = SECCION[clave];
           return (

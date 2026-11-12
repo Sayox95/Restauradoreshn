@@ -4,6 +4,7 @@ import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { Hoja } from '@/common/components/Hoja';
+import { type Columna, Tabla } from '@/common/components/Tabla';
 import { useAvisos } from '@/common/components/Toast';
 import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/components/ui';
 import { mensajeError } from '@/common/http/api';
@@ -182,50 +183,85 @@ function Catalogo({ tipo }: { tipo: TipoCatalogo }) {
         ),
     );
   }, [q.data, buscar]);
+  // Columnas de la tabla (PC): los mismos campos del formulario del catálogo, más el estado.
+  const columnas: Columna<Fila>[] = [
+    ...def.campos.map((c) => ({
+      // Sin la ayuda entre paréntesis del formulario (p. ej. «Latitud (Honduras: 12 a 17)»).
+      titulo: c.etiqueta.replace(/\s*\(.*\)$/, ''),
+      celda: (r: Fila) => (r[c.clave] === null || r[c.clave] === undefined || r[c.clave] === '' ? '—' : String(r[c.clave])),
+      clase: c.tipo === 'numero' ? 'whitespace-nowrap text-right' : undefined,
+    })),
+    {
+      titulo: 'Estado',
+      celda: (r) => (r.activo ? 'Activo' : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Inactivo</span>),
+    },
+  ];
   return (
-    <Seccion
-      titulo={q.data ? `${q.data.filter((r) => r.activo).length} activos` : 'Registros'}
-      accion={
-        <button className="btn-primario min-h-[40px] px-3 text-sm" onClick={() => setEditando('nuevo')}>
-          <Plus className="h-4 w-4" /> Nuevo
-        </button>
-      }
-    >
-      <div className="tarjeta p-3">
-        <div className="relative mb-2">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-          <input
-            className="campo pl-9"
-            inputMode="search"
-            placeholder="Buscar"
-            value={buscar}
-            onChange={(e) => setBuscar(e.target.value)}
-            aria-label="Buscar"
-          />
+    <>
+      <BarraCatalogo
+        resumen={q.data ? `${q.data.filter((r) => r.activo).length} activos de ${q.data.length}` : ''}
+        buscar={buscar}
+        onBuscar={setBuscar}
+        onNuevo={() => setEditando('nuevo')}
+      />
+      {q.isLoading && <Cargando filas={2} />}
+      {q.error && <CajaError error={q.error} reintentar={() => q.refetch()} />}
+      {q.data && !filas.length && (
+        <div className="tarjeta">
+          <Vacio texto="Sin registros" />
         </div>
-        {q.isLoading && <Cargando filas={2} />}
-        {q.error && <CajaError error={q.error} reintentar={() => q.refetch()} />}
-        {q.data && !filas.length && <Vacio texto="Sin registros" />}
-        <ul className="divide-y divide-slate-100">
-          {filas.map((r) => (
-            <li key={r.id}>
-              <button className="flex min-h-[52px] w-full items-center gap-3 py-2 text-left" onClick={() => setEditando(r)}>
-                <div className="min-w-0 flex-1">
-                  <p className={`truncate font-medium ${r.activo ? 'text-slate-900' : 'text-slate-400 line-through'}`}>{def.principal(r)}</p>
-                  <p className="truncate text-xs text-slate-500">{def.detalle(r) || ' '}</p>
-                </div>
-                {!r.activo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Inactivo</span>}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+      )}
+      {filas.length > 0 && (
+        <Tabla
+          etiqueta={SECCION[tipo].titulo}
+          filas={filas}
+          clave={(r) => r.id}
+          columnas={columnas}
+          alElegir={setEditando}
+          apagada={(r) => !r.activo}
+          tarjeta={(r) => (
+            <div className="flex items-center gap-3">
+              <div className="min-w-0 flex-1">
+                <p className={`truncate font-medium ${r.activo ? 'text-slate-900' : 'text-slate-400 line-through'}`}>{def.principal(r)}</p>
+                <p className="truncate text-xs text-slate-500">{def.detalle(r) || ' '}</p>
+              </div>
+              {!r.activo && <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">Inactivo</span>}
+            </div>
+          )}
+        />
+      )}
       {editando && <FormItem tipo={tipo} item={editando === 'nuevo' ? null : editando} onCerrar={() => setEditando(null)} />}
-    </Seccion>
+    </>
   );
 }
 
-/** Tablero de una marca: lista ordenada de campos (los que se quitan se desactivan, no se borran). */
+/** Fila de acciones de un catálogo: resumen, buscador y «+ Nuevo» (en el teléfono, en dos renglones). */
+function BarraCatalogo({ resumen, buscar, onBuscar, onNuevo }: { resumen: string; buscar?: string; onBuscar?: (v: string) => void; onNuevo: () => void }) {
+  return (
+    <div className="mb-3 flex flex-wrap items-center gap-2">
+      <p className="mr-auto text-sm font-semibold text-slate-500">{resumen}</p>
+      <div className="order-last flex w-full gap-2 sm:order-none sm:w-auto">
+        {onBuscar && (
+          <div className="relative flex-1 sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+            <input
+              className="campo h-11 py-0 pl-9"
+              inputMode="search"
+              placeholder="Buscar"
+              value={buscar}
+              onChange={(e) => onBuscar(e.target.value)}
+              aria-label="Buscar"
+            />
+          </div>
+        )}
+      </div>
+      <button className="btn-primario min-h-[44px] px-4 text-sm" onClick={onNuevo}>
+        <Plus className="h-4 w-4" /> Nuevo
+      </button>
+    </div>
+  );
+}
+
 function FormTablero({ marca, campos, onCerrar }: { marca: string; campos: string[]; onCerrar: () => void }) {
   const [m, setM] = useState(marca);
   const [lista, setLista] = useState<string[]>(campos.length ? campos : ['']);
@@ -309,31 +345,35 @@ function Tableros() {
     return [...m.entries()];
   }, [q.data]);
   return (
-    <Seccion
-      titulo="Marcas con tablero"
-      accion={
-        <button className="btn-primario min-h-[40px] px-3 text-sm" onClick={() => setEditando({ marca: '', campos: [] })}>
-          <Plus className="h-4 w-4" /> Nuevo
-        </button>
-      }
-    >
-      <div className="tarjeta p-3">
-        {q.isLoading && <Cargando filas={2} />}
-        {q.error && <CajaError error={q.error} reintentar={() => q.refetch()} />}
-        {q.data && !porMarca.length && <Vacio texto="Sin tableros configurados" />}
-        <ul className="divide-y divide-slate-100">
-          {porMarca.map(([marca, campos]) => (
-            <li key={marca}>
-              <button className="w-full py-3 text-left" onClick={() => setEditando({ marca, campos })}>
-                <p className="font-medium text-slate-900">{marca}</p>
-                <p className="text-xs text-slate-500">{campos.join(' · ')}</p>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
+    <>
+      <BarraCatalogo resumen={q.data ? `${porMarca.length} marcas con tablero` : ''} onNuevo={() => setEditando({ marca: '', campos: [] })} />
+      {q.isLoading && <Cargando filas={2} />}
+      {q.error && <CajaError error={q.error} reintentar={() => q.refetch()} />}
+      {q.data && !porMarca.length && (
+        <div className="tarjeta">
+          <Vacio texto="Sin tableros configurados" />
+        </div>
+      )}
+      {porMarca.length > 0 && (
+        <Tabla
+          etiqueta="Tableros de control"
+          filas={porMarca}
+          clave={([marca]) => marca}
+          columnas={[
+            { titulo: 'Marca', celda: ([marca]) => <span className="font-semibold">{marca}</span>, clase: 'whitespace-nowrap' },
+            { titulo: 'Campos del tablero', celda: ([, campos]) => campos.join(' · ') },
+          ]}
+          alElegir={([marca, campos]) => setEditando({ marca, campos })}
+          tarjeta={([marca, campos]) => (
+            <>
+              <p className="font-medium text-slate-900">{marca}</p>
+              <p className="text-xs text-slate-500">{campos.join(' · ')}</p>
+            </>
+          )}
+        />
+      )}
       {editando && <FormTablero {...editando} onCerrar={() => setEditando(null)} />}
-    </Seccion>
+    </>
   );
 }
 
@@ -378,7 +418,7 @@ export function GestionarCatalogo() {
   const { catalogo } = useParams();
   if (!esSeccionCatalogo(catalogo)) return <Navigate to={urlCatalogos} replace />;
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className={catalogo === 'zona' ? 'mx-auto max-w-2xl' : ''}>
       <Encabezado volver titulo={SECCION[catalogo].titulo} subtitulo={SECCION[catalogo].descripcion} />
       {catalogo === 'tableros' ? <Tableros /> : catalogo === 'zona' ? <ZonaHoraria /> : <Catalogo key={catalogo} tipo={catalogo} />}
     </div>

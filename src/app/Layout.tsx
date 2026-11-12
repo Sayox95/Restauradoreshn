@@ -125,7 +125,7 @@ export function Layout() {
       {/* PC: menú lateral izquierdo que se oculta con el botón del encabezado. */}
       <aside
         id="menu-lateral"
-        className={`fixed bottom-0 left-0 top-14 z-20 hidden w-60 overflow-y-auto border-r border-slate-200 bg-white px-3 py-4 transition-[transform,visibility] duration-200 ease-out lg:block ${menuAbierto ? '' : 'lg:invisible lg:-translate-x-full'}`}
+        className={`fixed bottom-0 left-0 top-14 z-20 hidden w-64 overflow-y-auto border-r border-slate-200 bg-white px-3 py-4 transition-[transform,visibility] duration-200 ease-out lg:block ${menuAbierto ? '' : 'lg:invisible lg:-translate-x-full'}`}
       >
         <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Menú</p>
         <nav aria-label="Principal" className="space-y-1">
@@ -146,7 +146,7 @@ export function Layout() {
       </aside>
 
       <Notificaciones />
-      <div className={`transition-[padding] duration-200 ease-out ${menuAbierto ? 'lg:pl-60' : ''}`}>
+      <div className={`transition-[padding] duration-200 ease-out ${menuAbierto ? 'lg:pl-64' : ''}`}>
         <main className="mx-auto max-w-6xl px-4 pt-4 lg:px-6 lg:pt-6">
           <ErrorPantalla key={ruta}>
             {/* Al cambiar de pantalla, la nueva entra con un desvanecido corto. */}

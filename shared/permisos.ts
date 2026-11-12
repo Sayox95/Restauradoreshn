@@ -57,7 +57,7 @@ export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Perm
   {
     codigo: 'utcd_restauradores_catalogos',
     nombre: 'Catálogos',
-    permisos: [{ codigo: PermisosCatalogos.Gestionar, nombre: 'Gestionar catálogos de la hoja de visita y zona horaria' }],
+    permisos: [{ codigo: PermisosCatalogos.Gestionar, nombre: 'Gestionar catálogos de la hoja de inspección y zona horaria' }],
   },
 ];
 

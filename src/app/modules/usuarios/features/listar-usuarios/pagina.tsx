@@ -1,8 +1,8 @@
 import { ROL_ETIQUETA, type EstadoCuenta } from '@shared/constantes';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, ChevronRight, Plus, Search } from 'lucide-react';
+import { Check, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { type Columna, Tabla } from '@/common/components/Tabla';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
 import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/components/ui';
@@ -64,24 +64,36 @@ function Solicitud({ u, onAprobar }: { u: Usuario; onAprobar: () => void }) {
   );
 }
 
-function Fila({ u }: { u: Usuario }) {
+const ultimoIngreso = (u: Usuario) => (u.debe_cambiar_password ? 'Con clave temporal' : u.ultimo_ingreso_en ? fecha(u.ultimo_ingreso_en) : 'Nunca ingresó');
+
+const COLUMNAS: Columna<Usuario>[] = [
+  {
+    titulo: 'Nombre',
+    celda: (u) => (
+      <span className="flex items-center gap-3">
+        <Avatar nombre={u.nombre} tamano="chico" />
+        <span className="font-semibold">{u.nombre}</span>
+      </span>
+    ),
+  },
+  { titulo: 'Usuario', celda: (u) => <span className="font-mono">{u.usuario}</span> },
+  { titulo: 'Perfil', celda: (u) => ROL_ETIQUETA[u.rol] },
+  { titulo: 'Estado', celda: (u) => <BadgeCuenta estado={u.estado} /> },
+  { titulo: 'Último ingreso', celda: ultimoIngreso, clase: 'whitespace-nowrap' },
+];
+
+function TarjetaUsuario({ u }: { u: Usuario }) {
   return (
-    <li>
-      <Link to={urlUsuario(u.id)} className="flex min-h-[64px] items-center gap-3 px-4 py-3 hover:bg-slate-50">
-        <Avatar nombre={u.nombre} />
-        <div className="min-w-0 flex-1">
-          <p className={`truncate font-semibold ${u.estado === 'activa' ? 'text-slate-900' : 'text-slate-500'}`}>{u.nombre}</p>
-          <p className="truncate text-sm text-slate-500">
-            <span className="font-mono">{u.usuario}</span> · {ROL_ETIQUETA[u.rol]}
-          </p>
-        </div>
-        <div className="hidden shrink-0 text-right text-xs text-slate-500 sm:block">
-          {u.debe_cambiar_password ? 'Con clave temporal' : u.ultimo_ingreso_en ? `Ingresó el ${fecha(u.ultimo_ingreso_en)}` : 'Nunca ingresó'}
-        </div>
-        {u.estado !== 'activa' && <BadgeCuenta estado={u.estado} />}
-        <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
-      </Link>
-    </li>
+    <div className="flex items-center gap-3">
+      <Avatar nombre={u.nombre} />
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-semibold text-slate-900">{u.nombre}</p>
+        <p className="truncate text-sm text-slate-500">
+          <span className="font-mono">{u.usuario}</span> · {ROL_ETIQUETA[u.rol]}
+        </p>
+      </div>
+      {u.estado !== 'activa' && <BadgeCuenta estado={u.estado} />}
+    </div>
   );
 }
 
@@ -127,27 +139,22 @@ export function Usuarios() {
         </Seccion>
       )}
       {q.data && (
-        <Seccion titulo="Cuentas">
-          <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_16rem] sm:items-end">
-            <div>
-              <label className="etiqueta" htmlFor="buscar-usuarios">
-                Buscar
-              </label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
-                <input
-                  id="buscar-usuarios"
-                  type="search"
-                  className="campo h-11 py-0 pl-9"
-                  placeholder="Nombre, usuario o correo"
-                  value={buscar}
-                  onChange={(e) => setBuscar(e.target.value)}
-                />
-              </div>
+        <>
+          <div className="mb-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_16rem]">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
+              <input
+                type="search"
+                className="campo h-11 py-0 pl-9"
+                placeholder="Buscar por nombre, usuario o correo"
+                aria-label="Buscar cuentas"
+                value={buscar}
+                onChange={(e) => setBuscar(e.target.value)}
+              />
             </div>
             <SelectorMultiple<Filtro>
               etiqueta="Estado"
-              textoTodas="Todas"
+              textoTodas="Todos los estados"
               valor={filtro}
               onChange={setFiltro}
               opciones={[
@@ -158,17 +165,21 @@ export function Usuarios() {
             />
           </div>
           {lista.length ? (
-            <ul className="tarjeta divide-y divide-slate-100 overflow-hidden">
-              {lista.map((u) => (
-                <Fila key={u.id} u={u} />
-              ))}
-            </ul>
+            <Tabla
+              etiqueta="Cuentas"
+              filas={lista}
+              clave={(u) => u.id}
+              columnas={COLUMNAS}
+              tarjeta={(u) => <TarjetaUsuario u={u} />}
+              enlace={(u) => urlUsuario(u.id)}
+              apagada={(u) => u.estado !== 'activa'}
+            />
           ) : (
             <div className="tarjeta">
               <Vacio texto={buscar ? 'Ninguna cuenta coincide con la búsqueda.' : 'No hay cuentas en este estado.'} />
             </div>
           )}
-        </Seccion>
+        </>
       )}
       {nuevo && <FormCuenta u={null} onCerrar={() => setNuevo(false)} />}
       {aprobando && <DialogoAprobar u={aprobando} onCerrar={() => setAprobando(null)} />}
