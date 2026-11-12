@@ -8,37 +8,12 @@
  * a los nombres que usa.
  */
 import type { Visita } from '@shared/visitas';
+import { estructuraFicha } from './ficha';
 
 export interface FotoFicha {
   /** Copia reducida (data URL JPEG) generada en el navegador; el original va a R2 aparte (E2). */
   base64: string;
   observacion: string | null;
-}
-
-const CAMBIOS_NOMBRE: Record<string, string> = {
-  circuito: 'codigoCircuito',
-  ubicacion: 'nombreUbicacion',
-  marca_reconectador: 'marcaReconectador',
-  ajuste_activo: 'grupoActivo',
-  medicion_ac: 'medicionAC',
-  corr_ia: 'corrIA',
-  corr_ib: 'corrIB',
-  corr_ic: 'corrIC',
-  corr_in: 'corrIN',
-  materiales: 'materialesUtilizados',
-};
-const camel = (k: string) => k.replace(/_([a-z0-9])/g, (_, c: string) => c.toUpperCase());
-
-/** Datos de la visita → nombres de la ficha. */
-function adaptar(v: Visita, fotos: FotoFicha[]): Record<string, any> {
-  const d: Record<string, any> = {};
-  for (const [k, valor] of Object.entries(v)) d[CAMBIOS_NOMBRE[k] ?? camel(k)] = valor ?? '';
-  d.hasModem1 = v.has_modem1 === 'SI';
-  d.hasModem2 = v.has_modem2 === 'SI';
-  d.tableroMarca = v.marca_reconectador ?? '';
-  d.firmaImg = v.firma_img ?? '';
-  d.fotografias = fotos;
-  return d;
 }
 
 /** Logo de la empresa en blanco (para la franja azul del encabezado). */
@@ -73,7 +48,6 @@ async function logoBlanco(): Promise<string | null> {
 /** Genera la ficha en PDF. */
 export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
-  const d = adaptar(v, fotosFicha);
   const logoBase64 = await logoBlanco();
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
   const PW = 215.9,
@@ -335,10 +309,6 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     y += h + 1.8;
   };
 
-  const esCooperPdf = String(d.marcaReconectador || '')
-    .toUpperCase()
-    .includes('COOPER');
-
   // ══════════════════════════════════════════════════════
   //  ENCABEZADO
   // ══════════════════════════════════════════════════════
@@ -365,156 +335,43 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   setFont(5.8, 'bold', MUTED);
   txt('FOLIO', nvX + nvW / 2, 8.4, { align: 'center' });
   setFont(10, 'bold', NAVY);
-  txt(d.visitaNum || '—', nvX + nvW / 2, 14.4, { align: 'center' });
+  txt(v.visita_num || '—', nvX + nvW / 2, 14.4, { align: 'center' });
   y = 25;
 
   // Franja de datos de la inspección
-  const rapidos = [
-    ['Fecha', d.fechaVisita],
-    ['Tipo de visita', d.tipoVisita],
-    ['Llegada', d.horaLlegada],
-    ['Salida', d.horaSalida],
-    ['Energis', d.codigoEnergis],
-    ['Circuito', d.codigoCircuito],
+  const rapidos: [string, unknown][] = [
+    ['Fecha', v.fecha_visita],
+    ['Tipo de visita', v.tipo_visita],
+    ['Llegada', v.hora_llegada],
+    ['Salida', v.hora_salida],
+    ['Energis', v.codigo_energis],
+    ['Circuito', v.circuito],
   ];
   const qw = CW / rapidos.length;
   rect(ML, y, CW, 10, WHITE, BORDER, 1.2);
-  rapidos.forEach(([l, v], i) => {
+  rapidos.forEach(([l, valor], i) => {
     const cx = ML + qw * i + qw / 2;
     if (i > 0) line(ML + qw * i, y + 2, ML + qw * i, y + 8, BORDER, 0.2);
     setFont(5.6, 'normal', MUTED);
     txt(l.toUpperCase(), cx, y + 3.6, { align: 'center' });
     setFont(8.4, 'bold', NAVY);
-    txt(ajustar(vacio(v) ? '—' : v, qw - 3), cx, y + 8.2, { align: 'center' });
+    txt(ajustar(vacio(valor) ? '—' : valor, qw - 3), cx, y + 8.2, { align: 'center' });
   });
   y += 13;
 
   // ══════════════════════════════════════════════════════
   //  PÁGINA 1 · EL EQUIPO
   // ══════════════════════════════════════════════════════
-  seccion('DATOS DEL RESTAURADOR');
-  const coord = !vacio(d.latitud) || !vacio(d.longitud) ? `${d.latitud || '—'} , ${d.longitud || '—'}` : '';
-  grid([
-    { l: 'Ubicación', v: d.nombreUbicacion, s: 2 },
-    { l: 'Subestación', v: d.subestacion },
-    { l: 'Zona', v: d.zona },
-    { l: 'Sector', v: d.sector, s: 2 },
-    { l: 'Coordenadas (lat , long)', v: coord, s: 2 },
-    { l: 'Generación distribuida', v: d.genDistribuida },
-  ]);
-
-  seccion('RECONECTADOR');
-  grid([
-    { l: 'Tipo', v: d.tipoRecon },
-    { l: 'Marca', v: d.marcaReconectador },
-    { l: 'Modelo', v: d.modeloRecon },
-    { l: 'Medio de extinción', v: d.medioExtincion },
-    { l: 'Serie reconectador', v: d.serieRecon, s: 2 },
-    { l: 'Tipo de control', v: d.tipoControl },
-    { l: 'Serie control', v: d.serieControl, s: 2 },
-    esCooperPdf ? { l: 'Firmware / Proview', v: d.proviewControl } : null,
-  ]);
-  if (esCooperPdf)
-    estados([
-      { l: 'Terminal p/sensores V', v: d.termSensV },
-      { l: 'Manguera sensores V', v: d.manguSensV },
-      { l: 'Terminal manguera aux', v: d.termManguAux },
-      { l: 'Manguera auxiliar', v: d.manguAux },
-    ]);
-
-  seccion('MÓDEMS Y COMUNICACIONES');
-  [1, 2].forEach((n) => {
-    if (!d['hasModem' + n]) return;
-    subtitulo('Módem ' + n);
-    const ant = d['antenaModem' + n],
-      tAnt = d['tipoAntena' + n];
-    grid([
-      { l: 'Tipo', v: d['tipoModem' + n] },
-      { l: 'Marca', v: d['marcaModem' + n] },
-      { l: 'Modelo', v: d['modeloModem' + n] },
-      { l: 'Serie', v: d['serieModem' + n] },
-      { l: 'Antena', v: ant ? ant + (tAnt ? ' · ' + tAnt : '') : '' },
-      { l: 'Tecnología', v: d['tecModem' + n] },
-    ]);
-  });
-  if (!d.hasModem1 || !d.hasModem2) estados([!d.hasModem1 ? { l: 'Módem 1', v: 'NO' } : null, !d.hasModem2 ? { l: 'Módem 2', v: 'NO' } : null]);
-
-  // Tablero, alarma, batería y corrientes: una sola sección, como en la app
-  seccion('TABLERO Y MEDICIONES');
-  const tablero = Object.entries(d.tableroCampos || {}).filter(([, v]) => v);
-  if (tablero.length || d.grupoActivo) {
-    subtitulo('Tablero de control' + (d.tableroMarca ? ' · ' + String(d.tableroMarca).toUpperCase() : ''));
-    estados([...tablero.map(([l, v]) => ({ l, v })), d.grupoActivo ? { l: 'Grupo activo', v: d.grupoActivo } : null]);
+  // Las secciones salen de la estructura única de la ficha (la misma del detalle en pantalla).
+  for (const sec of estructuraFicha(v)) {
+    seccion(sec.titulo.toUpperCase());
+    for (const b of sec.bloques) {
+      if (b.subtitulo) subtitulo(b.subtitulo);
+      if (b.tipo === 'textos') observacionesJuntas(b.textos);
+      else if (b.tipo === 'estados') estados(b.campos, b.cols);
+      else grid(b.campos, b.cols);
+    }
   }
-  subtitulo('Alarma');
-  estados([{ l: 'Alarma presente', v: d.alarmaPresente }]);
-  textoLargo('Descripción de la alarma', d.descAlarma);
-  subtitulo('Batería');
-  estados(
-    [
-      { l: 'Battery test', v: d.batteryTest },
-      { l: 'Cambio de baterías', v: d.cambioBaterias },
-      d.cambioBaterias === 'SI' ? { l: 'Batería instalada', v: d.tipoBateria } : null,
-    ],
-    3,
-  );
-  grid(
-    [
-      { l: 'Voltaje AC (V)', v: d.medicionAC },
-      { l: 'Voltaje baterías (V)', v: d.medicionBat },
-      { l: 'Voltaje cargador (V)', v: d.medicionCargador },
-    ],
-    3,
-  );
-  subtitulo('Corrientes instantáneas (A)');
-  grid(
-    [
-      { l: 'IA', v: d.corrIA },
-      { l: 'IB', v: d.corrIB },
-      { l: 'IC', v: d.corrIC },
-      { l: 'IN (neutro)', v: d.corrIN },
-    ],
-    4,
-  );
-
-  seccion('ESTADO FÍSICO');
-  const potSi = d.tienePotencial === 'SI';
-  estados([
-    { l: 'Gabinete', v: d.gabinete },
-    { l: 'Borneras', v: d.borneras },
-    { l: 'Aterrizaje restaurador', v: d.aterRestState },
-    { l: 'Aterrizaje control', v: d.aterCtrlState },
-    { l: 'Cable de tierra', v: d.cableTierra },
-    { l: 'Estado cuchillas', v: d.estadoCuchillas },
-    { l: 'Pararrayos', v: d.pararrayos },
-    { l: 'Tiene potencial', v: d.tienePotencial },
-    potSi ? { l: 'Pararrayos potencial', v: d.potPararrayos } : null,
-    potSi ? { l: 'Cuchilla potencial', v: d.potCuchilla } : null,
-    potSi ? { l: 'Aterrizaje potencial', v: d.aterPotState } : null,
-    d.tienePotencial === 'NO' ? { l: 'Alimentado por acometida', v: d.alimentadoAcometida } : null,
-  ]);
-  grid([
-    { l: 'Tipo de cuchilla', v: d.tipoCuchilla, s: 3 },
-    { l: 'N° cuchillas', v: d.numCuchillas },
-    { l: 'N° pararrayos', v: d.numPararrayos },
-    { l: 'N° varillas', v: d.numVarillas },
-    potSi ? { l: 'Cantidad de potencial', v: d.potCantidad, s: 3 } : null,
-    potSi ? { l: 'Fase de conexión', v: d.faseConexion, s: 3 } : null,
-  ]);
-  // Sin «Ω»: la fuente del PDF no lo tiene (se veía desarmado).
-  subtitulo('Resistencia de aterrizaje (ohm)');
-  grid(
-    [
-      { l: 'Control', v: d.aterControl },
-      { l: 'Restaurador', v: d.aterRestaurador },
-      { l: 'Otros', v: d.aterOtros },
-    ],
-    3,
-  );
-  observacionesJuntas([
-    ['Observación del estado físico', d.obsEstadoFisico],
-    ['Observación de la alimentación', d.obsPotencial],
-  ]);
 
   // ══════════════════════════════════════════════════════
   //  PÁGINA 2 · LO QUE SE HIZO Y QUIÉN
@@ -524,7 +381,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     y = MT;
   }
 
-  const mats = d.materialesUtilizados || [];
+  const mats = v.materiales || [];
   if (mats.length > 0) {
     seccion('MATERIALES UTILIZADOS');
     abrir(5.5 + 6 * Math.min(mats.length, 3));
@@ -546,7 +403,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       y += 5.5;
     };
     encabezado();
-    mats.forEach((m: any, idx: number) => {
+    mats.forEach((m, idx) => {
       if (y + 6.5 > PH - 14) {
         checkPage(20);
         encabezado();
@@ -564,12 +421,12 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       y += 6;
     });
     y += 1.8;
-    textoLargo('Observación de materiales', d.obsMateriales, 'aviso');
+    textoLargo('Observación de materiales', v.obs_materiales, 'aviso');
   }
 
   // Fotografías: cuadrícula de 2 × 2 (las 4 caben en media página); con 1 o 2 fotos van más grandes
   // y una sola queda centrada
-  const fotos = (d.fotografias || []).filter((f: FotoFicha) => f && f.base64);
+  const fotos = (fotosFicha || []).filter((f: FotoFicha) => f && f.base64);
   if (fotos.length > 0) {
     const FW = (CW - 4) / 2,
       FH = fotos.length <= 2 ? 80 : 50,
@@ -606,7 +463,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   }
 
   // Observaciones generales, personal y firma: al final, lado a lado con la firma
-  const personal = d.personal || [];
+  const personal = v.personal || [];
   const filaP = 6.2,
     cabP = 5.5;
   setFont(7.6, 'normal');
@@ -614,7 +471,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     persW = CW * 0.6 - gap / 2,
     firmaW = CW - persW - gap,
     firmaX = ML + persW + gap;
-  const lineasObs = vacio(d.obsGenerales) ? [] : (doc.splitTextToSize(String(d.obsGenerales), persW - 5) as string[]);
+  const lineasObs = vacio(v.obs_generales) ? [] : (doc.splitTextToSize(String(v.obs_generales), persW - 5) as string[]);
   const altoObs = lineasObs.length ? 5 + lineasObs.length * 3.6 + 2 : 0;
   const altoTabla = cabP + Math.max(1, personal.length) * filaP;
   const altoBloque = Math.max(36, altoObs + altoTabla);
@@ -636,7 +493,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   txt('NOMBRE', ML + 2.5, yy + 3.8);
   txt('CARGO', ML + persW * 0.56, yy + 3.8);
   txt('N° EMP.', ML + persW * 0.84, yy + 3.8);
-  personal.forEach((p: any, i: number) => {
+  personal.forEach((p, i) => {
     const ry = yy + cabP + i * filaP;
     if (i % 2 === 0) rect(ML + 0.3, ry, persW - 0.6, filaP, BGROW);
     setFont(7.6, 'bold', TXT);
@@ -651,13 +508,13 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4, { align: 'center' });
   const fTop = y0 + 6,
     fBot = y0 + altoBloque - 9;
-  if (d.firmaImg && String(d.firmaImg).startsWith('data:image')) {
+  if (v.firma_img && String(v.firma_img).startsWith('data:image')) {
     try {
-      const pr = doc.getImageProperties(d.firmaImg);
+      const pr = doc.getImageProperties(v.firma_img);
       const k = Math.min((firmaW - 8) / pr.width, (fBot - fTop) / pr.height);
       const iw = pr.width * k,
         ih = pr.height * k;
-      doc.addImage(d.firmaImg, 'PNG', firmaX + (firmaW - iw) / 2, fTop + (fBot - fTop - ih) / 2, iw, ih, '', 'FAST');
+      doc.addImage(v.firma_img, 'PNG', firmaX + (firmaW - iw) / 2, fTop + (fBot - fTop - ih) / 2, iw, ih, '', 'FAST');
     } catch {
       // firma ilegible: queda el recuadro con el nombre
     }
@@ -667,7 +524,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   }
   line(firmaX + 6, fBot + 1, firmaX + firmaW - 6, fBot + 1, MUTED, 0.3);
   setFont(8, 'bold', NAVY);
-  txt(ajustar(d.firmaResponsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 5.5, { align: 'center' });
+  txt(ajustar(v.firma_responsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 5.5, { align: 'center' });
   y = y0 + altoBloque + 4;
 
   // ══════════════════════════════════════════════════════
@@ -679,7 +536,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     doc.setPage(i);
     rect(0, PH - 9, PW, 9, NAVY);
     setFont(6.2, 'normal', [150, 170, 200]);
-    txt('Hoja de inspección · ' + (d.visitaNum || '') + ' · ' + (d.fechaVisita || ''), ML, PH - 3.6);
+    txt('Hoja de inspección · ' + (v.visita_num || '') + ' · ' + (v.fecha_visita || ''), ML, PH - 3.6);
     txt(generado, PW / 2, PH - 3.6, { align: 'center' });
     txt('Pág. ' + i + ' / ' + paginas, PW - MR, PH - 3.6, { align: 'right' });
   }
