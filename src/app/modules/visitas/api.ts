@@ -11,7 +11,8 @@ export interface Filtros {
   hasta?: string;
   equipo?: string;
   zona?: string;
-  circuito?: string;
+  /** Varios circuitos separados por coma. */
+  circuitos?: string;
   pagina?: number;
 }
 export interface ListaVisitas {

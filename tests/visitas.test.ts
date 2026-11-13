@@ -134,7 +134,9 @@ describe('ver las visitas', () => {
     const todas = await lista('');
     expect(todas.filas.map((f: { equipo: string }) => f.equipo)).toEqual(['restaurador', 'restaurador']);
     expect((await lista('?equipo=restaurador')).total).toBe(2);
-    expect((await lista('?circuito=l-501')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    expect((await lista('?circuitos=l-501')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    // Varios circuitos a la vez.
+    expect((await lista('?circuitos=L-501,ber-l207')).total).toBe(2);
     expect((await lista('?zona=norte')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
     // Un valor que no está en la lista se ignora.
     expect((await lista('?equipo=otro')).total).toBe(2);

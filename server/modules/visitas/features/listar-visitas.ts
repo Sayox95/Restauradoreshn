@@ -4,7 +4,7 @@ import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /**
  * Filtros de la lista (y del CSV): texto (folio, Energis, circuito, ubicación), rango de fechas de visita,
- * equipo, zona y circuito. Un equipo fuera de la lista se ignora.
+ * equipo, zona y circuitos (varios, separados por coma). Un equipo fuera de la lista se ignora.
  */
 export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const q = ctx.url.searchParams.get('q')?.trim();
@@ -12,7 +12,14 @@ export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const hasta = ctx.url.searchParams.get('hasta');
   const equipo = ctx.url.searchParams.get('equipo');
   const zona = ctx.url.searchParams.get('zona')?.trim();
-  const circuito = ctx.url.searchParams.get('circuito')?.trim();
+  const circuitos = [
+    ...new Set(
+      (ctx.url.searchParams.get('circuitos') ?? '')
+        .split(',')
+        .map((c) => c.trim().toLowerCase().slice(0, 80))
+        .filter(Boolean),
+    ),
+  ].slice(0, 300);
   const fv = soloMias ? visitasPropias(ctx.usuario) : filtroVisitas(ctx.usuario);
   const condiciones = [fv.sql];
   const binds: unknown[] = [...fv.binds];
@@ -37,9 +44,9 @@ export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
     condiciones.push('lower(r.zona) = lower(?)');
     binds.push(zona.slice(0, 80));
   }
-  if (circuito) {
-    condiciones.push('lower(r.circuito) = lower(?)');
-    binds.push(circuito.slice(0, 80));
+  if (circuitos.length) {
+    condiciones.push(`lower(r.circuito) IN (${circuitos.map(() => '?').join(',')})`);
+    binds.push(...circuitos);
   }
   return { sql: condiciones.join(' AND '), binds };
 }

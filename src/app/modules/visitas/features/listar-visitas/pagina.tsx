@@ -17,6 +17,7 @@ import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
 import { useCatalogosVisita } from '../../components/catalogos';
+import { SelectorCircuitos } from '../../components/selector-circuitos';
 import { alEnviarInspecciones, useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
@@ -122,17 +123,25 @@ function Pendientes() {
   );
 }
 
-/** Filtros de la lista (además de la búsqueda); vacío = sin filtrar. */
-const SIN_FILTROS = { equipo: '', zona: '', circuito: '', desde: '', hasta: '' };
-type ValoresFiltro = typeof SIN_FILTROS;
+/** Filtros de la lista (además de la búsqueda); vacío = sin filtrar. Circuitos: varios a la vez. */
+interface ValoresFiltro {
+  equipo: string;
+  zona: string;
+  circuitos: string[];
+  desde: string;
+  hasta: string;
+}
+const SIN_FILTROS: ValoresFiltro = { equipo: '', zona: '', circuitos: [], desde: '', hasta: '' };
+/** Cuántos filtros hay puestos (para el contador del botón). */
+const contarActivos = (v: ValoresFiltro) => Object.values(v).filter((x) => (Array.isArray(x) ? x.length > 0 : !!x)).length;
 
-/** Panel de filtros: se muestra y oculta con el botón «Filtros». */
 /** Valores distintos y ordenados de una columna del catálogo de restauradores. */
 const distintos = (lista: Restaurador[], f: (r: Restaurador) => string | null) =>
   [...new Set(lista.map((r) => f(r)?.trim()).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
 
+/** Panel de filtros: se muestra y oculta con el botón «Filtros». */
 function PanelFiltros({ valores, onCambiar, restauradores }: { valores: ValoresFiltro; onCambiar: (v: ValoresFiltro) => void; restauradores: Restaurador[] }) {
-  const campo = (clave: keyof ValoresFiltro, valor: string) => onCambiar({ ...valores, [clave]: valor });
+  const campo = (clave: 'equipo' | 'desde' | 'hasta', valor: string) => onCambiar({ ...valores, [clave]: valor });
   const zonas = useMemo(() => distintos(restauradores, (r) => r.zona), [restauradores]);
   // Los circuitos se acotan a la zona elegida.
   const circuitos = useMemo(
@@ -143,13 +152,12 @@ function PanelFiltros({ valores, onCambiar, restauradores }: { valores: ValoresF
       ),
     [restauradores, valores.zona],
   );
-  // Al cambiar de zona, el circuito elegido se quita si no pertenece a la nueva.
+  // Al cambiar de zona, se quitan los circuitos elegidos que no pertenecen a la nueva.
   const elegirZona = (zona: string) => {
-    const r = restauradores.filter((x) => !zona || x.zona?.trim().toLowerCase() === zona.toLowerCase());
-    const sigue = !valores.circuito || r.some((x) => x.circuito?.trim() === valores.circuito);
-    onCambiar({ ...valores, zona, circuito: sigue ? valores.circuito : '' });
+    const deLaZona = new Set(restauradores.filter((x) => !zona || x.zona?.trim().toLowerCase() === zona.toLowerCase()).map((x) => x.circuito?.trim()));
+    onCambiar({ ...valores, zona, circuitos: valores.circuitos.filter((c) => deLaZona.has(c)) });
   };
-  const activos = Object.values(valores).some(Boolean);
+  const activos = contarActivos(valores) > 0;
   return (
     <div id="panel-filtros" className="tarjeta p-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
@@ -173,15 +181,11 @@ function PanelFiltros({ valores, onCambiar, restauradores }: { valores: ValoresF
             ))}
           </select>
         </label>
-        <label className="col-span-2 text-xs font-semibold text-slate-600 lg:col-span-1">
+        {/* No es <label>: el selector tiene sus propios botones y casillas. */}
+        <div className="col-span-2 text-xs font-semibold text-slate-600 lg:col-span-1">
           Circuito
-          <select className="campo mt-1" value={valores.circuito} onChange={(e) => campo('circuito', e.target.value)}>
-            <option value="">Todos</option>
-            {circuitos.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </label>
+          <SelectorCircuitos circuitos={circuitos} elegidos={valores.circuitos} onCambiar={(c) => onCambiar({ ...valores, circuitos: c })} />
+        </div>
         <label className="text-xs font-semibold text-slate-600">
           Desde
           <input type="date" className="campo mt-1" value={valores.desde} onChange={(e) => campo('desde', e.target.value)} />
@@ -216,10 +220,15 @@ export function ListarVisitas() {
   const [valores, setValores] = useState<ValoresFiltro>(SIN_FILTROS);
   const [verFiltros, setVerFiltros] = useState(false);
   const [pagina, setPagina] = useState(1);
-  const activos = Object.values(valores).filter(Boolean).length;
+  const activos = contarActivos(valores);
   const filtros = {
     q: q.trim() || undefined,
-    ...Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, v || undefined])),
+    equipo: valores.equipo || undefined,
+    zona: valores.zona || undefined,
+    // Varios circuitos van separados por coma (los nombres de circuito no llevan comas).
+    circuitos: valores.circuitos.length ? [...valores.circuitos].sort().join(',') : undefined,
+    desde: valores.desde || undefined,
+    hasta: valores.hasta || undefined,
     pagina,
   };
   // Zonas y circuitos para los filtros: los de los restauradores del catálogo.
