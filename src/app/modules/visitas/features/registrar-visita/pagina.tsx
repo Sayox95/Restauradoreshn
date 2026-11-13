@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
 import { useSesion } from '@/common/seguridad/sesion';
+import { TONO } from '@/common/tonos';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
 import { fijarModoCaptura } from '@/common/menu/modo-captura';
@@ -243,18 +244,18 @@ export function RegistrarVisita() {
     <div ref={arriba} className="mx-auto max-w-2xl scroll-mt-20">
       {guardando && <EnvioEnCurso />}
       <div className="mb-3 flex items-center gap-2">
-        {/* Modo captura: sin el menú inferior; «Salir» vuelve a Inspecciones y registros. */}
-        <button
-          type="button"
-          onClick={salir}
-          className="-ml-2 flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-slate-600 hover:bg-slate-200"
-        >
-          <X className="h-5 w-5" aria-hidden /> Salir
-        </button>
         <div className="min-w-0 flex-1">
           <h1 className="text-xl font-bold text-slate-900">Inspección de restaurador</h1>
           <p className="truncate text-xs text-slate-500">{b.visita_num}</p>
         </div>
+        {/* Modo captura: sin el menú inferior; «Salir» (a la derecha, en rojo suave) vuelve a Inspecciones. */}
+        <button
+          type="button"
+          onClick={salir}
+          className={`flex h-10 shrink-0 items-center gap-1 rounded-xl border px-3 text-sm font-semibold hover:bg-rose-100 ${TONO.mal.caja}`}
+        >
+          <X className="h-4 w-4" aria-hidden /> Salir
+        </button>
       </div>
 
       {/* Indicador de secciones: fijo, sin desplazamiento; un segmento por sección (se puede tocar para ir). */}
