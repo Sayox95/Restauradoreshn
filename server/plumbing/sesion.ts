@@ -122,15 +122,17 @@ export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioS
       cargo: string | null;
     }>();
   if (!u) return null;
-  const permisos = await env.DB.prepare(
-    'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',
-  )
-    .bind(id)
-    .all<{ permiso_codigo: string }>();
+  const [roles, permisos] = await env.DB.batch<{ rol_codigo?: string; permiso_codigo?: string }>([
+    env.DB.prepare('SELECT rol_codigo FROM usuario_roles WHERE usuario_id = ? ORDER BY rol_codigo').bind(id),
+    env.DB.prepare(
+      'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',
+    ).bind(id),
+  ]);
   return {
     ...u,
     debe_cambiar_password: !!u.debe_cambiar_password,
-    permisos: permisos.results.map((r) => r.permiso_codigo),
+    roles: roles!.results.map((r) => r.rol_codigo!),
+    permisos: permisos!.results.map((r) => r.permiso_codigo!),
   };
 }
 

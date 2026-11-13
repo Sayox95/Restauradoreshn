@@ -1,20 +1,11 @@
-/** Piezas comunes de la gestión de cuentas: estado, perfil, contraseña temporal y formularios. */
-import {
-  CARGOS_PERSONAL,
-  DOMINIO_CORREO,
-  ESTADO_CUENTA_ETIQUETA,
-  PATRON_USUARIO,
-  ROL_ETIQUETA,
-  ROLES,
-  type EstadoCuenta,
-  type Rol,
-  usuarioDeCorreo,
-} from '@shared/constantes';
-import { ROLES_SISTEMA, MODULOS } from '@shared/permisos';
+/** Piezas comunes de la gestión de cuentas: estado, accesos, contraseña temporal y formularios. */
+import { CARGOS_PERSONAL, DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, type EstadoCuenta, usuarioDeCorreo } from '@shared/constantes';
+import { MODULOS, ROLES_DE_PERFIL, ROLES_SISTEMA } from '@shared/permisos';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Hoja } from '@/common/components/Hoja';
+import { Segmentado } from '@/common/components/ui';
 export { Avatar } from '@/common/components/Avatar';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
@@ -29,38 +20,45 @@ export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
   );
 }
 
-/** Qué puede hacer cada perfil, en palabras (sale de los permisos de su rol). */
-export function resumenPerfil(rol: Rol) {
-  const permisos = ROLES_SISTEMA.find((r) => r.perfil === rol)?.permisos ?? [];
+/** Qué permiten los roles elegidos, en palabras (sale de sus permisos). */
+export function resumenPermisos(roles: readonly string[]) {
+  const permisos = ROLES_SISTEMA.filter((r) => roles.includes(r.codigo)).flatMap((r) => r.permisos);
   return MODULOS.flatMap((m) => m.permisos)
     .filter((p) => permisos.includes(p.codigo))
     .map((p) => p.nombre);
 }
 
-/** Perfil de la cuenta (agrupa permisos), con lo que permite hacer. */
-export function CamposAcceso({ rol, onRol }: { rol: Rol; onRol: (r: Rol) => void }) {
+/** Accesos de la cuenta, como en el SSO: una fila por módulo con «Sin acceso» o el rol que se habilita. */
+export function CamposAcceso({ roles, onRoles }: { roles: string[]; onRoles: (r: string[]) => void }) {
+  const elegir = (modulo: string, codigo: string) =>
+    onRoles([...roles.filter((r) => ROLES_SISTEMA.find((x) => x.codigo === r)?.modulo !== modulo), ...(codigo ? [codigo] : [])]);
   return (
-    <>
-      <div>
-        <label className="etiqueta" htmlFor="u-perfil">
-          Perfil
-        </label>
-        <select id="u-perfil" className="campo" value={rol} onChange={(e) => onRol(e.target.value as Rol)}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {ROL_ETIQUETA[r]}
-            </option>
-          ))}
-        </select>
-        <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
-          {resumenPerfil(rol).map((p) => (
-            <li key={p} className="flex gap-1.5">
-              <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" aria-hidden /> {p}
-            </li>
-          ))}
-        </ul>
+    <fieldset>
+      <legend className="etiqueta">Accesos</legend>
+      <div className="space-y-3 rounded-xl border border-slate-200 p-3">
+        {MODULOS.map((m) => {
+          const delModulo = ROLES_SISTEMA.filter((r) => r.modulo === m.codigo);
+          const actual = delModulo.find((r) => roles.includes(r.codigo))?.codigo ?? '';
+          const opciones = [
+            { valor: '', texto: 'Sin acceso' },
+            ...delModulo.map((r) => ({ valor: r.codigo, texto: delModulo.length === 1 ? 'Con acceso' : r.nombre })),
+          ];
+          return (
+            <div key={m.codigo} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-semibold text-slate-800">{m.nombre}</span>
+              <Segmentado etiqueta={`Acceso a ${m.nombre}`} opciones={opciones} valor={actual} onChange={(v) => elegir(m.codigo, v)} />
+            </div>
+          );
+        })}
       </div>
-    </>
+      <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
+        {resumenPermisos(roles).map((p) => (
+          <li key={p} className="flex gap-1.5">
+            <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" aria-hidden /> {p}
+          </li>
+        ))}
+      </ul>
+    </fieldset>
   );
 }
 
@@ -119,7 +117,7 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     correo: u?.correo ?? '',
     nombre: u?.nombre ?? '',
     telefono: u?.telefono ?? '',
-    rol: u?.rol ?? ('tecnico' as Rol),
+    roles: u?.roles ?? [ROLES_DE_PERFIL.tecnico[0]!],
     cargo: u?.cargo ?? '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -216,16 +214,16 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
           </select>
           <p className="mt-1 text-xs text-slate-500">Aparece en el personal de las inspecciones.</p>
         </div>
-        <CamposAcceso rol={f.rol} onRol={(rol) => setF({ ...f, rol })} />
+        <CamposAcceso roles={f.roles} onRoles={(roles) => setF({ ...f, roles })} />
         {!u && <p className="text-xs text-slate-500">Se generará una contraseña temporal para entregarle.</p>}
       </div>
     </Hoja>
   );
 }
 
-/** Aprobar una solicitud de cuenta: el administrador elige el perfil. */
+/** Aprobar una solicitud de cuenta: el administrador habilita los accesos. */
 export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => void }) {
-  const [rol, setRol] = useState<Rol>('tecnico');
+  const [roles, setRoles] = useState<string[]>(ROLES_DE_PERFIL.tecnico);
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -234,7 +232,7 @@ export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => vo
     setEnviando(true);
     setError(null);
     try {
-      await aprobarCuenta(u.id, { rol });
+      await aprobarCuenta(u.id, { roles });
       qc.invalidateQueries({ queryKey: ['usuarios'] });
       qc.invalidateQueries({ queryKey: ['usuario', u.id] });
       avisar('Cuenta aprobada');
@@ -267,7 +265,7 @@ export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => vo
         <p className="text-sm text-slate-600">
           <span className="font-mono font-semibold text-slate-900">{u.usuario}</span> · {u.correo}
         </p>
-        <CamposAcceso rol={rol} onRol={setRol} />
+        <CamposAcceso roles={roles} onRoles={setRoles} />
       </div>
     </Hoja>
   );

@@ -1,4 +1,5 @@
-import { ROL_ETIQUETA, type EstadoCuenta } from '@shared/constantes';
+import { type EstadoCuenta } from '@shared/constantes';
+import { resumenAccesos } from '@shared/permisos';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -77,7 +78,7 @@ const COLUMNAS: Columna<Usuario>[] = [
     ),
   },
   { titulo: 'Usuario', celda: (u) => <span className="font-mono">{u.usuario}</span> },
-  { titulo: 'Perfil', celda: (u) => ROL_ETIQUETA[u.rol] },
+  { titulo: 'Accesos', celda: (u) => resumenAccesos(u.roles) },
   { titulo: 'Cargo', celda: (u) => u.cargo ?? '—' },
   { titulo: 'Estado', celda: (u) => <BadgeCuenta estado={u.estado} /> },
   { titulo: 'Último ingreso', celda: ultimoIngreso, clase: 'whitespace-nowrap' },
@@ -90,7 +91,7 @@ function TarjetaUsuario({ u }: { u: Usuario }) {
       <div className="min-w-0 flex-1">
         <p className="truncate font-semibold text-slate-900">{u.nombre}</p>
         <p className="truncate text-sm text-slate-500">
-          <span className="font-mono">{u.usuario}</span> · {ROL_ETIQUETA[u.rol]}
+          <span className="font-mono">{u.usuario}</span> · {resumenAccesos(u.roles)}
         </p>
       </div>
       {u.estado !== 'activa' && <BadgeCuenta estado={u.estado} />}

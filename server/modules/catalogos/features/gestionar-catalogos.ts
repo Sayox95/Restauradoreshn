@@ -1,6 +1,8 @@
 import type { z } from 'zod';
 import { ELEMENTOS_MODEM } from '../../../../shared/constantes';
-import { ROLES_SISTEMA, nivelDePerfil } from '../../../../shared/permisos';
+import { ROLES_SISTEMA, nivelDeRoles } from '../../../../shared/permisos';
+
+const NIVELES = ROLES_SISTEMA.filter((r) => r.nivel).map((r) => ({ codigo: r.codigo, nivel: r.nivel! }));
 import type { marcaCatalogoEsquema, materialCatalogoEsquema, restauradorEsquema, tableroEsquema, tipoCatalogoEsquema } from '../../../../shared/esquemas';
 import type { CatalogosVisita } from '../../../../shared/tipos';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
@@ -179,13 +181,15 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
        WHERE ${CATALOGOS.restauradores.activoSql} = 1 ORDER BY circuito, energis`,
     ),
     db.prepare('SELECT id, codigo, nombre, unidad, stock, 1 AS activo FROM materiales WHERE COALESCE(activo, 1) = 1 ORDER BY nombre'),
-    // Personal de la inspección: cuentas activas del mismo nivel que quien inspecciona o menor.
+    // Personal de la inspección: cuentas activas con acceso a Inspecciones del mismo nivel o menor.
     db
       .prepare(
-        `SELECT id, nombre, cargo FROM usuarios WHERE estado = 'activa'
-         AND (CASE rol ${ROLES_SISTEMA.map(() => 'WHEN ? THEN ?').join(' ')} ELSE 0 END) <= ? ORDER BY nombre`,
+        `SELECT u.id, u.nombre, u.cargo FROM usuarios u WHERE u.estado = 'activa'
+         AND (SELECT MAX(CASE ur.rol_codigo ${NIVELES.map(() => 'WHEN ? THEN ?').join(' ')} ELSE 0 END)
+              FROM usuario_roles ur WHERE ur.usuario_id = u.id) BETWEEN 1 AND ?
+         ORDER BY u.nombre`,
       )
-      .bind(...ROLES_SISTEMA.flatMap((x) => [x.perfil, x.nivel]), nivelDePerfil(ctx.usuario.rol)),
+      .bind(...NIVELES.flatMap((x) => [x.codigo, x.nivel]), nivelDeRoles(ctx.usuario.roles)),
     db.prepare('SELECT DISTINCT tipo FROM tipos WHERE COALESCE(activo, 1) = 1 AND tipo IS NOT NULL ORDER BY tipo'),
     db.prepare('SELECT elemento, marca, modelo, tipo_control FROM marcas WHERE COALESCE(activo, 1) = 1 ORDER BY marca, modelo'),
     db.prepare('SELECT marca, campo FROM tableros WHERE COALESCE(activo, 1) = 1 ORDER BY marca, COALESCE(orden, 99), id'),

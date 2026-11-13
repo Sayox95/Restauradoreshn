@@ -54,7 +54,9 @@ const sql = `INSERT INTO usuarios (usuario, nombre, hash_password, rol, activo, 
 VALUES (${q(usuario)}, ${q(nombre)}, ${q(hash)}, 'admin', 1, ${q(ahora)}, ${q(ahora)})
 ON CONFLICT(usuario) DO UPDATE SET hash_password = excluded.hash_password, rol = 'admin', activo = 1, estado = 'activa', solicitud_pendiente = 0, debe_cambiar_password = 0, actualizado_en = excluded.actualizado_en;
 DELETE FROM usuario_roles WHERE usuario_id = (SELECT id FROM usuarios WHERE usuario = ${q(usuario)});
-INSERT INTO usuario_roles (usuario_id, rol_codigo) SELECT id, 'utcd_restauradores_administrador' FROM usuarios WHERE usuario = ${q(usuario)};`;
+INSERT INTO usuario_roles (usuario_id, rol_codigo) SELECT id, r.codigo FROM usuarios,
+  (SELECT 'utcd_restauradores_supervisor' AS codigo UNION SELECT 'utcd_restauradores_admin_usuarios' UNION SELECT 'utcd_restauradores_admin_catalogos') r
+  WHERE usuario = ${q(usuario)};`;
 
 if (soloSql) {
   console.log('\n-- Pegue esto en la consola de D1 (contiene el hash, no la contraseña):\n');

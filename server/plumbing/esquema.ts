@@ -1,4 +1,5 @@
-import { MODULOS, ROLES_SISTEMA, TODOS_LOS_PERMISOS } from '../../shared/permisos';
+import type { Rol } from '../../shared/constantes';
+import { MODULOS, ROLES_DE_PERFIL, ROLES_SISTEMA, TODOS_LOS_PERMISOS } from '../../shared/permisos';
 import { type Env } from './contexto';
 
 /**
@@ -74,10 +75,21 @@ export const VISITAS_REGISTRO = [
 
 export const CARGO_USUARIO = [`ALTER TABLE usuarios ADD COLUMN cargo TEXT`];
 
+export const ROLES_POR_MODULO = [
+  `INSERT OR IGNORE INTO roles (codigo, nombre) VALUES ('utcd_restauradores_supervisor', 'Supervisor'), ('utcd_restauradores_admin_usuarios', 'Administrador de usuarios'), ('utcd_restauradores_admin_catalogos', 'Administrador de catálogos')`,
+  `INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) SELECT usuario_id, 'utcd_restauradores_supervisor' FROM usuario_roles WHERE rol_codigo = 'utcd_restauradores_administrador'`,
+  `INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) SELECT usuario_id, 'utcd_restauradores_admin_usuarios' FROM usuario_roles WHERE rol_codigo = 'utcd_restauradores_administrador'`,
+  `INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) SELECT usuario_id, 'utcd_restauradores_admin_catalogos' FROM usuario_roles WHERE rol_codigo = 'utcd_restauradores_administrador'`,
+  `DELETE FROM usuario_roles WHERE rol_codigo = 'utcd_restauradores_administrador'`,
+  `DELETE FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'`,
+  `DELETE FROM roles WHERE codigo = 'utcd_restauradores_administrador'`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?").bind(indice).first());
+const existeRol = (codigo: string) => async (env: Env) => !!(await env.DB.prepare('SELECT 1 FROM roles WHERE codigo = ?').bind(codigo).first());
 const existeColumna = (tabla: string, columna: string) => async (env: Env) =>
   (await env.DB.prepare(`PRAGMA table_info(${tabla})`).all<{ name: string }>()).results.some((c) => c.name === columna);
 
@@ -88,6 +100,7 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
   { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
   { migracion: '0005_cargo_usuario.sql', sentencias: CARGO_USUARIO, yaAplicado: existeColumna('usuarios', 'cargo') },
+  { migracion: '0006_roles_por_modulo.sql', sentencias: ROLES_POR_MODULO, yaAplicado: existeRol('utcd_restauradores_admin_usuarios') },
 ];
 
 export let listo = false;
@@ -113,10 +126,16 @@ export async function asegurarEsquema(env: Env): Promise<void> {
 /**
  * Equivale a `migration-seed --scope permisos` del marco de TI: deja en la base los módulos, permisos
  * y roles tal como están en shared/permisos.ts (idempotente). A los usuarios que aún no tienen rol
- * en usuario_roles se les asigna el de su perfil.
+ * en usuario_roles se les asignan los de su perfil (ROLES_DE_PERFIL).
  */
 export async function sembrarPermisos(env: Env) {
   const db = env.DB;
+  // Cuentas sin ningún rol (p. ej. creadas desde la consola de D1): reciben los roles de su perfil.
+  const sinRoles = (
+    await db
+      .prepare('SELECT id, rol FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)')
+      .all<{ id: number; rol: Rol }>()
+  ).results;
   const codigos = TODOS_LOS_PERMISOS;
   const roles = ROLES_SISTEMA.map((r) => r.codigo);
   await db.batch([
@@ -135,13 +154,9 @@ export async function sembrarPermisos(env: Env) {
     ),
     db.prepare(`DELETE FROM rol_permisos WHERE rol_codigo IN (${roles.map(() => '?').join(',')})`).bind(...roles),
     ...ROLES_SISTEMA.flatMap((r) => r.permisos.map((p) => db.prepare('INSERT INTO rol_permisos (rol_codigo, permiso_codigo) VALUES (?,?)').bind(r.codigo, p))),
-    db
-      .prepare(
-        `INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo)
-       SELECT u.id, CASE u.rol ${ROLES_SISTEMA.map(() => 'WHEN ? THEN ?').join(' ')} END FROM usuarios u
-       WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)`,
-      )
-      .bind(...ROLES_SISTEMA.flatMap((r) => [r.perfil, r.codigo])),
+    ...sinRoles.flatMap((u) =>
+      (ROLES_DE_PERFIL[u.rol] ?? []).map((r) => db.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(u.id, r)),
+    ),
   ]);
 }
 

@@ -3,7 +3,7 @@ import type { EstadoCuenta } from '../../../../shared/constantes';
 import type { aprobarCuentaEsquema } from '../../../../shared/esquemas';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
 import { ApiError } from '../../../plumbing/http';
-import { cargarUsuario, protegerseASiMismo, sentenciaEstado, sentenciasRol } from '../comun';
+import { cargarUsuario, protegerseASiMismo, sentenciaEstado, sentenciasRoles } from '../comun';
 
 const NO_APLICA = {
   aprobar: 'Esta cuenta no tiene una solicitud pendiente.',
@@ -31,9 +31,9 @@ async function cambiarEstado(
   return { id, estado: hacia };
 }
 
-/** Aprueba una solicitud de cuenta con el perfil que elige el administrador. */
+/** Aprueba una solicitud de cuenta con los accesos (roles por módulo) que elige el administrador. */
 export async function aprobarCuenta(ctx: Ctx, id: number, d: z.output<typeof aprobarCuentaEsquema>) {
-  const extra = sentenciasRol(ctx, id, d.rol);
+  const extra = sentenciasRoles(ctx, id, d.roles);
   return cambiarEstado(ctx, id, 'aprobar', ['pendiente', 'rechazada'], 'activa', extra, d);
 }
 

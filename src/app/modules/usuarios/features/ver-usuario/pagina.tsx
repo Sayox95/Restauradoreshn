@@ -1,4 +1,5 @@
 import { ROL_ETIQUETA, type Rol } from '@shared/constantes';
+import { resumenAccesos } from '@shared/permisos';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, KeyRound, LogOut, Pencil, Power, UserX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
@@ -36,15 +37,17 @@ const ACCION: Record<string, string> = {
   editar_cuenta: 'Actualizó sus datos',
 };
 
-const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil', cargo: 'cargo' };
+const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil', roles: 'accesos', cargo: 'cargo' };
 
-/** Qué cambió, en una línea (perfil, motivo o campos editados). */
+/** Qué cambió, en una línea (accesos, motivo o campos editados). */
 function detalle(h: EventoCuenta): string | null {
   const d = h.despues ?? {};
+  if (h.accion === 'aprobar' && Array.isArray(d.roles)) return `Accesos: ${resumenAccesos(d.roles as string[])}`;
   if (h.accion === 'aprobar' && d.rol) return `Perfil: ${ROL_ETIQUETA[d.rol as Rol]}`;
   if (d.motivo) return `Motivo: ${String(d.motivo)}`;
   if ((h.accion === 'editar' || h.accion === 'editar_cuenta') && h.antes) {
-    const cambios = Object.keys(CAMPOS).filter((k) => k in d && (d[k] ?? null) !== (h.antes![k] ?? null));
+    const igual = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+    const cambios = Object.keys(CAMPOS).filter((k) => k in d && !igual(d[k], h.antes![k]));
     return cambios.length ? `Cambió ${cambios.map((k) => CAMPOS[k]).join(', ')}` : null;
   }
   return null;
@@ -162,7 +165,7 @@ export function VerUsuario() {
         <dl className="tarjeta divide-y divide-slate-100">
           <Dato titulo="Correo">{u.correo ?? '—'}</Dato>
           <Dato titulo="Celular">{u.telefono ?? '—'}</Dato>
-          <Dato titulo="Perfil">{ROL_ETIQUETA[u.rol]}</Dato>
+          <Dato titulo="Accesos">{resumenAccesos(u.roles)}</Dato>
           <Dato titulo="Cargo">{u.cargo ?? '—'}</Dato>
         </dl>
       </Seccion>

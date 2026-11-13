@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
+import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, usuarioDeCorreo } from './constantes';
+import { CODIGOS_ROL, unRolPorModulo } from './permisos';
 
 const textoOpcional = (max: number) =>
   z
@@ -62,6 +63,12 @@ const cargo = z
   .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
   .optional()
   .transform((v) => v || null);
+/** Accesos de la cuenta: uno o más roles, a lo sumo uno por módulo (como en el SSO). */
+const roles = z
+  .array(z.enum(CODIGOS_ROL))
+  .min(1, 'Habilite al menos un acceso.')
+  .max(CODIGOS_ROL.length)
+  .refine(unRolPorModulo, 'Elija un solo acceso por módulo.');
 const password = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200);
 
 /** Alta desde Administración: la contraseña la genera el sistema (temporal, se cambia al ingresar). */
@@ -69,7 +76,7 @@ export const usuarioCrearEsquema = z.object({
   correo: correoInstitucional,
   nombre: nombrePersona,
   telefono: telefonoObligatorio,
-  rol: z.enum(ROLES),
+  roles,
   cargo,
 });
 
@@ -78,13 +85,11 @@ export const usuarioEditarEsquema = z.object({
   nombre: nombrePersona.optional(),
   correo: correoInstitucional.optional(),
   telefono,
-  rol: z.enum(ROLES).optional(),
+  roles: roles.optional(),
   cargo,
 });
 
-export const aprobarCuentaEsquema = z.object({
-  rol: z.enum(ROLES, { errorMap: () => ({ message: 'Elija el rol para aprobar la cuenta.' }) }),
-});
+export const aprobarCuentaEsquema = z.object({ roles });
 
 export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
 

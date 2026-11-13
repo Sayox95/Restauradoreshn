@@ -1,5 +1,4 @@
-import { ROL_ETIQUETA } from '@shared/constantes';
-import { MODULOS, PermisosVisitas } from '@shared/permisos';
+import { MODULOS, resumenAccesos, PermisosVisitas } from '@shared/permisos';
 import { Check, KeyRound, LogOut, MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar } from '@/common/components/Avatar';
@@ -34,7 +33,7 @@ export function MiCuenta() {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-bold text-slate-900">{usuario.nombre}</h1>
           <p className="truncate text-sm text-slate-500">
-            <span className="font-mono">{usuario.usuario}</span> · {ROL_ETIQUETA[usuario.rol]}
+            <span className="font-mono">{usuario.usuario}</span> · {resumenAccesos(usuario.roles)}
           </p>
         </div>
       </div>
@@ -47,7 +46,7 @@ export function MiCuenta() {
               ['Usuario', usuario.usuario],
               ['Correo', usuario.correo ?? '—'],
               ['Celular', usuario.telefono ?? '—'],
-              ['Perfil', ROL_ETIQUETA[usuario.rol]],
+              ['Accesos', resumenAccesos(usuario.roles)],
               ['Cargo', usuario.cargo ?? '—'],
             ] as const
           ).map(([titulo, valor]) => (

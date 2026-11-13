@@ -21,18 +21,26 @@ El código **nunca pregunta por un rol**: solo por permisos.
   solo lo hace quien la registró.
 - **Mi cuenta** y **cambiar contraseña**: los datos del propio usuario.
 
-## Roles
+## Roles (accesos por módulo, como en el SSO)
 
-| Rol | Permisos |
-| --- | --- |
-| `utcd_restauradores_administrador` | Todos |
-| `utcd_restauradores_supervisor` | visitas: registrar, consultar, exportar |
-| `utcd_restauradores_tecnico` | visitas: registrar |
+A cada cuenta se le habilita cada módulo por separado: uno o más roles, **a lo sumo uno por módulo**
+(Administración → Usuarios → «Accesos»). La pantalla asigna roles, nunca permisos sueltos.
+
+| Módulo | Rol | Permisos |
+| --- | --- | --- |
+| Inspecciones | `utcd_restauradores_tecnico` (Técnico) | visitas: registrar |
+| | `utcd_restauradores_supervisor` (Supervisor) | visitas: registrar, consultar, exportar |
+| Usuarios | `utcd_restauradores_admin_usuarios` | usuarios: gestionar |
+| Catálogos | `utcd_restauradores_admin_catalogos` | catálogos: gestionar |
+
+`usuarios.rol` guarda solo un perfil de resumen (compatibilidad); el acceso sale de los roles. Las
+cuentas con el rol «Administrador» anterior quedaron con Supervisor + Usuarios + Catálogos
+(migración 0006). Nadie puede quitarse a sí mismo el acceso a Usuarios.
 
 ## Personal de la inspección
 
 El técnico #1 es quien inspecciona. Al agregar personal se ofrecen las cuentas activas del **mismo nivel
-o menor** (`nivel` de cada rol en `shared/permisos.ts`: administrador 3, supervisor 2, técnico 1). El
+o menor** (`nivel` de su rol en Inspecciones, en `shared/permisos.ts`: supervisor 2, técnico 1). El
 cargo de cada persona es el de su cuenta (Administración → Usuarios).
 
 ## Estado de la inspección

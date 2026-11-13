@@ -153,7 +153,9 @@ describe('solicitudes de cuenta', () => {
       cuerpo: { nombre: 'Carlos Ruiz', correo: 'carlos@eneeutcd.hn', telefono: '9999-0000', password: 'clave-segura-1' },
     });
     const sol = (await t.pedir('GET', '/api/v1/usuarios', { cookie: admin.cookie })).datos.datos.find((u: any) => u.usuario === 'carlos');
-    expect((await t.pedir('POST', `/api/v1/usuarios/${sol.id}/aprobar`, { cookie: admin.cookie, cuerpo: { rol: 'tecnico' } })).status).toBe(200);
+    expect(
+      (await t.pedir('POST', `/api/v1/usuarios/${sol.id}/aprobar`, { cookie: admin.cookie, cuerpo: { roles: ['utcd_restauradores_tecnico'] } })).status,
+    ).toBe(200);
     const login = await t.pedir('POST', '/api/v1/sesion/login', { cuerpo: { usuario: 'carlos', password: 'clave-segura-1' } });
     const yo = await t.pedir('GET', '/api/v1/sesion/yo', { cookie: login.headers.get('Set-Cookie')!.split(';')[0]! });
     expect(yo.datos.datos.usuario.rol).toBe('tecnico');
@@ -184,7 +186,42 @@ describe('permisos por módulo y acción (códigos del SSO)', () => {
     const n = async (sql: string) => (await t.DB.prepare(sql).first<{ n: number }>())!.n;
     expect(await n('SELECT COUNT(*) AS n FROM permisos')).toBe(5);
     expect(await n("SELECT COUNT(*) AS n FROM permisos WHERE codigo NOT LIKE 'utcd_restauradores_%'")).toBe(0);
-    expect(await n('SELECT COUNT(*) AS n FROM roles')).toBe(3);
-    expect(await n("SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'")).toBe(5);
+    expect(await n('SELECT COUNT(*) AS n FROM roles')).toBe(4);
+    expect(await n("SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_supervisor'")).toBe(3);
+    // El administrador tiene tres roles, uno por módulo: juntos suman los cinco permisos.
+    expect(await n("SELECT COUNT(*) AS n FROM usuario_roles ur JOIN usuarios u ON u.id = ur.usuario_id WHERE u.usuario = 'ana'")).toBe(3);
+  });
+});
+
+describe('accesos por módulo (roles del SSO)', () => {
+  const R = {
+    tecnico: 'utcd_restauradores_tecnico',
+    supervisor: 'utcd_restauradores_supervisor',
+    usuarios: 'utcd_restauradores_admin_usuarios',
+    catalogos: 'utcd_restauradores_admin_catalogos',
+  };
+
+  it('se habilita cada módulo por separado y los permisos siguen a los roles', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    const editar = (roles: string[]) => t.pedir('PATCH', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie, cuerpo: { roles } });
+    // Supervisor que además administra catálogos, pero no usuarios.
+    expect((await editar([R.supervisor, R.catalogos])).status).toBe(200);
+    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: sup.cookie })).datos.datos.usuario;
+    expect(yo.roles).toEqual([R.catalogos, R.supervisor]);
+    expect((await t.pedir('GET', '/api/v1/catalogos/materiales', { cookie: sup.cookie })).status).toBe(200);
+    expect((await t.pedir('GET', '/api/v1/usuarios', { cookie: sup.cookie })).status).toBe(403);
+    // A lo sumo un rol por módulo y al menos un acceso.
+    expect((await editar([R.tecnico, R.supervisor])).status).toBe(422);
+    expect((await editar([])).status).toBe(422);
+    // El cambio queda en el historial de la cuenta.
+    const historial = (await t.pedir('GET', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie })).datos.datos.historial;
+    expect(historial[0]).toMatchObject({ accion: 'editar', antes: { roles: [R.supervisor] }, despues: { roles: [R.catalogos, R.supervisor] } });
+  });
+
+  it('nadie se quita a sí mismo el acceso a usuarios', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const quitar = await t.pedir('PATCH', `/api/v1/usuarios/${admin.id}`, { cookie: admin.cookie, cuerpo: { roles: [R.supervisor, R.catalogos] } });
+    expect(quitar.status).toBe(422);
   });
 });

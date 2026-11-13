@@ -26,7 +26,7 @@ export const PermisosUsuarios = {
 } as const;
 
 /**
- * Catálogos de la hoja de inspección (restauradores, materiales, personal, tipos, marcas, tableros) y zona
+ * Catálogos de la hoja de inspección (restauradores, materiales, tipos, marcas, tableros) y zona
  * horaria. Al migrar los reemplaza el servicio de Parámetros.
  */
 export const PermisosCatalogos = {
@@ -64,27 +64,83 @@ export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Perm
 export const TODOS_LOS_PERMISOS: Permiso[] = MODULOS.flatMap((m) => m.permisos.map((p) => p.codigo));
 
 /**
- * Roles del sistema (utcd_<sistema>_<perfil>): agrupan permisos. `nivel` ordena los perfiles: al armar
- * el personal de una inspección se ofrecen las cuentas del mismo nivel o menor (un dato del perfil, no
+ * Roles del sistema, uno o más por usuario y a lo sumo uno por módulo (como en el SSO: a cada persona se le
+ * habilita individualmente cada módulo). Los roles solo agrupan permisos. `nivel` ordena los roles de
+ * Inspecciones: al armar el personal se ofrecen las cuentas del mismo nivel o menor (un dato del rol, no
  * una pregunta por el rol en el código).
  */
-export const ROLES_SISTEMA: { codigo: string; nombre: string; perfil: Rol; nivel: number; permisos: Permiso[] }[] = [
-  { codigo: 'utcd_restauradores_administrador', nombre: 'Administrador', perfil: 'admin', nivel: 3, permisos: TODOS_LOS_PERMISOS },
+export interface RolSistema {
+  codigo: string;
+  nombre: string;
+  /** Texto corto para listas («Supervisor», «Usuarios»…). */
+  corto: string;
+  /** Código del módulo (MODULOS) al que da acceso. */
+  modulo: string;
+  nivel?: number;
+  permisos: Permiso[];
+}
+export const ROLES_SISTEMA: RolSistema[] = [
+  {
+    codigo: 'utcd_restauradores_tecnico',
+    nombre: 'Técnico',
+    corto: 'Técnico',
+    modulo: 'utcd_restauradores_visitas',
+    nivel: 1,
+    permisos: [PermisosVisitas.Registrar],
+  },
   {
     codigo: 'utcd_restauradores_supervisor',
     nombre: 'Supervisor',
-    perfil: 'supervisor',
+    corto: 'Supervisor',
+    modulo: 'utcd_restauradores_visitas',
     nivel: 2,
     permisos: [PermisosVisitas.Registrar, PermisosVisitas.Consultar, PermisosVisitas.Exportar],
   },
-  { codigo: 'utcd_restauradores_tecnico', nombre: 'Técnico', perfil: 'tecnico', nivel: 1, permisos: [PermisosVisitas.Registrar] },
+  {
+    codigo: 'utcd_restauradores_admin_usuarios',
+    nombre: 'Administrador de usuarios',
+    corto: 'Usuarios',
+    modulo: 'utcd_restauradores_usuarios',
+    permisos: [PermisosUsuarios.Gestionar],
+  },
+  {
+    codigo: 'utcd_restauradores_admin_catalogos',
+    nombre: 'Administrador de catálogos',
+    corto: 'Catálogos',
+    modulo: 'utcd_restauradores_catalogos',
+    permisos: [PermisosCatalogos.Gestionar],
+  },
 ];
+export const CODIGOS_ROL = ROLES_SISTEMA.map((r) => r.codigo) as [string, ...string[]];
+const rolPorCodigo = (codigo: string) => ROLES_SISTEMA.find((r) => r.codigo === codigo);
 
-/** Nivel de un perfil (ver ROLES_SISTEMA). */
-export const nivelDePerfil = (perfil: Rol) => ROLES_SISTEMA.find((r) => r.perfil === perfil)?.nivel ?? 0;
+/** Roles que correspondían a cada perfil antes de los roles por módulo (cuentas anteriores). */
+export const ROLES_DE_PERFIL: Record<Rol, string[]> = {
+  admin: ['utcd_restauradores_supervisor', 'utcd_restauradores_admin_usuarios', 'utcd_restauradores_admin_catalogos'],
+  supervisor: ['utcd_restauradores_supervisor'],
+  tecnico: ['utcd_restauradores_tecnico'],
+};
 
-/** Rol del sistema que corresponde a cada perfil de usuario. */
-export const rolDePerfil = (perfil: Rol) => ROLES_SISTEMA.find((r) => r.perfil === perfil)!.codigo;
+/** Perfil de resumen que se guarda en usuarios.rol (solo para mostrar y compatibilidad; no da acceso). */
+export function perfilDeRoles(roles: readonly string[]): Rol {
+  if (roles.some((r) => (rolPorCodigo(r)?.permisos ?? []).some((p) => p === PermisosUsuarios.Gestionar || p === PermisosCatalogos.Gestionar))) return 'admin';
+  return roles.some((r) => (rolPorCodigo(r)?.nivel ?? 0) >= 2) ? 'supervisor' : 'tecnico';
+}
+
+/** Nivel en Inspecciones (0 = sin acceso a Inspecciones). */
+export const nivelDeRoles = (roles: readonly string[]) => Math.max(0, ...roles.map((r) => rolPorCodigo(r)?.nivel ?? 0));
+
+/** ¿A lo sumo un rol por módulo? */
+export const unRolPorModulo = (roles: readonly string[]) => {
+  const modulos = roles.map((r) => rolPorCodigo(r)?.modulo);
+  return new Set(modulos).size === modulos.length;
+};
+
+/** Accesos en palabras cortas («Supervisor · Usuarios · Catálogos»). */
+export const resumenAccesos = (roles: readonly string[]) =>
+  ROLES_SISTEMA.filter((r) => roles.includes(r.codigo))
+    .map((r) => r.corto)
+    .join(' · ') || 'Sin accesos';
 
 /** ¿Tiene al menos uno de los permisos? (lista vacía = basta con iniciar sesión). */
 export const tieneAcceso = (permisos: readonly string[], requeridos: readonly Permiso[]) =>

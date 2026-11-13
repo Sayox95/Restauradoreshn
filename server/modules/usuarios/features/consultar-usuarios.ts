@@ -1,8 +1,9 @@
 import type { Ctx } from '../../../plumbing/contexto';
-import { COLUMNAS, type FilaUsuario, cargarUsuario } from '../comun';
+import { COLUMNAS, type FilaUsuario, cargarUsuario, listaRoles } from '../comun';
 
 const formato = (u: FilaUsuario) => ({
   ...u,
+  roles: listaRoles(u.roles),
   debe_cambiar_password: !!u.debe_cambiar_password,
 });
 

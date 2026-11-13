@@ -34,6 +34,8 @@ en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
 - `shared/`: permisos (códigos `utcd_restauradores_<modulo>_<accion>`, solo en `shared/permisos.ts`),
   constantes, esquemas y las reglas de la hoja (`shared/visitas.ts`, las usan app y servidor).
 - El código **nunca pregunta por un rol**, solo por permisos. Tabla en `docs/permisos.md`.
+- Accesos como en el SSO: a cada cuenta se le habilitan roles **por módulo** (a lo sumo uno por módulo,
+  `ROLES_SISTEMA` con `modulo`); la pantalla de usuarios asigna roles, nunca permisos sueltos.
 - Base: cambio de esquema = archivo en `migrations/` **y** su entrada en `server/plumbing/esquema.ts`
   (se aplican solos al arrancar). Nunca `SELECT r.*` sobre `registros` (100 columnas, límite de D1).
 
