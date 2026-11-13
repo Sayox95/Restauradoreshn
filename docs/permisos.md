@@ -10,7 +10,7 @@ El código **nunca pregunta por un rol**: solo por permisos.
 | | `utcd_restauradores_visitas_consultar` | Consultar las inspecciones de todos |
 | | `utcd_restauradores_visitas_exportar` | Exportar inspecciones a CSV |
 | `utcd_restauradores_usuarios` | `utcd_restauradores_usuarios_gestionar` | Usuarios y solicitudes de cuenta |
-| `utcd_restauradores_catalogos` | `utcd_restauradores_catalogos_gestionar` | Restauradores, materiales, personal, tipos, marcas, tableros y zona horaria |
+| `utcd_restauradores_catalogos` | `utcd_restauradores_catalogos_gestionar` | Restauradores, materiales, tipos, marcas, tableros y zona horaria |
 
 ## Datos visibles sin permiso adicional (lo propio)
 
@@ -21,27 +21,34 @@ El código **nunca pregunta por un rol**: solo por permisos.
   solo lo hace quien la registró.
 - **Mi cuenta** y **cambiar contraseña**: los datos del propio usuario.
 
-## Roles (accesos por módulo, como en el SSO)
+## Perfiles y permisos a la medida
 
-A cada cuenta se le habilita cada módulo por separado: uno o más roles, **a lo sumo uno por módulo**
-(Administración → Usuarios → «Accesos»). La pantalla asigna roles, nunca permisos sueltos.
+Cada cuenta tiene **un perfil** (un rol): es la **plantilla** de sus permisos. En Administración →
+Usuarios, al elegir el perfil se marcan sus permisos y después se puede marcar o desmarcar cada uno
+(casillas agrupadas por módulo). Si los marcados no son exactamente los del perfil, la cuenta queda
+**personalizada**: sus permisos se guardan en `usuario_permisos` y `usuarios.permisos_personalizados = 1`.
 
-| Módulo | Rol | Permisos |
+| Perfil | Rol | Permisos |
 | --- | --- | --- |
-| Inspecciones | `utcd_restauradores_tecnico` (Técnico) | visitas: registrar |
-| | `utcd_restauradores_supervisor` (Supervisor) | visitas: registrar, consultar, exportar |
-| Usuarios | `utcd_restauradores_admin_usuarios` | usuarios: gestionar |
-| Catálogos | `utcd_restauradores_admin_catalogos` | catálogos: gestionar |
+| Técnico | `utcd_restauradores_tecnico` | visitas: registrar |
+| Supervisor | `utcd_restauradores_supervisor` | visitas: registrar, consultar, exportar |
+| Administrador | `utcd_restauradores_administrador` | todos |
 
-`usuarios.rol` guarda solo un perfil de resumen (compatibilidad); el acceso sale de los roles. Las
-cuentas con el rol «Administrador» anterior quedaron con Supervisor + Usuarios + Catálogos
-(migración 0006). Nadie puede quitarse a sí mismo el acceso a Usuarios.
+- En SQL, «tiene permiso» se pregunta **solo** con `sqlTienePermiso` (`server/plumbing/sesion.ts`);
+  nunca leyendo `rol_permisos` directo. La sesión toma los cambios al instante.
+- Nadie se quita a sí mismo la gestión de usuarios ni desactiva su propia cuenta, y siempre queda al
+  menos una cuenta activa que gestione usuarios.
+- El historial de la cuenta muestra qué permisos se agregaron (+) y cuáles se quitaron (−).
+- Las cuentas que tenían roles por módulo (0006) volvieron a un rol por perfil con exactamente los mismos
+  permisos; las combinaciones que no coinciden con su perfil quedaron personalizadas (migración 0007).
+- **Al migrar al SSO**: el SSO asigna permisos por rol; cada combinación personalizada necesitaría su rol
+  en el SSO, salvo que TI permita permisos por persona. Consultar con TI.
 
 ## Personal de la inspección
 
 El técnico #1 es quien inspecciona. Al agregar personal se ofrecen las cuentas activas del **mismo nivel
-o menor** (`nivel` de su rol en Inspecciones, en `shared/permisos.ts`: supervisor 2, técnico 1). El
-cargo de cada persona es el de su cuenta (Administración → Usuarios).
+o menor** que **registran inspecciones** (`nivel` del perfil en `shared/permisos.ts`: técnico 1,
+supervisor 2, administrador 3). El cargo de cada persona es el de su cuenta (Administración → Usuarios).
 
 ## Estado de la inspección
 

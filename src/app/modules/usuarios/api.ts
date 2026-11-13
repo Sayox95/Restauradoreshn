@@ -11,8 +11,9 @@ export interface Usuario {
   nombre: string;
   telefono: string | null;
   rol: Rol;
-  /** Roles por módulo (accesos). */
-  roles: string[];
+  /** Permisos efectivos (los del perfil o, si es personalizado, los suyos). */
+  permisos: string[];
+  permisos_personalizados: boolean;
   cargo: string | null;
   estado: EstadoCuenta;
   debe_cambiar_password: boolean;
@@ -39,7 +40,8 @@ export interface DatosUsuario {
   correo: string;
   nombre: string;
   telefono: string | null;
-  roles: string[];
+  rol: Rol;
+  permisos: string[];
   cargo: string | null;
 }
 
@@ -48,7 +50,7 @@ export const verUsuario = (id: number) => get<DetalleUsuario>(`${BASE}/${id}`);
 export const crearUsuario = (datos: DatosUsuario) => post<{ id: number; usuario: string; password_temporal: string }>(BASE, datos);
 /** Las cuentas antiguas pueden no tener correo: entonces no se envía. */
 export const editarUsuario = (id: number, datos: Omit<DatosUsuario, 'correo'> & { correo?: string }) => patch(`${BASE}/${id}`, datos);
-export const aprobarCuenta = (id: number, datos: { roles: string[] }) => post(`${BASE}/${id}/aprobar`, datos);
+export const aprobarCuenta = (id: number, datos: { rol: Rol; permisos: string[] }) => post(`${BASE}/${id}/aprobar`, datos);
 export const rechazarCuenta = (id: number, motivo?: string) => post(`${BASE}/${id}/rechazar`, { motivo });
 export const desactivarCuenta = (id: number, motivo?: string) => post(`${BASE}/${id}/desactivar`, { motivo });
 export const activarCuenta = (id: number) => post(`${BASE}/${id}/activar`);

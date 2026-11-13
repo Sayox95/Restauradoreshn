@@ -1,4 +1,4 @@
-import { MODULOS, resumenAccesos, PermisosVisitas } from '@shared/permisos';
+import { igualAlPerfil, MODULOS, PermisosVisitas, resumenAcceso } from '@shared/permisos';
 import { Check, KeyRound, LogOut, MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar } from '@/common/components/Avatar';
@@ -22,6 +22,7 @@ export function MiCuenta() {
   const avisar = useAvisos();
   const [cambiandoClave, setCambiandoClave] = useState(false);
   if (!usuario) return null;
+  const perfil = resumenAcceso(usuario.rol, !igualAlPerfil(usuario.rol, usuario.permisos));
   const permisos = MODULOS.flatMap((m) => m.permisos).filter((p) => usuario.permisos.includes(p.codigo));
 
   return (
@@ -33,7 +34,7 @@ export function MiCuenta() {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-bold text-slate-900">{usuario.nombre}</h1>
           <p className="truncate text-sm text-slate-500">
-            <span className="font-mono">{usuario.usuario}</span> · {resumenAccesos(usuario.roles)}
+            <span className="font-mono">{usuario.usuario}</span> · {perfil}
           </p>
         </div>
       </div>
@@ -46,7 +47,7 @@ export function MiCuenta() {
               ['Usuario', usuario.usuario],
               ['Correo', usuario.correo ?? '—'],
               ['Celular', usuario.telefono ?? '—'],
-              ['Accesos', resumenAccesos(usuario.roles)],
+              ['Perfil', perfil],
               ['Cargo', usuario.cargo ?? '—'],
             ] as const
           ).map(([titulo, valor]) => (

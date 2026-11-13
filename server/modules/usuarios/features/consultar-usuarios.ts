@@ -1,19 +1,26 @@
 import type { Ctx } from '../../../plumbing/contexto';
-import { COLUMNAS, type FilaUsuario, cargarUsuario, listaRoles } from '../comun';
+import { COLUMNAS, type FilaUsuario, cargarUsuario } from '../comun';
 
-const formato = (u: FilaUsuario) => ({
+/** Permisos efectivos: los suyos a la medida o, si no tiene, los de su rol. */
+const PERMISOS = `CASE WHEN usuarios.permisos_personalizados = 1
+     THEN COALESCE((SELECT json_group_array(up.permiso_codigo) FROM usuario_permisos up WHERE up.usuario_id = usuarios.id), '[]')
+     ELSE COALESCE((SELECT json_group_array(DISTINCT rp.permiso_codigo) FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo
+                    WHERE ur.usuario_id = usuarios.id), '[]') END AS permisos`;
+
+const formato = (u: FilaUsuario & { permisos: string }) => ({
   ...u,
-  roles: listaRoles(u.roles),
   debe_cambiar_password: !!u.debe_cambiar_password,
+  permisos_personalizados: !!u.permisos_personalizados,
+  permisos: (JSON.parse(u.permisos) as string[]).sort(),
 });
 
 /** Todas las cuentas: primero las solicitudes pendientes, luego las activas. */
 export async function listarUsuarios(ctx: Ctx) {
   const { results } = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS}
+    `SELECT ${COLUMNAS}, ${PERMISOS}
      FROM usuarios
      ORDER BY CASE estado WHEN 'pendiente' THEN 0 WHEN 'activa' THEN 1 WHEN 'inactiva' THEN 2 ELSE 3 END, nombre`,
-  ).all<FilaUsuario>();
+  ).all<FilaUsuario & { permisos: string }>();
   return results.map(formato);
 }
 
@@ -31,7 +38,7 @@ export async function verUsuario(ctx: Ctx, id: number) {
   await cargarUsuario(ctx, id);
   const db = ctx.env.DB;
   const [u, sesiones, reportes, historial] = await db.batch<Record<string, unknown>>([
-    db.prepare(`SELECT ${COLUMNAS} FROM usuarios WHERE id = ?`).bind(id),
+    db.prepare(`SELECT ${COLUMNAS}, ${PERMISOS} FROM usuarios WHERE id = ?`).bind(id),
     db.prepare('SELECT COUNT(*) AS n FROM sesiones WHERE usuario_id = ? AND expira_en > ?').bind(id, ctx.ahora),
     db.prepare('SELECT COUNT(*) AS n FROM visitas_registro WHERE registrado_por = ?').bind(id),
     db
@@ -43,7 +50,7 @@ export async function verUsuario(ctx: Ctx, id: number) {
       .bind(id),
   ]);
   return {
-    ...formato(u!.results[0] as unknown as FilaUsuario),
+    ...formato(u!.results[0] as unknown as FilaUsuario & { permisos: string }),
     sesiones_activas: Number(sesiones!.results[0]!.n),
     visitas_registradas: Number(reportes!.results[0]!.n),
     historial: (historial!.results as unknown as Evento[]).map((h) => ({

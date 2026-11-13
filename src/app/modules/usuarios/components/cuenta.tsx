@@ -1,15 +1,24 @@
-/** Piezas comunes de la gestión de cuentas: estado, accesos, contraseña temporal y formularios. */
-import { CARGOS_PERSONAL, DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, type EstadoCuenta, usuarioDeCorreo } from '@shared/constantes';
-import { MODULOS, ROLES_DE_PERFIL, ROLES_SISTEMA } from '@shared/permisos';
+/** Piezas comunes de la gestión de cuentas: estado, perfil y permisos, contraseña temporal y formularios. */
+import {
+  CARGOS_PERSONAL,
+  DOMINIO_CORREO,
+  ESTADO_CUENTA_ETIQUETA,
+  PATRON_USUARIO,
+  ROL_ETIQUETA,
+  ROLES,
+  type EstadoCuenta,
+  type Rol,
+  usuarioDeCorreo,
+} from '@shared/constantes';
+import { igualAlPerfil, MODULOS, permisosDePerfil } from '@shared/permisos';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Hoja } from '@/common/components/Hoja';
-import { Segmentado } from '@/common/components/ui';
 export { Avatar } from '@/common/components/Avatar';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
-import { TONO_CUENTA } from '@/common/tonos';
+import { TONO_CUENTA, TONO_PERSONALIZADO } from '@/common/tonos';
 import { aprobarCuenta, crearUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
 
 export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
@@ -20,45 +29,90 @@ export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
   );
 }
 
-/** Qué permiten los roles elegidos, en palabras (sale de sus permisos). */
-export function resumenPermisos(roles: readonly string[]) {
-  const permisos = ROLES_SISTEMA.filter((r) => roles.includes(r.codigo)).flatMap((r) => r.permisos);
-  return MODULOS.flatMap((m) => m.permisos)
-    .filter((p) => permisos.includes(p.codigo))
-    .map((p) => p.nombre);
-}
-
-/** Accesos de la cuenta, como en el SSO: una fila por módulo con «Sin acceso» o el rol que se habilita. */
-export function CamposAcceso({ roles, onRoles }: { roles: string[]; onRoles: (r: string[]) => void }) {
-  const elegir = (modulo: string, codigo: string) =>
-    onRoles([...roles.filter((r) => ROLES_SISTEMA.find((x) => x.codigo === r)?.modulo !== modulo), ...(codigo ? [codigo] : [])]);
+/**
+ * Acceso de una cuenta: perfil y permisos. El perfil es la plantilla: al elegirlo se marcan sus
+ * permisos, y luego se puede marcar o desmarcar cada uno, agrupados por módulo.
+ */
+export function CamposAcceso({
+  rol,
+  permisos,
+  onRol,
+  onPermisos,
+}: {
+  rol: Rol;
+  permisos: string[];
+  onRol: (r: Rol) => void;
+  onPermisos: (p: string[]) => void;
+}) {
+  const aMedida = !igualAlPerfil(rol, permisos);
+  const alternar = (p: string) => onPermisos(permisos.includes(p) ? permisos.filter((x) => x !== p) : [...permisos, p]);
   return (
-    <fieldset>
-      <legend className="etiqueta">Accesos</legend>
-      <div className="space-y-3 rounded-xl border border-slate-200 p-3">
-        {MODULOS.map((m) => {
-          const delModulo = ROLES_SISTEMA.filter((r) => r.modulo === m.codigo);
-          const actual = delModulo.find((r) => roles.includes(r.codigo))?.codigo ?? '';
-          const opciones = [
-            { valor: '', texto: 'Sin acceso' },
-            ...delModulo.map((r) => ({ valor: r.codigo, texto: delModulo.length === 1 ? 'Con acceso' : r.nombre })),
-          ];
-          return (
-            <div key={m.codigo} className="flex flex-wrap items-center justify-between gap-2">
-              <span className="text-sm font-semibold text-slate-800">{m.nombre}</span>
-              <Segmentado etiqueta={`Acceso a ${m.nombre}`} opciones={opciones} valor={actual} onChange={(v) => elegir(m.codigo, v)} />
-            </div>
-          );
-        })}
+    <>
+      <div>
+        <label className="etiqueta" htmlFor="u-perfil">
+          Perfil
+        </label>
+        <select
+          id="u-perfil"
+          className="campo"
+          value={rol}
+          onChange={(e) => {
+            const r = e.target.value as Rol;
+            onRol(r);
+            onPermisos(permisosDePerfil(r));
+          }}
+        >
+          {ROLES.map((r) => (
+            <option key={r} value={r}>
+              {ROL_ETIQUETA[r]}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-slate-500">El perfil marca sus permisos; después puede ajustar cada uno.</p>
       </div>
-      <ul className="mt-2 space-y-0.5 text-xs text-slate-500">
-        {resumenPermisos(roles).map((p) => (
-          <li key={p} className="flex gap-1.5">
-            <Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-600" aria-hidden /> {p}
-          </li>
-        ))}
-      </ul>
-    </fieldset>
+      <fieldset>
+        <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-2">
+          <legend className="etiqueta mb-0">Permisos</legend>
+          {aMedida && (
+            <span className="flex items-center gap-2 text-xs">
+              <span className={`rounded-full px-2 py-0.5 font-semibold ring-1 ring-inset ${TONO_PERSONALIZADO}`}>Personalizado</span>
+              <button type="button" className="font-semibold text-marca-600 hover:underline" onClick={() => onPermisos(permisosDePerfil(rol))}>
+                Volver a los del perfil
+              </button>
+            </span>
+          )}
+        </div>
+        <div className="space-y-2">
+          {MODULOS.map((m) => (
+            <div key={m.codigo} className="rounded-xl border border-slate-200">
+              <p className="border-b border-slate-100 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{m.nombre}</p>
+              <ul>
+                {m.permisos.map((p) => {
+                  const marcado = permisos.includes(p.codigo);
+                  return (
+                    <li key={p.codigo}>
+                      <label className="flex min-h-[44px] cursor-pointer items-center gap-3 px-3 py-1.5 hover:bg-slate-50">
+                        <input type="checkbox" className="peer sr-only" checked={marcado} onChange={() => alternar(p.codigo)} />
+                        <span
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 peer-focus-visible:ring-2 peer-focus-visible:ring-marca-500 ${
+                            marcado ? 'border-marca-600 bg-marca-600 text-white' : 'border-slate-300 bg-white'
+                          }`}
+                          aria-hidden
+                        >
+                          {marcado && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                        </span>
+                        <span className="text-sm text-slate-800">{p.nombre}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
+        </div>
+        {!permisos.length && <p className="mt-1 text-xs font-semibold text-amber-700">Sin permisos: solo podrá ver su cuenta.</p>}
+      </fieldset>
+    </>
   );
 }
 
@@ -117,7 +171,8 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     correo: u?.correo ?? '',
     nombre: u?.nombre ?? '',
     telefono: u?.telefono ?? '',
-    roles: u?.roles ?? [ROLES_DE_PERFIL.tecnico[0]!],
+    rol: u?.rol ?? ('tecnico' as Rol),
+    permisos: u?.permisos ?? permisosDePerfil(u?.rol ?? 'tecnico'),
     cargo: u?.cargo ?? '',
   });
   const [error, setError] = useState<string | null>(null);
@@ -214,16 +269,22 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
           </select>
           <p className="mt-1 text-xs text-slate-500">Aparece en el personal de las inspecciones.</p>
         </div>
-        <CamposAcceso roles={f.roles} onRoles={(roles) => setF({ ...f, roles })} />
+        <CamposAcceso
+          rol={f.rol}
+          permisos={f.permisos}
+          onRol={(rol) => setF((x) => ({ ...x, rol }))}
+          onPermisos={(permisos) => setF((x) => ({ ...x, permisos }))}
+        />
         {!u && <p className="text-xs text-slate-500">Se generará una contraseña temporal para entregarle.</p>}
       </div>
     </Hoja>
   );
 }
 
-/** Aprobar una solicitud de cuenta: el administrador habilita los accesos. */
+/** Aprobar una solicitud de cuenta: el administrador elige el perfil y, si hace falta, ajusta los permisos. */
 export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => void }) {
-  const [roles, setRoles] = useState<string[]>(ROLES_DE_PERFIL.tecnico);
+  const [rol, setRol] = useState<Rol>('tecnico');
+  const [permisos, setPermisos] = useState<string[]>(() => permisosDePerfil('tecnico'));
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -232,7 +293,7 @@ export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => vo
     setEnviando(true);
     setError(null);
     try {
-      await aprobarCuenta(u.id, { roles });
+      await aprobarCuenta(u.id, { rol, permisos });
       qc.invalidateQueries({ queryKey: ['usuarios'] });
       qc.invalidateQueries({ queryKey: ['usuario', u.id] });
       avisar('Cuenta aprobada');
@@ -265,7 +326,7 @@ export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => vo
         <p className="text-sm text-slate-600">
           <span className="font-mono font-semibold text-slate-900">{u.usuario}</span> · {u.correo}
         </p>
-        <CamposAcceso roles={roles} onRoles={setRoles} />
+        <CamposAcceso rol={rol} permisos={permisos} onRol={setRol} onPermisos={setPermisos} />
       </div>
     </Hoja>
   );

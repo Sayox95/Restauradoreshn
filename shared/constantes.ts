@@ -1,4 +1,4 @@
-/** Perfiles de usuario (cada uno corresponde a un rol en ROLES_SISTEMA). */
+/** Perfiles de usuario (cada uno corresponde a un rol en ROLES_SISTEMA, la plantilla de sus permisos). */
 export const ROLES = ['admin', 'supervisor', 'tecnico'] as const;
 export type Rol = (typeof ROLES)[number];
 

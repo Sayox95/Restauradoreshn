@@ -9,13 +9,11 @@ export interface UsuarioSesion {
   telefono: string | null;
   /** Ingresó con una contraseña temporal: debe cambiarla antes de usar la app. */
   debe_cambiar_password: boolean;
-  /** Perfil de resumen (compatibilidad); el acceso se decide solo por `permisos`. */
+  /** Perfil: la plantilla de sus permisos; el acceso se decide solo por `permisos`. */
   rol: Rol;
-  /** Roles asignados, a lo sumo uno por módulo (como en el SSO). */
-  roles: string[];
   /** Cargo (uno de CARGOS_PERSONAL): pasa al personal de la inspección. */
   cargo: string | null;
-  /** Códigos utcd_restauradores_<modulo>_<accion> de sus roles (como los claims del token del SSO). */
+  /** Códigos utcd_restauradores_<modulo>_<accion> (los de su rol o los suyos a la medida; como los claims del SSO). */
   permisos: string[];
 }
 

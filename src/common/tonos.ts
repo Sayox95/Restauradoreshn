@@ -56,3 +56,6 @@ export const TONO_CUENTA: Record<EstadoCuenta, string> = {
   inactiva: TONO.neutro.etiqueta,
   rechazada: TONO.mal.etiqueta,
 };
+
+/** Cuenta con permisos a la medida (distintos de los de su perfil). */
+export const TONO_PERSONALIZADO = 'bg-violet-50 text-violet-800 ring-violet-200';

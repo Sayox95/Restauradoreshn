@@ -43,13 +43,13 @@ visitas anteriores quedan como **registradas**.
 2. En el panel: **Storage & Databases → D1 → la base → Console**, pegue (cambiando `su.usuario`):
 
 ```sql
-UPDATE usuarios SET rol = 'admin', estado = 'activa', activo = 1, solicitud_pendiente = 0 WHERE usuario = 'su.usuario';
+UPDATE usuarios SET rol = 'admin', permisos_personalizados = 0, estado = 'activa', activo = 1, solicitud_pendiente = 0 WHERE usuario = 'su.usuario';
 DELETE FROM usuario_roles WHERE usuario_id = (SELECT id FROM usuarios WHERE usuario = 'su.usuario');
-INSERT INTO usuario_roles (usuario_id, rol_codigo) SELECT id, r.codigo FROM usuarios, (SELECT 'utcd_restauradores_supervisor' AS codigo UNION SELECT 'utcd_restauradores_admin_usuarios' UNION SELECT 'utcd_restauradores_admin_catalogos') r WHERE usuario = 'su.usuario';
+INSERT INTO usuario_roles (usuario_id, rol_codigo) SELECT id, 'utcd_restauradores_administrador' FROM usuarios WHERE usuario = 'su.usuario';
 ```
 
-3. Ingrese. Desde **Administración → Usuarios** aprueba las demás solicitudes y habilita sus
-   **accesos** por módulo (Inspecciones: Técnico o Supervisor; Usuarios; Catálogos).
+3. Ingrese. Desde **Administración → Usuarios** aprueba las demás solicitudes y elige su
+   **perfil** (Técnico, Supervisor o Administrador); si hace falta, ajusta sus **permisos** uno por uno.
 
 ## Opcional · Tiempo real
 

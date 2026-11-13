@@ -43,8 +43,8 @@ describe('catálogos de la hoja de visita', () => {
         (p) => `${p.nombre}${p.cargo ? ` (${p.cargo})` : ''}`,
       );
     expect(await nombres(tec.cookie)).toEqual(['Nombre tito (Técnico SCADA)']);
-    // El administrador es Supervisor en Inspecciones (mismo nivel que sara).
-    expect(await nombres(sup.cookie)).toEqual(['Nombre ana', 'Nombre sara', 'Nombre tito (Técnico SCADA)']);
+    // Niveles por perfil: técnico 1, supervisor 2, administrador 3.
+    expect(await nombres(sup.cookie)).toEqual(['Nombre sara', 'Nombre tito (Técnico SCADA)']);
     expect(await nombres(admin.cookie)).toEqual(['Nombre ana', 'Nombre sara', 'Nombre tito (Técnico SCADA)']);
     // El catálogo «Personal» ya no existe.
     expect((await t.pedir('GET', '/api/v1/catalogos/personal', { cookie: admin.cookie })).status).toBe(404);

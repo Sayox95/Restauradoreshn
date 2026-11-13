@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { hashPassword } from '../server/plumbing/sesion';
 import { reiniciarEsquemaParaPruebas } from '../server/plumbing/esquema';
-import { ROLES_DE_PERFIL } from '../shared/permisos';
+import { rolDePerfil } from '../shared/permisos';
 import { manejarApi } from '../server/app';
 import type { Env } from '../server/plumbing/contexto';
 
@@ -136,9 +136,8 @@ export async function crearEntorno(hastaMigracion = Infinity) {
       .first<{ id: number }>();
     const login = await pedir('POST', '/api/v1/sesion/login', { cuerpo: { usuario, password: 'clave-segura-1' } });
     const cookie = login.headers.get('Set-Cookie')!.split(';')[0]!;
-    // Como el alta desde Administración: los accesos (roles por módulo) del perfil (ya sembrados tras el primer ingreso).
-    for (const codigo of ROLES_DE_PERFIL[rol])
-      await DB.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(r!.id, codigo).run();
+    // Como el alta desde Administración: el rol de su perfil (ya sembrado tras el primer ingreso).
+    await DB.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(r!.id, rolDePerfil(rol)).run();
     return { id: r!.id, cookie };
   }
 

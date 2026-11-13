@@ -1,4 +1,5 @@
 import type { Rol } from '../../shared/constantes';
+import type { Permiso } from '../../shared/permisos';
 import type { UsuarioSesion } from '../../shared/tipos';
 import { type Env } from './contexto';
 
@@ -106,9 +107,28 @@ export function passwordTemporal(): string {
   return [0, 4, 8].map((i) => salida.slice(i, i + 4).join('')).join('-');
 }
 
+/**
+ * Condición SQL: ¿la cuenta (alias `u`) tiene el permiso? Con permisos a la medida, los suyos; si no, los
+ * de su rol. Es la única regla de «tiene permiso» en SQL (personal de la inspección, protecciones, etc.).
+ */
+export function sqlTienePermiso(permiso: Permiso, alias = 'u') {
+  if (!/^[a-z_]+$/.test(permiso)) throw new Error('Código de permiso no válido');
+  return `((${alias}.permisos_personalizados = 1 AND EXISTS (SELECT 1 FROM usuario_permisos up WHERE up.usuario_id = ${alias}.id AND up.permiso_codigo = '${permiso}'))
+    OR (${alias}.permisos_personalizados = 0 AND EXISTS (SELECT 1 FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo
+                                                       WHERE ur.usuario_id = ${alias}.id AND rp.permiso_codigo = '${permiso}')))`;
+}
+
+/** Permisos efectivos de una cuenta: los suyos a la medida o, si no tiene, los de su rol. */
+export const sentenciaPermisosDe = (env: Env, id: number, personalizados: boolean) =>
+  personalizados
+    ? env.DB.prepare('SELECT permiso_codigo FROM usuario_permisos WHERE usuario_id = ?').bind(id)
+    : env.DB.prepare(
+        'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',
+      ).bind(id);
+
 export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioSesion | null> {
   const u = await env.DB.prepare(
-    "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, cargo FROM usuarios WHERE id = ? AND estado = 'activa'",
+    "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, cargo, permisos_personalizados FROM usuarios WHERE id = ? AND estado = 'activa'",
   )
     .bind(id)
     .first<{
@@ -120,20 +140,12 @@ export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioS
       debe_cambiar_password: number;
       rol: Rol;
       cargo: string | null;
+      permisos_personalizados: number;
     }>();
   if (!u) return null;
-  const [roles, permisos] = await env.DB.batch<{ rol_codigo?: string; permiso_codigo?: string }>([
-    env.DB.prepare('SELECT rol_codigo FROM usuario_roles WHERE usuario_id = ? ORDER BY rol_codigo').bind(id),
-    env.DB.prepare(
-      'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',
-    ).bind(id),
-  ]);
-  return {
-    ...u,
-    debe_cambiar_password: !!u.debe_cambiar_password,
-    roles: roles!.results.map((r) => r.rol_codigo!),
-    permisos: permisos!.results.map((r) => r.permiso_codigo!),
-  };
+  const { permisos_personalizados, ...datos } = u;
+  const { results } = await sentenciaPermisosDe(env, id, !!permisos_personalizados).all<{ permiso_codigo: string }>();
+  return { ...datos, debe_cambiar_password: !!u.debe_cambiar_password, permisos: results.map((r) => r.permiso_codigo) };
 }
 
 /** Devuelve el usuario de la sesión y, si corresponde, una cookie renovada. */

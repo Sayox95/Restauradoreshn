@@ -1,5 +1,5 @@
 import type { Rol } from '../../shared/constantes';
-import { MODULOS, ROLES_DE_PERFIL, ROLES_SISTEMA, TODOS_LOS_PERMISOS } from '../../shared/permisos';
+import { MODULOS, ROLES_SISTEMA, TODOS_LOS_PERMISOS, rolDePerfil } from '../../shared/permisos';
 import { type Env } from './contexto';
 
 /**
@@ -85,6 +85,19 @@ export const ROLES_POR_MODULO = [
   `DELETE FROM roles WHERE codigo = 'utcd_restauradores_administrador'`,
 ];
 
+export const PERMISOS_USUARIO = [
+  `CREATE TABLE IF NOT EXISTS usuario_permisos ( usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE, permiso_codigo TEXT NOT NULL REFERENCES permisos(codigo) ON DELETE CASCADE, PRIMARY KEY (usuario_id, permiso_codigo) )`,
+  `ALTER TABLE usuarios ADD COLUMN permisos_personalizados INTEGER NOT NULL DEFAULT 0 CHECK (permisos_personalizados IN (0, 1))`,
+  `INSERT OR IGNORE INTO usuario_permisos (usuario_id, permiso_codigo) SELECT DISTINCT ur.usuario_id, rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo`,
+  `WITH plantilla (perfil, permiso) AS (VALUES ('tecnico', 'utcd_restauradores_visitas_registrar'), ('supervisor', 'utcd_restauradores_visitas_registrar'), ('supervisor', 'utcd_restauradores_visitas_consultar'), ('supervisor', 'utcd_restauradores_visitas_exportar'), ('admin', 'utcd_restauradores_visitas_registrar'), ('admin', 'utcd_restauradores_visitas_consultar'), ('admin', 'utcd_restauradores_visitas_exportar'), ('admin', 'utcd_restauradores_usuarios_gestionar'), ('admin', 'utcd_restauradores_catalogos_gestionar')) UPDATE usuarios SET permisos_personalizados = 1 WHERE EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = usuarios.id) AND (EXISTS (SELECT 1 FROM usuario_permisos up WHERE up.usuario_id = usuarios.id AND up.permiso_codigo NOT IN (SELECT permiso FROM plantilla WHERE perfil = usuarios.rol)) OR EXISTS (SELECT 1 FROM plantilla t WHERE t.perfil = usuarios.rol AND t.permiso NOT IN (SELECT up.permiso_codigo FROM usuario_permisos up WHERE up.usuario_id = usuarios.id)))`,
+  `DELETE FROM usuario_permisos WHERE usuario_id IN (SELECT id FROM usuarios WHERE permisos_personalizados = 0)`,
+  `INSERT OR IGNORE INTO roles (codigo, nombre) VALUES ('utcd_restauradores_tecnico', 'Técnico'), ('utcd_restauradores_supervisor', 'Supervisor'), ('utcd_restauradores_administrador', 'Administrador')`,
+  `DELETE FROM usuario_roles`,
+  `INSERT INTO usuario_roles (usuario_id, rol_codigo) SELECT id, CASE rol WHEN 'admin' THEN 'utcd_restauradores_administrador' WHEN 'supervisor' THEN 'utcd_restauradores_supervisor' ELSE 'utcd_restauradores_tecnico' END FROM usuarios`,
+  `DELETE FROM rol_permisos WHERE rol_codigo IN ('utcd_restauradores_admin_usuarios', 'utcd_restauradores_admin_catalogos')`,
+  `DELETE FROM roles WHERE codigo IN ('utcd_restauradores_admin_usuarios', 'utcd_restauradores_admin_catalogos')`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -100,7 +113,13 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
   { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
   { migracion: '0005_cargo_usuario.sql', sentencias: CARGO_USUARIO, yaAplicado: existeColumna('usuarios', 'cargo') },
-  { migracion: '0006_roles_por_modulo.sql', sentencias: ROLES_POR_MODULO, yaAplicado: existeRol('utcd_restauradores_admin_usuarios') },
+  {
+    migracion: '0006_roles_por_modulo.sql',
+    sentencias: ROLES_POR_MODULO,
+    // 0007 quita los roles por módulo: si ya se aplicó, 0006 no debe volver a correr.
+    yaAplicado: async (env) => (await existeRol('utcd_restauradores_admin_usuarios')(env)) || (await existeColumna('usuarios', 'permisos_personalizados')(env)),
+  },
+  { migracion: '0007_permisos_usuario.sql', sentencias: PERMISOS_USUARIO, yaAplicado: existeColumna('usuarios', 'permisos_personalizados') },
 ];
 
 export let listo = false;
@@ -126,11 +145,11 @@ export async function asegurarEsquema(env: Env): Promise<void> {
 /**
  * Equivale a `migration-seed --scope permisos` del marco de TI: deja en la base los módulos, permisos
  * y roles tal como están en shared/permisos.ts (idempotente). A los usuarios que aún no tienen rol
- * en usuario_roles se les asignan los de su perfil (ROLES_DE_PERFIL).
+ * en usuario_roles se les asigna el de su perfil.
  */
 export async function sembrarPermisos(env: Env) {
   const db = env.DB;
-  // Cuentas sin ningún rol (p. ej. creadas desde la consola de D1): reciben los roles de su perfil.
+  // Cuentas sin rol (p. ej. creadas desde la consola de D1): reciben el de su perfil.
   const sinRoles = (
     await db
       .prepare('SELECT id, rol FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)')
@@ -154,9 +173,7 @@ export async function sembrarPermisos(env: Env) {
     ),
     db.prepare(`DELETE FROM rol_permisos WHERE rol_codigo IN (${roles.map(() => '?').join(',')})`).bind(...roles),
     ...ROLES_SISTEMA.flatMap((r) => r.permisos.map((p) => db.prepare('INSERT INTO rol_permisos (rol_codigo, permiso_codigo) VALUES (?,?)').bind(r.codigo, p))),
-    ...sinRoles.flatMap((u) =>
-      (ROLES_DE_PERFIL[u.rol] ?? []).map((r) => db.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(u.id, r)),
-    ),
+    ...sinRoles.map((u) => db.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(u.id, rolDePerfil(u.rol))),
   ]);
 }
 

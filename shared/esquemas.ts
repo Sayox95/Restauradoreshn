@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, usuarioDeCorreo } from './constantes';
-import { CODIGOS_ROL, unRolPorModulo } from './permisos';
+import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
+import { type Permiso, TODOS_LOS_PERMISOS } from './permisos';
 
 const textoOpcional = (max: number) =>
   z
@@ -63,12 +63,11 @@ const cargo = z
   .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
   .optional()
   .transform((v) => v || null);
-/** Accesos de la cuenta: uno o más roles, a lo sumo uno por módulo (como en el SSO). */
-const roles = z
-  .array(z.enum(CODIGOS_ROL))
-  .min(1, 'Habilite al menos un acceso.')
-  .max(CODIGOS_ROL.length)
-  .refine(unRolPorModulo, 'Elija un solo acceso por módulo.');
+/** Permisos a la medida de una cuenta (marcados uno por uno); sin enviar, valen los del perfil. */
+const permisos = z
+  .array(z.string().refine((p) => (TODOS_LOS_PERMISOS as string[]).includes(p), 'Permiso no válido.'))
+  .max(100)
+  .transform((l) => [...new Set(l)] as Permiso[]);
 const password = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200);
 
 /** Alta desde Administración: la contraseña la genera el sistema (temporal, se cambia al ingresar). */
@@ -76,7 +75,8 @@ export const usuarioCrearEsquema = z.object({
   correo: correoInstitucional,
   nombre: nombrePersona,
   telefono: telefonoObligatorio,
-  roles,
+  rol: z.enum(ROLES),
+  permisos: permisos.optional(),
   cargo,
 });
 
@@ -85,11 +85,12 @@ export const usuarioEditarEsquema = z.object({
   nombre: nombrePersona.optional(),
   correo: correoInstitucional.optional(),
   telefono,
-  roles: roles.optional(),
+  rol: z.enum(ROLES).optional(),
+  permisos: permisos.optional(),
   cargo,
 });
 
-export const aprobarCuentaEsquema = z.object({ roles });
+export const aprobarCuentaEsquema = z.object({ rol: z.enum(ROLES), permisos: permisos.optional() });
 
 export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
 

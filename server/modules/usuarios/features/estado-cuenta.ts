@@ -3,7 +3,7 @@ import type { EstadoCuenta } from '../../../../shared/constantes';
 import type { aprobarCuentaEsquema } from '../../../../shared/esquemas';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
 import { ApiError } from '../../../plumbing/http';
-import { cargarUsuario, protegerseASiMismo, sentenciaEstado, sentenciasRoles } from '../comun';
+import { accesoInicial, cargarUsuario, protegerAcceso, sentenciaEstado, sentenciasAcceso } from '../comun';
 
 const NO_APLICA = {
   aprobar: 'Esta cuenta no tiene una solicitud pendiente.',
@@ -31,18 +31,21 @@ async function cambiarEstado(
   return { id, estado: hacia };
 }
 
-/** Aprueba una solicitud de cuenta con los accesos (roles por módulo) que elige el administrador. */
+/** Aprueba una solicitud de cuenta con el perfil y los permisos que elige el administrador. */
 export async function aprobarCuenta(ctx: Ctx, id: number, d: z.output<typeof aprobarCuentaEsquema>) {
-  const extra = sentenciasRoles(ctx, id, d.roles);
-  return cambiarEstado(ctx, id, 'aprobar', ['pendiente', 'rechazada'], 'activa', extra, d);
+  const acceso = accesoInicial(d.rol, d.permisos);
+  return cambiarEstado(ctx, id, 'aprobar', ['pendiente', 'rechazada'], 'activa', sentenciasAcceso(ctx, id, acceso), {
+    rol: acceso.rol,
+    permisos: [...acceso.permisos].sort(),
+  });
 }
 
 /** La solicitud queda rechazada (no se borra: queda el registro); la persona puede volver a solicitar. */
 export const rechazarCuenta = (ctx: Ctx, id: number, motivo: string | null) => cambiarEstado(ctx, id, 'rechazar', ['pendiente'], 'rechazada', [], { motivo });
 
 /** Quita el acceso de inmediato (cierra sus sesiones); su historial se conserva. */
-export function desactivarCuenta(ctx: Ctx, id: number, motivo: string | null) {
-  protegerseASiMismo(ctx, id, { desactivar: true });
+export async function desactivarCuenta(ctx: Ctx, id: number, motivo: string | null) {
+  await protegerAcceso(ctx, id, { desactivar: true });
   const cerrar = ctx.env.DB.prepare('DELETE FROM sesiones WHERE usuario_id = ?').bind(id);
   return cambiarEstado(ctx, id, 'desactivar', ['activa'], 'inactiva', [cerrar], { motivo });
 }
