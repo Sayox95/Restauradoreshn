@@ -5,6 +5,7 @@ import { aprobarCuentaEsquema, motivoEsquema, usuarioCrearEsquema, usuarioEditar
 import { PermisosUsuarios } from './permisos';
 import { cerrarSesiones, restablecerPassword } from './features/acceso-cuenta';
 import { listarUsuarios, verUsuario } from './features/consultar-usuarios';
+import { listarCargos } from './comun';
 import { crearUsuario } from './features/crear-usuario';
 import { editarUsuario } from './features/editar-usuario';
 import { activarCuenta, aprobarCuenta, desactivarCuenta, rechazarCuenta } from './features/estado-cuenta';
@@ -12,6 +13,8 @@ import { activarCuenta, aprobarCuenta, desactivarCuenta, rechazarCuenta } from '
 const G = [PermisosUsuarios.Gestionar];
 // --- Consulta ---
 ruta('GET', '/api/v1/usuarios', G, async (ctx) => r(ctx, await listarUsuarios(ctx)));
+// Cargos activos para elegir en la cuenta (el catálogo lo administra Catálogos).
+ruta('GET', '/api/v1/usuarios/cargos', G, async (ctx) => r(ctx, await listarCargos(ctx)));
 ruta('GET', '/api/v1/usuarios/:id', G, async (ctx) => r(ctx, await verUsuario(ctx, idParam(ctx.params.id))));
 // --- Alta y datos ---
 ruta('POST', '/api/v1/usuarios', G, async (ctx) => r(ctx, await crearUsuario(ctx, await leerJson(ctx.req, usuarioCrearEsquema)), 201));

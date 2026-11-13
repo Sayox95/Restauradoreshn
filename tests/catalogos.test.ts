@@ -29,15 +29,40 @@ describe('catálogos de la hoja de visita', () => {
     expect((await t.DB.prepare("SELECT COUNT(*) AS n FROM auditoria WHERE entidad = 'restauradores'").first<{ n: number }>())!.n).toBe(2);
   });
 
+  it('los cargos se administran en Catálogos: renombrar se ve en las cuentas y desactivar no se las quita', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const tec = await t.crearUsuario('tito', 'tecnico');
+    const nuevo = await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: admin.cookie, cuerpo: { nombre: 'Electricista' } });
+    expect(nuevo.status).toBe(201);
+    const id = nuevo.datos.datos.id as number;
+    // No se repite un cargo activo.
+    expect((await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: admin.cookie, cuerpo: { nombre: 'electricista' } })).status).toBe(409);
+    await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: id } });
+    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Electricista de línea' } });
+    const yo = async () => (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: tec.cookie })).datos.datos.usuario;
+    expect((await yo()).cargo).toBe('Electricista de línea');
+    // Desactivado: la cuenta lo conserva, pero ya no se ofrece ni se puede asignar a otra.
+    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Electricista de línea', activo: false } });
+    expect((await yo()).cargo).toBe('Electricista de línea');
+    const activos = (await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })).datos.datos as { id: number }[];
+    expect(activos.some((c) => c.id === id)).toBe(false);
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Tito', cargo_id: id } })).status).toBe(200);
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${admin.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: id } })).status).toBe(422);
+    // Solo quien gestiona catálogos los administra.
+    expect((await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: tec.cookie, cuerpo: { nombre: 'X' } })).status).toBe(403);
+  });
+
   it('el personal de la inspección sale de las cuentas activas del mismo nivel o menor', async () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const sup = await t.crearUsuario('sara', 'supervisor');
     const tec = await t.crearUsuario('tito', 'tecnico');
     await t.crearUsuario('teo', 'tecnico');
     await t.DB.prepare("UPDATE usuarios SET estado = 'inactiva' WHERE usuario = 'teo'").run();
-    // El cargo se asigna en la cuenta, de la misma lista de la hoja.
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo: 'Técnico SCADA' } })).status).toBe(200);
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo: 'Técnico' } })).status).toBe(422);
+    // El cargo se asigna en la cuenta, del catálogo de cargos.
+    const cargos = (await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })).datos.datos as { id: number; nombre: string }[];
+    const scada = cargos.find((c) => c.nombre === 'Técnico SCADA')!;
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: scada.id } })).status).toBe(200);
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: 9999 } })).status).toBe(422);
     const nombres = async (cookie: string) =>
       ((await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos.datos.personal as { nombre: string; cargo: string | null }[]).map(
         (p) => `${p.nombre}${p.cargo ? ` (${p.cargo})` : ''}`,

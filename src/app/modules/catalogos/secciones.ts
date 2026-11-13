@@ -1,8 +1,8 @@
 /** Los catálogos de la hoja de inspección y la configuración: título, descripción e ícono (única fuente). */
-import { Clock, Cpu, LayoutGrid, MapPin, Package, Tags } from 'lucide-react';
+import { BriefcaseBusiness, Clock, Cpu, LayoutGrid, MapPin, Package, Tags } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export const SECCIONES_CATALOGO = ['restauradores', 'materiales', 'tipos', 'marcas', 'tableros', 'zona'] as const;
+export const SECCIONES_CATALOGO = ['restauradores', 'materiales', 'tipos', 'marcas', 'tableros', 'cargos', 'zona'] as const;
 export type SeccionCatalogo = (typeof SECCIONES_CATALOGO)[number];
 
 export const SECCION: Record<SeccionCatalogo, { titulo: string; descripcion: string; icono: LucideIcon }> = {
@@ -11,6 +11,7 @@ export const SECCION: Record<SeccionCatalogo, { titulo: string; descripcion: str
   tipos: { titulo: 'Tipos de restaurador', descripcion: 'Tipos que se eligen en la hoja', icono: Tags },
   marcas: { titulo: 'Marcas y modelos', descripcion: 'Reconectadores, controles y módems', icono: Cpu },
   tableros: { titulo: 'Tableros de control', descripcion: 'Campos del tablero por marca', icono: LayoutGrid },
+  cargos: { titulo: 'Cargos', descripcion: 'Cargos que se asignan a cada cuenta', icono: BriefcaseBusiness },
   zona: { titulo: 'Zona horaria', descripcion: 'Hora oficial de la app', icono: Clock },
 };
 

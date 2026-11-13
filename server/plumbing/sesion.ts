@@ -128,7 +128,7 @@ export const sentenciaPermisosDe = (env: Env, id: number, personalizados: boolea
 
 export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioSesion | null> {
   const u = await env.DB.prepare(
-    "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, cargo, permisos_personalizados FROM usuarios WHERE id = ? AND estado = 'activa'",
+    "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, (SELECT c.nombre FROM cargos c WHERE c.id = usuarios.cargo_id) AS cargo, permisos_personalizados FROM usuarios WHERE id = ? AND estado = 'activa'",
   )
     .bind(id)
     .first<{

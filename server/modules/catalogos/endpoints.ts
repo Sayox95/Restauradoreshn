@@ -4,6 +4,7 @@ import { idParam, leerJson } from '../../plumbing/http';
 import { r, ruta } from '../../plumbing/router';
 import { zonaHoraria } from '../../plumbing/zona';
 import {
+  cargoCatalogoEsquema,
   configuracionEsquema,
   marcaCatalogoEsquema,
   materialCatalogoEsquema,
@@ -28,6 +29,7 @@ for (const [cat, esquema] of [
   ['materiales', materialCatalogoEsquema],
   ['tipos', tipoCatalogoEsquema],
   ['marcas', marcaCatalogoEsquema],
+  ['cargos', cargoCatalogoEsquema],
 ] as const) {
   ruta('GET', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, await listarCatalogo(ctx, cat)));
   ruta('POST', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)), 201));

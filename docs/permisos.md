@@ -10,7 +10,7 @@ El código **nunca pregunta por un rol**: solo por permisos.
 | | `utcd_restauradores_visitas_consultar` | Consultar las inspecciones de todos |
 | | `utcd_restauradores_visitas_exportar` | Exportar inspecciones a CSV |
 | `utcd_restauradores_usuarios` | `utcd_restauradores_usuarios_gestionar` | Usuarios y solicitudes de cuenta |
-| `utcd_restauradores_catalogos` | `utcd_restauradores_catalogos_gestionar` | Restauradores, materiales, tipos, marcas, tableros y zona horaria |
+| `utcd_restauradores_catalogos` | `utcd_restauradores_catalogos_gestionar` | Restauradores, materiales, tipos, marcas, tableros, cargos y zona horaria |
 
 ## Datos visibles sin permiso adicional (lo propio)
 
@@ -48,7 +48,7 @@ Usuarios, al elegir el perfil se marcan sus permisos y después se puede marcar 
 
 El técnico #1 es quien inspecciona. Al agregar personal se ofrecen las cuentas activas del **mismo nivel
 o menor** que **registran inspecciones** (`nivel` del perfil en `shared/permisos.ts`: técnico 1,
-supervisor 2, administrador 3). El cargo de cada persona es el de su cuenta (Administración → Usuarios).
+supervisor 2, administrador 3). El cargo de cada persona es el de su cuenta (Administración → Usuarios), elegido del catálogo de cargos (Administración → Catálogos → Cargos).
 
 ## Estado de la inspección
 

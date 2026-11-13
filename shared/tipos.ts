@@ -11,7 +11,7 @@ export interface UsuarioSesion {
   debe_cambiar_password: boolean;
   /** Perfil: la plantilla de sus permisos; el acceso se decide solo por `permisos`. */
   rol: Rol;
-  /** Cargo (uno de CARGOS_PERSONAL): pasa al personal de la inspección. */
+  /** Nombre del cargo (catálogo de cargos): pasa al personal de la inspección. */
   cargo: string | null;
   /** Códigos utcd_restauradores_<modulo>_<accion> (los de su rol o los suyos a la medida; como los claims del SSO). */
   permisos: string[];
@@ -48,6 +48,12 @@ export interface Persona {
   id: number;
   nombre: string;
   cargo: string | null;
+}
+/** Cargo del catálogo (se asigna a cada cuenta). */
+export interface Cargo {
+  id: number;
+  nombre: string;
+  activo: boolean;
 }
 export interface TipoRestaurador {
   id: number;

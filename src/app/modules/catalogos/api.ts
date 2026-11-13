@@ -1,5 +1,5 @@
 /** Llamadas HTTP del módulo Catálogos (ruta base /api/v1/catalogos). Al migrar, los lee el servicio de Parámetros. */
-import type { CampoTablero, CatalogosVisita, Marca, Material, Restaurador, TipoRestaurador } from '@shared/tipos';
+import type { CampoTablero, Cargo, CatalogosVisita, Marca, Material, Restaurador, TipoRestaurador } from '@shared/tipos';
 import { get, patch, post, put } from '@/common/http/api';
 
 const BASE = '/api/v1/catalogos';
@@ -10,6 +10,7 @@ export interface Catalogos {
   materiales: Material;
   tipos: TipoRestaurador;
   marcas: Marca;
+  cargos: Cargo;
 }
 export type TipoCatalogo = keyof Catalogos;
 

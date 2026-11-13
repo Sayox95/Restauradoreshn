@@ -8,7 +8,6 @@
 import { z } from 'zod';
 import {
   ANTENAS,
-  CARGOS_PERSONAL,
   FASES_CONEXION,
   GRUPOS_AJUSTE,
   MEDIOS_EXTINCION,
@@ -87,7 +86,7 @@ export const personaEsquema = z.object({
     .optional()
     .transform((v) => v ?? null),
   nombre: z.string().trim().max(100).default(''),
-  cargo: opcion(CARGOS_PERSONAL),
+  cargo: texto(60),
 });
 
 export const visitaEsquema = z.object({

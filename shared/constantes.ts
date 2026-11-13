@@ -70,7 +70,6 @@ export const TECNOLOGIAS_MODEM = ['2G', '3G', 'LTE'] as const;
 export const TIPOS_BATERIA = ['12V/ 12AH', '12V/ 17AH', '12V/ 26AH'] as const;
 export const TIPOS_CUCHILLA = ['Cortacircuito Rompearco', 'Cortacircuito Sencillo', 'Cuchilla Monopolar', 'Cuchilla Tripolar'] as const;
 export const FASES_CONEXION = ['Fase A', 'Fase B', 'Fase C', 'Trifásica'] as const;
-export const CARGOS_PERSONAL = ['Técnico SCADA', 'Ingeniero de Campo', 'Jefe de Cuadrilla', 'Supervisor', 'Auxiliar Técnico', 'Contratista'] as const;
 export const MOTIVOS_MATERIAL = ['Reemplazo preventivo', 'Falla / Daño', 'Instalación nueva', 'Actualización', 'Otro'] as const;
 
 /** Elementos de la tabla «marcas» que son módems (los demás son restauradores). */

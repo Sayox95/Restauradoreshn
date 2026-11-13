@@ -74,6 +74,11 @@ const DEFINICIONES: Record<TipoCatalogo, { campos: DefCampo[]; principal: (r: Fi
     principal: (r) => `${r.marca} ${r.modelo ?? ''}`.trim(),
     detalle: (r) => [r.elemento, r.tipo_control].filter(Boolean).join(' · '),
   },
+  cargos: {
+    campos: [{ clave: 'nombre', etiqueta: 'Nombre del cargo', obligatorio: true }],
+    principal: (r) => String(r.nombre ?? ''),
+    detalle: () => '',
+  },
 };
 
 type Fila = Record<string, unknown> & { id: number; activo: boolean };

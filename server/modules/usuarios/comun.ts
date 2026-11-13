@@ -11,6 +11,8 @@ export interface FilaUsuario {
   nombre: string;
   telefono: string | null;
   rol: Rol;
+  cargo_id: number | null;
+  /** Nombre del cargo (catálogo). */
   cargo: string | null;
   estado: EstadoCuenta;
   debe_cambiar_password: number;
@@ -19,8 +21,21 @@ export interface FilaUsuario {
   ultimo_ingreso_en: string | null;
 }
 
-export const COLUMNAS =
-  'id, usuario, correo, nombre, telefono, rol, cargo, estado, debe_cambiar_password, permisos_personalizados, creado_en, ultimo_ingreso_en';
+export const COLUMNAS = `id, usuario, correo, nombre, telefono, rol, cargo_id, (SELECT c.nombre FROM cargos c WHERE c.id = usuarios.cargo_id) AS cargo, estado,
+  debe_cambiar_password, permisos_personalizados, creado_en, ultimo_ingreso_en`;
+
+/** El cargo elegido debe estar activo en el catálogo (o ser el que la cuenta ya tiene). */
+export async function validarCargo(ctx: Ctx, cargoId: number | null | undefined, actual: number | null = null) {
+  if (!cargoId || cargoId === actual) return;
+  const c = await ctx.env.DB.prepare('SELECT 1 FROM cargos WHERE id = ? AND activo = 1').bind(cargoId).first();
+  if (!c) throw new ApiError(422, 'El cargo elegido no existe o está desactivado.');
+}
+
+/** Cargos activos para elegir en la cuenta. */
+export async function listarCargos(ctx: Ctx) {
+  const { results } = await ctx.env.DB.prepare('SELECT id, nombre FROM cargos WHERE activo = 1 ORDER BY nombre').all<{ id: number; nombre: string }>();
+  return results;
+}
 
 export async function cargarUsuario(ctx: Ctx, id: number) {
   const u = await ctx.env.DB.prepare(`SELECT ${COLUMNAS} FROM usuarios WHERE id = ?`).bind(id).first<FilaUsuario>();

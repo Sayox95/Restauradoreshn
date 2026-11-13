@@ -37,7 +37,7 @@ const ACCION: Record<string, string> = {
   editar_cuenta: 'Actualizó sus datos',
 };
 
-const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil', cargo: 'cargo' };
+const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil', cargo_id: 'cargo' };
 const NOMBRE_PERMISO = new Map(MODULOS.flatMap((m) => m.permisos.map((p) => [p.codigo as string, p.nombre])));
 
 /** «+ Exportar inspecciones a CSV · − Gestionar usuarios…»: qué permisos se agregaron y cuáles se quitaron. */

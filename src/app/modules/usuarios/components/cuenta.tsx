@@ -1,17 +1,7 @@
 /** Piezas comunes de la gestión de cuentas: estado, perfil y permisos, contraseña temporal y formularios. */
-import {
-  CARGOS_PERSONAL,
-  DOMINIO_CORREO,
-  ESTADO_CUENTA_ETIQUETA,
-  PATRON_USUARIO,
-  ROL_ETIQUETA,
-  ROLES,
-  type EstadoCuenta,
-  type Rol,
-  usuarioDeCorreo,
-} from '@shared/constantes';
+import { DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, ROL_ETIQUETA, ROLES, type EstadoCuenta, type Rol, usuarioDeCorreo } from '@shared/constantes';
 import { igualAlPerfil, MODULOS, permisosDePerfil } from '@shared/permisos';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Hoja } from '@/common/components/Hoja';
@@ -19,7 +9,7 @@ export { Avatar } from '@/common/components/Avatar';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
 import { TONO_CUENTA, TONO_PERSONALIZADO } from '@/common/tonos';
-import { aprobarCuenta, crearUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
+import { aprobarCuenta, crearUsuario, editarUsuario, listarCargos, type Usuario } from '@/app/modules/usuarios/api';
 
 export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
   return (
@@ -173,8 +163,11 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     telefono: u?.telefono ?? '',
     rol: u?.rol ?? ('tecnico' as Rol),
     permisos: u?.permisos ?? permisosDePerfil(u?.rol ?? 'tecnico'),
-    cargo: u?.cargo ?? '',
+    cargo_id: u?.cargo_id ? String(u.cargo_id) : '',
   });
+  const cargos = useQuery({ queryKey: ['usuarios', 'cargos'], queryFn: listarCargos }).data ?? [];
+  // Si su cargo actual fue desactivado en el catálogo, se sigue mostrando para no perderlo al guardar.
+  const opcionesCargo = u?.cargo_id && u.cargo && !cargos.some((c) => c.id === u.cargo_id) ? [...cargos, { id: u.cargo_id, nombre: u.cargo }] : cargos;
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ usuario: string; password_temporal: string } | null>(null);
@@ -187,7 +180,7 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     setEnviando(true);
     setError(null);
     try {
-      const datos = { ...f, correo, telefono: f.telefono.trim() || null, cargo: f.cargo || null };
+      const datos = { ...f, correo, telefono: f.telefono.trim() || null, cargo_id: f.cargo_id ? Number(f.cargo_id) : null };
       if (u) await editarUsuario(u.id, { ...datos, correo: correo || undefined });
       else setCreada(await crearUsuario(datos));
       qc.invalidateQueries({ queryKey: ['usuarios'] });
@@ -261,10 +254,12 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
           <label className="etiqueta" htmlFor="u-cargo">
             Cargo
           </label>
-          <select id="u-cargo" className="campo" value={f.cargo} onChange={(e) => setF({ ...f, cargo: e.target.value })}>
+          <select id="u-cargo" className="campo" value={f.cargo_id} onChange={(e) => setF({ ...f, cargo_id: e.target.value })}>
             <option value="">— Sin cargo —</option>
-            {CARGOS_PERSONAL.map((c) => (
-              <option key={c}>{c}</option>
+            {opcionesCargo.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.nombre}
+              </option>
             ))}
           </select>
           <p className="mt-1 text-xs text-slate-500">Aparece en el personal de las inspecciones.</p>

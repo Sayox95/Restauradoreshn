@@ -98,6 +98,16 @@ export const PERMISOS_USUARIO = [
   `DELETE FROM roles WHERE codigo IN ('utcd_restauradores_admin_usuarios', 'utcd_restauradores_admin_catalogos')`,
 ];
 
+export const CATALOGO_CARGOS = [
+  `CREATE TABLE IF NOT EXISTS cargos ( id INTEGER PRIMARY KEY AUTOINCREMENT, nombre TEXT NOT NULL, activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1)), actualizado_en TEXT )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ux_cargos_nombre_activo ON cargos (lower(nombre)) WHERE activo = 1`,
+  `INSERT INTO cargos (nombre) VALUES ('Técnico SCADA'), ('Ingeniero de Campo'), ('Jefe de Cuadrilla'), ('Supervisor'), ('Auxiliar Técnico'), ('Contratista')`,
+  `INSERT INTO cargos (nombre) SELECT DISTINCT cargo FROM usuarios WHERE cargo IS NOT NULL AND trim(cargo) <> '' AND lower(cargo) NOT IN (SELECT lower(nombre) FROM cargos)`,
+  `ALTER TABLE usuarios ADD COLUMN cargo_id INTEGER REFERENCES cargos(id)`,
+  `UPDATE usuarios SET cargo_id = (SELECT c.id FROM cargos c WHERE lower(c.nombre) = lower(usuarios.cargo)) WHERE cargo IS NOT NULL`,
+  `ALTER TABLE usuarios DROP COLUMN cargo`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -112,7 +122,12 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0002_campos_formulario_v2.sql', sentencias: CAMPOS_V2, yaAplicado: existeColumna('registros', 'num_fotos') },
   { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
   { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
-  { migracion: '0005_cargo_usuario.sql', sentencias: CARGO_USUARIO, yaAplicado: existeColumna('usuarios', 'cargo') },
+  {
+    migracion: '0005_cargo_usuario.sql',
+    sentencias: CARGO_USUARIO,
+    // 0008 pasa el cargo al catálogo y quita la columna: si ya se aplicó, 0005 no debe volver a correr.
+    yaAplicado: async (env) => (await existeColumna('usuarios', 'cargo')(env)) || (await existeTabla('cargos')(env)),
+  },
   {
     migracion: '0006_roles_por_modulo.sql',
     sentencias: ROLES_POR_MODULO,
@@ -120,6 +135,7 @@ export const CAMBIOS: Cambio[] = [
     yaAplicado: async (env) => (await existeRol('utcd_restauradores_admin_usuarios')(env)) || (await existeColumna('usuarios', 'permisos_personalizados')(env)),
   },
   { migracion: '0007_permisos_usuario.sql', sentencias: PERMISOS_USUARIO, yaAplicado: existeColumna('usuarios', 'permisos_personalizados') },
+  { migracion: '0008_catalogo_cargos.sql', sentencias: CATALOGO_CARGOS, yaAplicado: existeTabla('cargos') },
 ];
 
 export let listo = false;

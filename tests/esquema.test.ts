@@ -43,6 +43,7 @@ describe('migraciones', () => {
       '0005_cargo_usuario.sql',
       '0006_roles_por_modulo.sql',
       '0007_permisos_usuario.sql',
+      '0008_catalogo_cargos.sql',
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.
@@ -98,6 +99,34 @@ describe('migraciones', () => {
     // El administrador tiene los cinco permisos por su rol.
     const n = await t.DB.prepare("SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'").first<{ n: number }>();
     expect(n!.n).toBe(5);
+  });
+
+  it('el cargo de texto de cada cuenta pasa al catálogo de cargos sin perderse', async () => {
+    const t = await crearEntorno(7);
+    await t.DB.exec(`
+      INSERT INTO usuarios (id, usuario, nombre, hash_password, rol, creado_en, actualizado_en, cargo) VALUES
+        (1, 'a', 'A', 'x', 'tecnico', '2026-01-01', '2026-01-01', 'Técnico SCADA'),
+        (2, 'b', 'B', 'x', 'tecnico', '2026-01-01', '2026-01-01', 'Operador'),
+        (3, 'c', 'C', 'x', 'tecnico', '2026-01-01', '2026-01-01', NULL);
+    `);
+    expect((await t.pedir('GET', '/api/v1/sesion/yo')).status).toBe(200);
+    const filas = (
+      await t.DB.prepare('SELECT u.id, c.nombre FROM usuarios u LEFT JOIN cargos c ON c.id = u.cargo_id ORDER BY u.id').all<{
+        id: number;
+        nombre: string | null;
+      }>()
+    ).results;
+    expect(filas).toEqual([
+      { id: 1, nombre: 'Técnico SCADA' },
+      { id: 2, nombre: 'Operador' },
+      { id: 3, nombre: null },
+    ]);
+    expect((await t.DB.prepare('SELECT COUNT(*) AS n FROM cargos').first<{ n: number }>())!.n).toBe(7);
+    // Al volver a arrancar, 0005 no vuelve a agregar la columna de texto.
+    reiniciarEsquemaParaPruebas();
+    await t.pedir('GET', '/api/v1/sesion/yo');
+    const cols = (await t.DB.prepare("SELECT name FROM pragma_table_info('usuarios')").all<{ name: string }>()).results.map((c) => c.name);
+    expect(cols).not.toContain('cargo');
   });
 
   it('ninguna tabla pasa de 100 columnas (límite de D1)', async () => {

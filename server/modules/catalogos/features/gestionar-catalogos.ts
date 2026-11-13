@@ -5,7 +5,14 @@ import { sqlTienePermiso } from '../../../plumbing/sesion';
 
 /** Nivel de cada perfil en SQL (técnico 1, supervisor 2, administrador 3). */
 const NIVEL_SQL = `CASE u.rol ${ROLES_SISTEMA.map((r) => `WHEN '${r.perfil}' THEN ${r.nivel}`).join(' ')} ELSE 0 END`;
-import type { marcaCatalogoEsquema, materialCatalogoEsquema, restauradorEsquema, tableroEsquema, tipoCatalogoEsquema } from '../../../../shared/esquemas';
+import type {
+  cargoCatalogoEsquema,
+  marcaCatalogoEsquema,
+  materialCatalogoEsquema,
+  restauradorEsquema,
+  tableroEsquema,
+  tipoCatalogoEsquema,
+} from '../../../../shared/esquemas';
 import type { CatalogosVisita } from '../../../../shared/tipos';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
 import { ApiError, noEncontrado } from '../../../plumbing/http';
@@ -68,6 +75,16 @@ export const CATALOGOS = {
     activoValor: (a) => (a ? 1 : 0),
     orden: 'elemento, marca, modelo',
   },
+  cargos: {
+    tabla: 'cargos',
+    columnas: ['nombre'],
+    activoSql: 'activo',
+    activoColumna: 'activo',
+    activoValor: (a) => (a ? 1 : 0),
+    actualizado: 'actualizado_en',
+    orden: 'nombre',
+    unico: ['nombre'],
+  },
 } satisfies Record<string, Definicion>;
 export type Catalogo = keyof typeof CATALOGOS;
 
@@ -75,7 +92,8 @@ type Entrada =
   | z.output<typeof restauradorEsquema>
   | z.output<typeof materialCatalogoEsquema>
   | z.output<typeof tipoCatalogoEsquema>
-  | z.output<typeof marcaCatalogoEsquema>;
+  | z.output<typeof marcaCatalogoEsquema>
+  | z.output<typeof cargoCatalogoEsquema>;
 
 const fila = (r: Record<string, unknown>) => ({ ...r, activo: !!r.activo });
 
@@ -186,7 +204,7 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
     // Personal de la inspección: cuentas activas que registran inspecciones, de perfil del mismo nivel o menor.
     db
       .prepare(
-        `SELECT u.id, u.nombre, u.cargo FROM usuarios u WHERE u.estado = 'activa'
+        `SELECT u.id, u.nombre, (SELECT c.nombre FROM cargos c WHERE c.id = u.cargo_id) AS cargo FROM usuarios u WHERE u.estado = 'activa'
          AND ${sqlTienePermiso(PermisosVisitas.Registrar)} AND ${NIVEL_SQL} <= ?
          ORDER BY u.nombre`,
       )

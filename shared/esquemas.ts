@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CARGOS_PERSONAL, DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
+import { DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
 import { type Permiso, TODOS_LOS_PERMISOS } from './permisos';
 
 const textoOpcional = (max: number) =>
@@ -58,11 +58,8 @@ const telefonoObligatorio = z
   .trim()
   .min(1, 'Ingrese su número de celular')
   .regex(/^[0-9+()\-\s]{7,20}$/, 'Número de celular no válido');
-/** Cargo de la cuenta: uno de CARGOS_PERSONAL (pasa tal cual al personal de la inspección). */
-const cargo = z
-  .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
-  .optional()
-  .transform((v) => v || null);
+/** Cargo de la cuenta: un cargo del catálogo (pasa al personal de la inspección); null = sin cargo. */
+const cargo_id = z.number().int().positive().nullable().optional();
 /** Permisos a la medida de una cuenta (marcados uno por uno); sin enviar, valen los del perfil. */
 const permisos = z
   .array(z.string().refine((p) => (TODOS_LOS_PERMISOS as string[]).includes(p), 'Permiso no válido.'))
@@ -77,7 +74,7 @@ export const usuarioCrearEsquema = z.object({
   telefono: telefonoObligatorio,
   rol: z.enum(ROLES),
   permisos: permisos.optional(),
-  cargo,
+  cargo_id: cargo_id.transform((v) => v ?? null),
 });
 
 /** Datos de la cuenta que corrige un administrador (el estado y la contraseña tienen sus propias acciones). */
@@ -87,7 +84,7 @@ export const usuarioEditarEsquema = z.object({
   telefono,
   rol: z.enum(ROLES).optional(),
   permisos: permisos.optional(),
-  cargo,
+  cargo_id,
 });
 
 export const aprobarCuentaEsquema = z.object({ rol: z.enum(ROLES), permisos: permisos.optional() });
@@ -147,6 +144,11 @@ export const materialCatalogoEsquema = z.object({
 export const tipoCatalogoEsquema = z.object({
   elemento: textoOpcional(60),
   tipo: obligatorio('el tipo', 60),
+  activo,
+});
+
+export const cargoCatalogoEsquema = z.object({
+  nombre: obligatorio('el nombre del cargo', 60),
   activo,
 });
 

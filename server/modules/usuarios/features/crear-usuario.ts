@@ -5,7 +5,7 @@ import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
 import { ApiError, esErrorUnico } from '../../../plumbing/http';
 import { hashPassword, passwordTemporal } from '../../../plumbing/sesion';
 import { usuarioEnUso } from '../../sesion/features/solicitar-cuenta';
-import { accesoInicial, sentenciasAcceso } from '../comun';
+import { accesoInicial, sentenciasAcceso, validarCargo } from '../comun';
 
 /** ¿El correo, o el usuario que sale de él, ya los tiene otra cuenta? */
 export async function verificarDisponible(ctx: Ctx, correo: string, usuario: string | null, excepto = 0) {
@@ -23,13 +23,14 @@ export async function verificarDisponible(ctx: Ctx, correo: string, usuario: str
 export async function crearUsuario(ctx: Ctx, d: z.output<typeof usuarioCrearEsquema>) {
   const usuario = usuarioDeCorreo(d.correo);
   await verificarDisponible(ctx, d.correo, usuario);
+  await validarCargo(ctx, d.cargo_id);
   const password = passwordTemporal();
   try {
     const r = await ctx.env.DB.prepare(
-      `INSERT INTO usuarios (usuario, correo, nombre, telefono, hash_password, rol, cargo, estado, activo, solicitud_pendiente, debe_cambiar_password, creado_en, actualizado_en)
+      `INSERT INTO usuarios (usuario, correo, nombre, telefono, hash_password, rol, cargo_id, estado, activo, solicitud_pendiente, debe_cambiar_password, creado_en, actualizado_en)
        VALUES (?,?,?,?,?,?,?,'activa',1,0,1,?,?) RETURNING id`,
     )
-      .bind(usuario, d.correo, d.nombre, d.telefono, await hashPassword(password), d.rol, d.cargo, ctx.ahora, ctx.ahora)
+      .bind(usuario, d.correo, d.nombre, d.telefono, await hashPassword(password), d.rol, d.cargo_id, ctx.ahora, ctx.ahora)
       .first<{ id: number }>();
     const id = r!.id;
     await ctx.env.DB.batch([
