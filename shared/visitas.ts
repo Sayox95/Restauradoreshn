@@ -77,10 +77,17 @@ export const materialEsquema = z.object({
   cant: numero(0, 1e6),
   motivo: opcion(MOTIVOS_MATERIAL),
 });
+/** Persona de la inspección: una cuenta de la app (usuario_id) con su nombre y cargo al momento. */
 export const personaEsquema = z.object({
+  usuario_id: z
+    .number()
+    .int()
+    .positive()
+    .nullable()
+    .optional()
+    .transform((v) => v ?? null),
   nombre: z.string().trim().max(100).default(''),
   cargo: opcion(CARGOS_PERSONAL),
-  id: texto(40),
 });
 
 export const visitaEsquema = z.object({

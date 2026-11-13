@@ -15,12 +15,18 @@ export interface MaterialB {
   cant: string;
   motivo: string;
 }
+/** Persona de la inspección: siempre una cuenta de la app (el técnico #1 es quien inspecciona). */
 export interface PersonaB {
-  /** Nombre del catálogo, o «OTRO» para escribirlo a mano. */
-  eleccion: string;
+  usuario_id: number | null;
   nombre: string;
   cargo: string;
-  id: string;
+}
+
+/** Quien hace la inspección (de la sesión): técnico #1 y responsable por defecto. */
+export interface Inspector {
+  id: number;
+  nombre: string;
+  cargo: string | null;
 }
 
 /** Todo lo del formulario, como lo escribe la persona (textos). */
@@ -39,7 +45,7 @@ export type Cambios = { [K in keyof Borrador]?: Borrador[K] } | Record<string, u
 const hoy = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const horaActual = (d = new Date()) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
-export function borradorNuevo(): Borrador {
+export function borradorNuevo(yo: Inspector | null): Borrador {
   const ahora = new Date();
   return {
     visita_num: folioNuevo(ahora),
@@ -47,7 +53,8 @@ export function borradorNuevo(): Borrador {
     hora_llegada: horaActual(ahora),
     tablero_campos: {},
     materiales: [],
-    personal: [{ eleccion: '', nombre: '', cargo: '', id: '' }],
+    personal: yo ? [{ usuario_id: yo.id, nombre: yo.nombre, cargo: yo.cargo ?? '' }] : [],
+    firma_responsable: yo?.nombre ?? '',
     firma_img: null,
     responsable_a_mano: false,
   } as unknown as Borrador;
@@ -55,12 +62,14 @@ export function borradorNuevo(): Borrador {
 
 /** ¿La persona ya escribió algo? (más allá de lo que se llena solo al abrir). */
 export function tieneDatos(b: Borrador, fotos: number) {
+  // El técnico #1 y el nombre del responsable se llenan solos con quien inspecciona.
   const auto = new Set(['visita_num', 'fecha_visita', 'hora_llegada', 'tablero_campos', 'materiales', 'personal', 'firma_img', 'responsable_a_mano']);
+  if (!b.responsable_a_mano) auto.add('firma_responsable');
   return (
     fotos > 0 ||
     !!b.firma_img ||
     b.materiales.length > 0 ||
-    b.personal.some((p) => p.nombre || p.eleccion) ||
+    b.personal.length > 1 ||
     Object.keys(b.tablero_campos).length > 0 ||
     Object.entries(b).some(([k, v]) => !auto.has(k) && typeof v === 'string' && v.trim() !== '')
   );
@@ -74,7 +83,7 @@ export function aEntrada(b: Borrador, numFotos: number): VisitaEntrada {
     visita_num: b.visita_num,
     tablero_campos,
     materiales: materiales.map((m) => ({ codigo: m.codigo, desc: m.desc, unidad: m.unidad, cant: m.cant, motivo: (m.motivo || null) as never })),
-    personal: personal.map((p) => ({ nombre: p.nombre, cargo: (p.cargo || null) as never, id: p.id })),
+    personal: personal.map((p) => ({ usuario_id: p.usuario_id, nombre: p.nombre, cargo: (p.cargo || null) as never })),
     firma_img,
     num_fotos: numFotos,
   } as VisitaEntrada;

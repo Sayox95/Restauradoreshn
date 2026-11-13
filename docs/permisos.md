@@ -27,6 +27,12 @@ El código **nunca pregunta por un rol**: solo por permisos.
 | `utcd_restauradores_supervisor` | visitas: registrar, consultar, exportar |
 | `utcd_restauradores_tecnico` | visitas: registrar |
 
+## Personal de la inspección
+
+El técnico #1 es quien inspecciona. Al agregar personal se ofrecen las cuentas activas del **mismo nivel
+o menor** (`nivel` de cada rol en `shared/permisos.ts`: administrador 3, supervisor 2, técnico 1). El
+cargo de cada persona es el de su cuenta (Administración → Usuarios).
+
 ## Estado de la inspección
 
 Por ahora una inspección tiene un solo estado: **registrada** (`registros.estado`, con restricción en la

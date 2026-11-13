@@ -1,5 +1,15 @@
 /** Piezas comunes de la gestión de cuentas: estado, perfil, contraseña temporal y formularios. */
-import { DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, ROL_ETIQUETA, ROLES, type EstadoCuenta, type Rol, usuarioDeCorreo } from '@shared/constantes';
+import {
+  CARGOS_PERSONAL,
+  DOMINIO_CORREO,
+  ESTADO_CUENTA_ETIQUETA,
+  PATRON_USUARIO,
+  ROL_ETIQUETA,
+  ROLES,
+  type EstadoCuenta,
+  type Rol,
+  usuarioDeCorreo,
+} from '@shared/constantes';
 import { ROLES_SISTEMA, MODULOS } from '@shared/permisos';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
@@ -110,6 +120,7 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     nombre: u?.nombre ?? '',
     telefono: u?.telefono ?? '',
     rol: u?.rol ?? ('tecnico' as Rol),
+    cargo: u?.cargo ?? '',
   });
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
@@ -123,7 +134,7 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     setEnviando(true);
     setError(null);
     try {
-      const datos = { ...f, correo, telefono: f.telefono.trim() || null };
+      const datos = { ...f, correo, telefono: f.telefono.trim() || null, cargo: f.cargo || null };
       if (u) await editarUsuario(u.id, { ...datos, correo: correo || undefined });
       else setCreada(await crearUsuario(datos));
       qc.invalidateQueries({ queryKey: ['usuarios'] });
@@ -192,6 +203,18 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
             Celular
           </label>
           <input id="u-tel" type="tel" inputMode="tel" className="campo" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} />
+        </div>
+        <div>
+          <label className="etiqueta" htmlFor="u-cargo">
+            Cargo
+          </label>
+          <select id="u-cargo" className="campo" value={f.cargo} onChange={(e) => setF({ ...f, cargo: e.target.value })}>
+            <option value="">— Sin cargo —</option>
+            {CARGOS_PERSONAL.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-500">Aparece en el personal de las inspecciones.</p>
         </div>
         <CamposAcceso rol={f.rol} onRol={(rol) => setF({ ...f, rol })} />
         {!u && <p className="text-xs text-slate-500">Se generará una contraseña temporal para entregarle.</p>}

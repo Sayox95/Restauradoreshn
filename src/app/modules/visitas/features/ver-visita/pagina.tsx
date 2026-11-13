@@ -201,7 +201,6 @@ export function VerVisita() {
                   <tr>
                     <th className="px-3 py-2">Nombre</th>
                     <th className="px-3 py-2">Cargo</th>
-                    <th className="px-3 py-2">N° emp.</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -209,7 +208,6 @@ export function VerVisita() {
                     <tr key={i}>
                       <td className="px-3 py-2 font-semibold text-slate-900">{p.nombre}</td>
                       <td className="px-3 py-2 text-slate-600">{p.cargo ?? '—'}</td>
-                      <td className="px-3 py-2 text-slate-600">{p.id ?? '—'}</td>
                     </tr>
                   ))}
                 </tbody>

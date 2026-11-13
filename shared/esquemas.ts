@@ -57,6 +57,11 @@ const telefonoObligatorio = z
   .trim()
   .min(1, 'Ingrese su número de celular')
   .regex(/^[0-9+()\-\s]{7,20}$/, 'Número de celular no válido');
+/** Cargo de la cuenta: uno de CARGOS_PERSONAL (pasa tal cual al personal de la inspección). */
+const cargo = z
+  .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
+  .optional()
+  .transform((v) => v || null);
 const password = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200);
 
 /** Alta desde Administración: la contraseña la genera el sistema (temporal, se cambia al ingresar). */
@@ -65,6 +70,7 @@ export const usuarioCrearEsquema = z.object({
   nombre: nombrePersona,
   telefono: telefonoObligatorio,
   rol: z.enum(ROLES),
+  cargo,
 });
 
 /** Datos de la cuenta que corrige un administrador (el estado y la contraseña tienen sus propias acciones). */
@@ -73,6 +79,7 @@ export const usuarioEditarEsquema = z.object({
   correo: correoInstitucional.optional(),
   telefono,
   rol: z.enum(ROLES).optional(),
+  cargo,
 });
 
 export const aprobarCuentaEsquema = z.object({
@@ -128,17 +135,6 @@ export const materialCatalogoEsquema = z.object({
   nombre: obligatorio('el nombre', 200),
   unidad: textoOpcional(20),
   stock: numeroOpcional(0, 1e9),
-  activo,
-});
-
-export const personaCatalogoEsquema = z.object({
-  nombre: obligatorio('el nombre', 100),
-  /** Uno de CARGOS_PERSONAL: la misma lista de la hoja, para que el cargo pase tal cual a la inspección. */
-  cargo: z
-    .union([z.enum(CARGOS_PERSONAL), z.literal(''), z.null()])
-    .optional()
-    .transform((v) => v || null),
-  empleado_id: textoOpcional(40),
   activo,
 });
 

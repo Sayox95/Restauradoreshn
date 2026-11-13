@@ -11,6 +11,8 @@ export interface UsuarioSesion {
   debe_cambiar_password: boolean;
   /** Perfil del usuario (se muestra en pantalla); el acceso se decide solo por `permisos`. */
   rol: Rol;
+  /** Cargo (uno de CARGOS_PERSONAL): pasa al personal de la inspección. */
+  cargo: string | null;
   /** Códigos utcd_restauradores_<modulo>_<accion> de sus roles (como los claims del token del SSO). */
   permisos: string[];
 }
@@ -41,12 +43,11 @@ export interface Material {
   stock: number | null;
   activo: boolean;
 }
+/** Cuenta que se puede agregar al personal de una inspección (mismo nivel o menor). */
 export interface Persona {
   id: number;
   nombre: string;
   cargo: string | null;
-  empleado_id: string | null;
-  activo: boolean;
 }
 export interface TipoRestaurador {
   id: number;

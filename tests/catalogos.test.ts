@@ -29,18 +29,24 @@ describe('catálogos de la hoja de visita', () => {
     expect((await t.DB.prepare("SELECT COUNT(*) AS n FROM auditoria WHERE entidad = 'restauradores'").first<{ n: number }>())!.n).toBe(2);
   });
 
-  it('el cargo del personal es de la lista de la hoja; uno escrito a mano antes no pasa a la inspección', async () => {
-    const c = (await t.crearUsuario('ana', 'admin')).cookie;
-    const persona = (cargo: string) => t.pedir('POST', '/api/v1/catalogos/personal', { cookie: c, cuerpo: { nombre: `P ${cargo}`, cargo } });
-    expect((await persona('Técnico SCADA')).status).toBe(201);
-    expect((await persona('Técnico')).status).toBe(422);
-    // Un cargo libre guardado por la versión anterior.
-    await t.DB.prepare("INSERT INTO personal (nombre, cargo) VALUES ('Antiguo', 'Técnico')").run();
-    const f = (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie: c })).datos.datos;
-    expect(f.personal.map((p: { nombre: string; cargo: string | null }) => [p.nombre, p.cargo])).toEqual([
-      ['Antiguo', null],
-      ['P Técnico SCADA', 'Técnico SCADA'],
-    ]);
+  it('el personal de la inspección sale de las cuentas activas del mismo nivel o menor', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    const tec = await t.crearUsuario('tito', 'tecnico');
+    await t.crearUsuario('teo', 'tecnico');
+    await t.DB.prepare("UPDATE usuarios SET estado = 'inactiva' WHERE usuario = 'teo'").run();
+    // El cargo se asigna en la cuenta, de la misma lista de la hoja.
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo: 'Técnico SCADA' } })).status).toBe(200);
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo: 'Técnico' } })).status).toBe(422);
+    const nombres = async (cookie: string) =>
+      ((await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos.datos.personal as { nombre: string; cargo: string | null }[]).map(
+        (p) => `${p.nombre}${p.cargo ? ` (${p.cargo})` : ''}`,
+      );
+    expect(await nombres(tec.cookie)).toEqual(['Nombre tito (Técnico SCADA)']);
+    expect(await nombres(sup.cookie)).toEqual(['Nombre sara', 'Nombre tito (Técnico SCADA)']);
+    expect(await nombres(admin.cookie)).toEqual(['Nombre ana', 'Nombre sara', 'Nombre tito (Técnico SCADA)']);
+    // El catálogo «Personal» ya no existe.
+    expect((await t.pedir('GET', '/api/v1/catalogos/personal', { cookie: admin.cookie })).status).toBe(404);
   });
 
   it('arma marcas, módems y tableros para el formulario', async () => {

@@ -491,17 +491,14 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   rect(ML, yy, persW, cabP, BLUE, null, 1.2);
   setFont(6.2, 'bold', WHITE);
   txt('NOMBRE', ML + 2.5, yy + 3.8);
-  txt('CARGO', ML + persW * 0.56, yy + 3.8);
-  txt('N° EMP.', ML + persW * 0.84, yy + 3.8);
+  txt('CARGO', ML + persW * 0.6, yy + 3.8);
   personal.forEach((p, i) => {
     const ry = yy + cabP + i * filaP;
     if (i % 2 === 0) rect(ML + 0.3, ry, persW - 0.6, filaP, BGROW);
     setFont(7.6, 'bold', TXT);
-    txt(ajustar(p.nombre || '—', persW * 0.54 - 3), ML + 2.5, ry + 4.2);
+    txt(ajustar(p.nombre || '—', persW * 0.58 - 3), ML + 2.5, ry + 4.2);
     setFont(7, 'normal', MUTED);
-    txt(ajustar(p.cargo || '—', persW * 0.28 - 2), ML + persW * 0.56, ry + 4.2);
-    setFont(7, 'normal', TXT);
-    txt(ajustar(p.id || '—', persW * 0.16 - 2), ML + persW * 0.84, ry + 4.2);
+    txt(ajustar(p.cargo || '—', persW * 0.4 - 3), ML + persW * 0.6, ry + 4.2);
   });
   rect(firmaX, y0, firmaW, altoBloque, BGROW, BORDER, 1.2);
   setFont(5.8, 'bold', MUTED);

@@ -1,7 +1,6 @@
 /** Las nueve secciones de la hoja de inspección. Una columna al capturar (salvo mediciones, excepción E4). */
 import {
   ANTENAS,
-  CARGOS_PERSONAL,
   FASES_CONEXION,
   GRUPOS_AJUSTE,
   MEDIOS_EXTINCION,
@@ -19,6 +18,7 @@ import {
 import type { CatalogosVisita, Restaurador } from '@shared/tipos';
 import { esCooper, esMonofasico } from '@shared/visitas';
 import { Plus, Search, X } from 'lucide-react';
+import { Avatar } from '@/common/components/Avatar';
 import { useMemo, useState } from 'react';
 import { Bloque, Campo, FilaMediciones, Lista, Opciones, Texto } from './campos';
 import { opcionesDe } from './catalogos';
@@ -579,69 +579,66 @@ export function Observaciones({ b, set }: PropsSeccion) {
 
 // ── 9 · Personal y firma ───────────────────────────────────────────────────────────────────
 export function Personal({ b, set, faltan, cat }: PropsSeccion) {
-  // El nombre del responsable se copia del técnico #1 mientras no se escriba a mano.
+  // El técnico #1 es quien inspecciona (fijo). Los demás se eligen de las cuentas de su nivel o menor
+  // (las entrega el servidor en el catálogo de la inspección). El nombre del responsable se copia del
+  // técnico #1 mientras no se escriba a mano.
   const conPersonal = (personal: PersonaB[]) => set({ personal, ...(b.responsable_a_mano ? {} : { firma_responsable: personal[0]?.nombre ?? '' }) });
-  const cambiar = (i: number, c: Partial<PersonaB>) => conPersonal(b.personal.map((p, j) => (j === i ? { ...p, ...c } : p)));
+  const elegidos = new Set(b.personal.map((p) => p.usuario_id).filter((x): x is number => x !== null));
+  const disponibles = (cat?.personal ?? []).filter((x) => !elegidos.has(x.id));
+  const elegir = (i: number, id: number) => {
+    const per = cat?.personal.find((x) => x.id === id);
+    conPersonal(b.personal.map((p, j) => (j === i ? { usuario_id: id, nombre: per?.nombre ?? '', cargo: per?.cargo ?? '' } : p)));
+  };
   return (
     <>
       <Bloque titulo="Personal de la inspección">
         {b.personal.map((p, i) => (
-          <div key={i} className="tarjeta space-y-3 p-4">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-slate-800">Técnico #{i + 1}</p>
-              {i > 0 && (
-                <button
-                  type="button"
-                  className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"
-                  aria-label={`Quitar técnico ${i + 1}`}
-                  onClick={() => conPersonal(b.personal.filter((_, j) => j !== i))}
+          <div key={i} data-campo={`personal.${i}.nombre`} className="tarjeta flex items-center gap-3 p-3">
+            <Avatar nombre={p.nombre || '?'} />
+            <div className="min-w-0 flex-1">
+              {p.usuario_id || i === 0 ? (
+                <>
+                  <p className="truncate font-semibold text-slate-900">{p.nombre || '—'}</p>
+                  <p className="truncate text-sm text-slate-500">
+                    {p.cargo || 'Sin cargo'}
+                    {i === 0 && ' · quien inspecciona'}
+                  </p>
+                </>
+              ) : (
+                <select
+                  id={`v-personal.${i}.nombre`}
+                  className={`campo ${faltan.has(`personal.${i}.nombre`) ? 'border-rose-400' : ''}`}
+                  value=""
+                  aria-label={`Técnico ${i + 1}`}
+                  onChange={(e) => elegir(i, Number(e.target.value))}
                 >
-                  <X className="h-5 w-5" />
-                </button>
+                  <option value="">— Elegir técnico —</option>
+                  {disponibles.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.nombre}
+                      {x.cargo ? ` · ${x.cargo}` : ''}
+                    </option>
+                  ))}
+                </select>
               )}
             </div>
-            <Campo id={`personal.${i}.nombre`} etiqueta="Técnico" requerido falta={faltan.has(`personal.${i}.nombre`)}>
-              <select
-                id={`v-personal.${i}.nombre`}
-                className="campo"
-                value={p.eleccion}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  const per = cat?.personal.find((x) => x.nombre === v);
-                  // El catálogo solo entrega cargos de la lista de la hoja (CARGOS_PERSONAL): se copian tal cual.
-                  cambiar(
-                    i,
-                    v === 'OTRO' ? { eleccion: v, nombre: '' } : { eleccion: v, nombre: v, cargo: per?.cargo ?? p.cargo, id: per?.empleado_id ?? p.id },
-                  );
-                }}
+            {i > 0 && (
+              <button
+                type="button"
+                className="rounded-lg p-2 text-rose-600 hover:bg-rose-50"
+                aria-label={`Quitar técnico ${i + 1}`}
+                onClick={() => conPersonal(b.personal.filter((_, j) => j !== i))}
               >
-                <option value="">— Elegir —</option>
-                {cat?.personal.map((x) => (
-                  <option key={x.id} value={x.nombre}>
-                    {x.nombre}
-                    {x.cargo ? ` · ${x.cargo}` : ''}
-                  </option>
-                ))}
-                <option value="OTRO">Otro (escribir el nombre)</option>
-              </select>
-            </Campo>
-            {p.eleccion === 'OTRO' && (
-              <Campo id={`personal.${i}.manual`} etiqueta="Nombre completo" requerido>
-                <Texto id={`personal.${i}.manual`} valor={p.nombre} onCambio={(v) => cambiar(i, { nombre: v })} />
-              </Campo>
+                <X className="h-5 w-5" />
+              </button>
             )}
-            <Campo id={`personal.${i}.cargo`} etiqueta="Cargo">
-              <Lista id={`personal.${i}.cargo`} valor={p.cargo} opciones={CARGOS_PERSONAL} onCambio={(v) => cambiar(i, { cargo: v })} />
-            </Campo>
-            <Campo id={`personal.${i}.id`} etiqueta="N° de empleado">
-              <Texto id={`personal.${i}.id`} valor={p.id} onCambio={(v) => cambiar(i, { id: v })} />
-            </Campo>
           </div>
         ))}
         <button
           type="button"
           className="btn-secundario w-full border-dashed"
-          onClick={() => conPersonal([...b.personal, { eleccion: '', nombre: '', cargo: '', id: '' }])}
+          disabled={!disponibles.length || b.personal.some((p, i) => i > 0 && !p.usuario_id)}
+          onClick={() => conPersonal([...b.personal, { usuario_id: null, nombre: '', cargo: '' }])}
         >
           <Plus className="h-5 w-5" /> Agregar técnico
         </button>

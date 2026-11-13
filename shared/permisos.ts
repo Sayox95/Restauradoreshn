@@ -63,17 +63,25 @@ export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Perm
 
 export const TODOS_LOS_PERMISOS: Permiso[] = MODULOS.flatMap((m) => m.permisos.map((p) => p.codigo));
 
-/** Roles del sistema (utcd_<sistema>_<perfil>): solo agrupan permisos. */
-export const ROLES_SISTEMA: { codigo: string; nombre: string; perfil: Rol; permisos: Permiso[] }[] = [
-  { codigo: 'utcd_restauradores_administrador', nombre: 'Administrador', perfil: 'admin', permisos: TODOS_LOS_PERMISOS },
+/**
+ * Roles del sistema (utcd_<sistema>_<perfil>): agrupan permisos. `nivel` ordena los perfiles: al armar
+ * el personal de una inspección se ofrecen las cuentas del mismo nivel o menor (un dato del perfil, no
+ * una pregunta por el rol en el código).
+ */
+export const ROLES_SISTEMA: { codigo: string; nombre: string; perfil: Rol; nivel: number; permisos: Permiso[] }[] = [
+  { codigo: 'utcd_restauradores_administrador', nombre: 'Administrador', perfil: 'admin', nivel: 3, permisos: TODOS_LOS_PERMISOS },
   {
     codigo: 'utcd_restauradores_supervisor',
     nombre: 'Supervisor',
     perfil: 'supervisor',
+    nivel: 2,
     permisos: [PermisosVisitas.Registrar, PermisosVisitas.Consultar, PermisosVisitas.Exportar],
   },
-  { codigo: 'utcd_restauradores_tecnico', nombre: 'Técnico', perfil: 'tecnico', permisos: [PermisosVisitas.Registrar] },
+  { codigo: 'utcd_restauradores_tecnico', nombre: 'Técnico', perfil: 'tecnico', nivel: 1, permisos: [PermisosVisitas.Registrar] },
 ];
+
+/** Nivel de un perfil (ver ROLES_SISTEMA). */
+export const nivelDePerfil = (perfil: Rol) => ROLES_SISTEMA.find((r) => r.perfil === perfil)?.nivel ?? 0;
 
 /** Rol del sistema que corresponde a cada perfil de usuario. */
 export const rolDePerfil = (perfil: Rol) => ROLES_SISTEMA.find((r) => r.perfil === perfil)!.codigo;

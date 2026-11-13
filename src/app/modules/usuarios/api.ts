@@ -11,6 +11,7 @@ export interface Usuario {
   nombre: string;
   telefono: string | null;
   rol: Rol;
+  cargo: string | null;
   estado: EstadoCuenta;
   debe_cambiar_password: boolean;
   creado_en: string;
@@ -37,6 +38,7 @@ export interface DatosUsuario {
   nombre: string;
   telefono: string | null;
   rol: Rol;
+  cargo: string | null;
 }
 
 export const listarUsuarios = () => get<Usuario[]>(BASE);

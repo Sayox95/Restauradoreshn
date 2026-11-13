@@ -107,9 +107,20 @@ export function passwordTemporal(): string {
 }
 
 export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioSesion | null> {
-  const u = await env.DB.prepare("SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol FROM usuarios WHERE id = ? AND estado = 'activa'")
+  const u = await env.DB.prepare(
+    "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, cargo FROM usuarios WHERE id = ? AND estado = 'activa'",
+  )
     .bind(id)
-    .first<{ id: number; usuario: string; nombre: string; correo: string | null; telefono: string | null; debe_cambiar_password: number; rol: Rol }>();
+    .first<{
+      id: number;
+      usuario: string;
+      nombre: string;
+      correo: string | null;
+      telefono: string | null;
+      debe_cambiar_password: number;
+      rol: Rol;
+      cargo: string | null;
+    }>();
   if (!u) return null;
   const permisos = await env.DB.prepare(
     'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',

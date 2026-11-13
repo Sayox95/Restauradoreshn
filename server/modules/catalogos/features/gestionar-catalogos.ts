@@ -1,13 +1,7 @@
 import type { z } from 'zod';
-import { CARGOS_PERSONAL, ELEMENTOS_MODEM } from '../../../../shared/constantes';
-import type {
-  marcaCatalogoEsquema,
-  materialCatalogoEsquema,
-  personaCatalogoEsquema,
-  restauradorEsquema,
-  tableroEsquema,
-  tipoCatalogoEsquema,
-} from '../../../../shared/esquemas';
+import { ELEMENTOS_MODEM } from '../../../../shared/constantes';
+import { ROLES_SISTEMA, nivelDePerfil } from '../../../../shared/permisos';
+import type { marcaCatalogoEsquema, materialCatalogoEsquema, restauradorEsquema, tableroEsquema, tipoCatalogoEsquema } from '../../../../shared/esquemas';
 import type { CatalogosVisita } from '../../../../shared/tipos';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
 import { ApiError, noEncontrado } from '../../../plumbing/http';
@@ -53,15 +47,6 @@ export const CATALOGOS = {
     orden: 'nombre',
     unico: ['codigo'],
   },
-  personal: {
-    tabla: 'personal',
-    columnas: ['nombre', 'cargo', 'empleado_id'],
-    activoSql: 'COALESCE(activo, 1)',
-    activoColumna: 'activo',
-    activoValor: (a) => (a ? 1 : 0),
-    actualizado: 'updated_at',
-    orden: 'nombre',
-  },
   tipos: {
     tabla: 'tipos',
     columnas: ['elemento', 'tipo'],
@@ -85,7 +70,6 @@ export type Catalogo = keyof typeof CATALOGOS;
 type Entrada =
   | z.output<typeof restauradorEsquema>
   | z.output<typeof materialCatalogoEsquema>
-  | z.output<typeof personaCatalogoEsquema>
   | z.output<typeof tipoCatalogoEsquema>
   | z.output<typeof marcaCatalogoEsquema>;
 
@@ -195,7 +179,13 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
        WHERE ${CATALOGOS.restauradores.activoSql} = 1 ORDER BY circuito, energis`,
     ),
     db.prepare('SELECT id, codigo, nombre, unidad, stock, 1 AS activo FROM materiales WHERE COALESCE(activo, 1) = 1 ORDER BY nombre'),
-    db.prepare('SELECT id, nombre, cargo, empleado_id, 1 AS activo FROM personal WHERE COALESCE(activo, 1) = 1 ORDER BY nombre'),
+    // Personal de la inspección: cuentas activas del mismo nivel que quien inspecciona o menor.
+    db
+      .prepare(
+        `SELECT id, nombre, cargo FROM usuarios WHERE estado = 'activa'
+         AND (CASE rol ${ROLES_SISTEMA.map(() => 'WHEN ? THEN ?').join(' ')} ELSE 0 END) <= ? ORDER BY nombre`,
+      )
+      .bind(...ROLES_SISTEMA.flatMap((x) => [x.perfil, x.nivel]), nivelDePerfil(ctx.usuario.rol)),
     db.prepare('SELECT DISTINCT tipo FROM tipos WHERE COALESCE(activo, 1) = 1 AND tipo IS NOT NULL ORDER BY tipo'),
     db.prepare('SELECT elemento, marca, modelo, tipo_control FROM marcas WHERE COALESCE(activo, 1) = 1 ORDER BY marca, modelo'),
     db.prepare('SELECT marca, campo FROM tableros WHERE COALESCE(activo, 1) = 1 ORDER BY marca, COALESCE(orden, 99), id'),
@@ -231,12 +221,7 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
   return {
     restauradores: rest!.results.map(fila) as unknown as CatalogosVisita['restauradores'],
     materiales: mats!.results.map(fila) as unknown as CatalogosVisita['materiales'],
-    // Cargos escritos a mano en la versión anterior que no son de la lista de la hoja no se ofrecen (se
-    // corrigen en Catálogos → Personal); así la inspección solo recibe cargos válidos.
-    personal: pers!.results.map((p) => ({
-      ...fila(p),
-      cargo: (CARGOS_PERSONAL as readonly unknown[]).includes(p.cargo) ? p.cargo : null,
-    })) as unknown as CatalogosVisita['personal'],
+    personal: pers!.results as unknown as CatalogosVisita['personal'],
     tipos: tipos!.results.map((t) => String(t.tipo)),
     marcas: [...restMap.values()],
     modems: [...modemMap.values()],

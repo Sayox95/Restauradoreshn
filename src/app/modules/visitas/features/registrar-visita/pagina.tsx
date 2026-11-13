@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
+import { useSesion } from '@/common/seguridad/sesion';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
 import { fijarModoCaptura } from '@/common/menu/modo-captura';
@@ -43,6 +44,9 @@ function descargar(blob: Blob, nombre: string) {
 
 export function RegistrarVisita() {
   const { data: cat } = useCatalogosVisita();
+  const { usuario } = useSesion();
+  // Quien inspecciona (técnico #1 y responsable por defecto); se lee una vez, al abrir el formulario.
+  const yo = useRef(usuario ? { id: usuario.id, nombre: usuario.nombre, cargo: usuario.cargo } : null);
   const avisar = useAvisos();
   const confirmar = useConfirmar();
   const navegar = useNavigate();
@@ -61,12 +65,12 @@ export function RegistrarVisita() {
     leerBorrador()
       .then((g) => {
         if (g) {
-          setB({ ...borradorNuevo(), ...(g.datos as Partial<Borrador>) } as Borrador);
+          setB({ ...borradorNuevo(yo.current), ...(g.datos as Partial<Borrador>) } as Borrador);
           setFotos(g.fotos ?? []);
           setPaso(Math.min(Math.max(g.paso ?? 0, 0), SECCIONES.length - 1));
-        } else setB(borradorNuevo());
+        } else setB(borradorNuevo(yo.current));
       })
-      .catch(() => setB(borradorNuevo()));
+      .catch(() => setB(borradorNuevo(yo.current)));
   }, []);
 
   const conDatos = !!b && tieneDatos(b, fotos.length);

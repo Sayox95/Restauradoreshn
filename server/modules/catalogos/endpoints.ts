@@ -7,7 +7,6 @@ import {
   configuracionEsquema,
   marcaCatalogoEsquema,
   materialCatalogoEsquema,
-  personaCatalogoEsquema,
   restauradorEsquema,
   tableroEsquema,
   tipoCatalogoEsquema,
@@ -27,7 +26,6 @@ ruta('GET', '/api/v1/catalogos/visita', [PermisosVisitas.Registrar, PermisosVisi
 for (const [cat, esquema] of [
   ['restauradores', restauradorEsquema],
   ['materiales', materialCatalogoEsquema],
-  ['personal', personaCatalogoEsquema],
   ['tipos', tipoCatalogoEsquema],
   ['marcas', marcaCatalogoEsquema],
 ] as const) {

@@ -78,6 +78,7 @@ const COLUMNAS: Columna<Usuario>[] = [
   },
   { titulo: 'Usuario', celda: (u) => <span className="font-mono">{u.usuario}</span> },
   { titulo: 'Perfil', celda: (u) => ROL_ETIQUETA[u.rol] },
+  { titulo: 'Cargo', celda: (u) => u.cargo ?? '—' },
   { titulo: 'Estado', celda: (u) => <BadgeCuenta estado={u.estado} /> },
   { titulo: 'Último ingreso', celda: ultimoIngreso, clase: 'whitespace-nowrap' },
 ];

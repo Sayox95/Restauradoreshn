@@ -37,7 +37,7 @@ describe('migraciones', () => {
     expect((await t.pedir('GET', '/api/v1/sesion/yo')).status).toBe(200);
     const sup = await t.crearUsuario('carla', 'supervisor');
     const aplicadas = (await t.DB.prepare('SELECT name FROM d1_migrations ORDER BY name').all<{ name: string }>()).results.map((r) => r.name);
-    expect(aplicadas).toEqual(['0003_cuentas.sql', '0004_visitas_registro.sql']);
+    expect(aplicadas).toEqual(['0003_cuentas.sql', '0004_visitas_registro.sql', '0005_cargo_usuario.sql']);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.
     const lista = (await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos.datos;

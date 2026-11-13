@@ -10,13 +10,14 @@ export interface FilaUsuario {
   nombre: string;
   telefono: string | null;
   rol: Rol;
+  cargo: string | null;
   estado: EstadoCuenta;
   debe_cambiar_password: number;
   creado_en: string;
   ultimo_ingreso_en: string | null;
 }
 
-export const COLUMNAS = 'id, usuario, correo, nombre, telefono, rol, estado, debe_cambiar_password, creado_en, ultimo_ingreso_en';
+export const COLUMNAS = 'id, usuario, correo, nombre, telefono, rol, cargo, estado, debe_cambiar_password, creado_en, ultimo_ingreso_en';
 
 export async function cargarUsuario(ctx: Ctx, id: number) {
   const u = await ctx.env.DB.prepare(`SELECT ${COLUMNAS} FROM usuarios WHERE id = ?`).bind(id).first<FilaUsuario>();

@@ -1,4 +1,4 @@
-import { CARGOS_PERSONAL, ELEMENTOS_MARCA } from '@shared/constantes';
+import { ELEMENTOS_MARCA } from '@shared/constantes';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -55,15 +55,6 @@ const DEFINICIONES: Record<TipoCatalogo, { campos: DefCampo[]; principal: (r: Fi
     ],
     principal: (r) => String(r.nombre ?? ''),
     detalle: (r) => [r.codigo, r.unidad, r.stock !== null && r.stock !== undefined ? `Stock ${r.stock}` : ''].filter(Boolean).join(' · '),
-  },
-  personal: {
-    campos: [
-      { clave: 'nombre', etiqueta: 'Nombre completo', obligatorio: true },
-      { clave: 'cargo', etiqueta: 'Cargo', tipo: 'lista', opciones: CARGOS_PERSONAL },
-      { clave: 'empleado_id', etiqueta: 'N° de empleado' },
-    ],
-    principal: (r) => String(r.nombre ?? ''),
-    detalle: (r) => [r.cargo, r.empleado_id].filter(Boolean).join(' · '),
   },
   tipos: {
     campos: [

@@ -48,6 +48,7 @@ export function MiCuenta() {
               ['Correo', usuario.correo ?? '—'],
               ['Celular', usuario.telefono ?? '—'],
               ['Perfil', ROL_ETIQUETA[usuario.rol]],
+              ['Cargo', usuario.cargo ?? '—'],
             ] as const
           ).map(([titulo, valor]) => (
             <div key={titulo} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">

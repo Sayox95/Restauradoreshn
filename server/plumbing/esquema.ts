@@ -72,6 +72,8 @@ export const VISITAS_REGISTRO = [
   `ALTER TABLE marcas ADD COLUMN activo INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0, 1))`,
 ];
 
+export const CARGO_USUARIO = [`ALTER TABLE usuarios ADD COLUMN cargo TEXT`];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -85,6 +87,7 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0002_campos_formulario_v2.sql', sentencias: CAMPOS_V2, yaAplicado: existeColumna('registros', 'num_fotos') },
   { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
   { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
+  { migracion: '0005_cargo_usuario.sql', sentencias: CARGO_USUARIO, yaAplicado: existeColumna('usuarios', 'cargo') },
 ];
 
 export let listo = false;

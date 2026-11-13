@@ -36,7 +36,7 @@ const ACCION: Record<string, string> = {
   editar_cuenta: 'Actualizó sus datos',
 };
 
-const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil' };
+const CAMPOS: Record<string, string> = { nombre: 'nombre', correo: 'correo', telefono: 'celular', rol: 'perfil', cargo: 'cargo' };
 
 /** Qué cambió, en una línea (perfil, motivo o campos editados). */
 function detalle(h: EventoCuenta): string | null {
@@ -163,6 +163,7 @@ export function VerUsuario() {
           <Dato titulo="Correo">{u.correo ?? '—'}</Dato>
           <Dato titulo="Celular">{u.telefono ?? '—'}</Dato>
           <Dato titulo="Perfil">{ROL_ETIQUETA[u.rol]}</Dato>
+          <Dato titulo="Cargo">{u.cargo ?? '—'}</Dato>
         </dl>
       </Seccion>
 
