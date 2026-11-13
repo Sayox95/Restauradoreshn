@@ -9,11 +9,14 @@ import { useParams } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Vacio } from '@/common/components/ui';
 import { type Columna, Tabla } from '@/common/components/Tabla';
 import { VisorFotos } from '@/common/components/VisorFotos';
+import { useAccess } from '@/common/seguridad/acceso';
 import { TONO } from '@/common/tonos';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import type { Visita } from '@shared/visitas';
 import { urlFoto, urlPdf, verVisita } from '../../api';
+import { BotonEliminar } from '../../components/eliminar';
 import { type BloqueFicha, type CampoFicha, estructuraFicha, tonoEstado } from '../../components/ficha';
+import { PermisosVisitas } from '../../permisos';
 
 // Clases fijas por cantidad de columnas (Tailwind necesita verlas escritas completas).
 const COLUMNAS_PC: Record<number, string> = {
@@ -94,6 +97,7 @@ export function VerVisita() {
   const id = Number(useParams().id);
   const consulta = useQuery({ queryKey: ['visita', id], queryFn: () => verVisita(id), enabled: Number.isInteger(id) });
   const [foto, setFoto] = useState<number | null>(null);
+  const { hasAccess } = useAccess();
   if (consulta.isPending && consulta.fetchStatus === 'paused') return <Vacio texto="Sin conexión: la inspección se mostrará al volver la señal." />;
   if (consulta.isPending) return <Cargando />;
   if (consulta.isError || !consulta.data)
@@ -227,6 +231,8 @@ export function VerVisita() {
           </figure>
         </div>
       </Tarjeta>
+
+      {hasAccess([PermisosVisitas.Eliminar]) && <BotonEliminar id={d.id} folio={d.visita_num} />}
 
       {foto !== null && <VisorFotos fotos={fotos} inicial={foto} onCerrar={() => setFoto(null)} />}
     </div>

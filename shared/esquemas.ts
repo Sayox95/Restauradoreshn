@@ -91,6 +91,9 @@ export const aprobarCuentaEsquema = z.object({ rol: z.enum(ROLES), permisos: per
 
 export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
 
+/** Eliminar una inspección: el motivo es obligatorio (queda en el registro). */
+export const eliminarVisitaEsquema = z.object({ motivo: z.string().trim().min(1, 'Escriba el motivo').max(300) });
+
 /** Solicitud de cuenta desde la pantalla de ingreso: solo correos del dominio institucional. */
 export const registroEsquema = z.object({
   nombre: nombrePersona,

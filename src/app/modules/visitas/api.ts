@@ -1,7 +1,7 @@
 /** Llamadas HTTP del módulo Visitas (ruta base /api/v1/visitas). */
 import type { VisitaDetalle, VisitaResumen } from '@shared/tipos';
 import type { VisitaEntrada } from '@shared/visitas';
-import { get, pedir, qs, subirArchivo } from '@/common/http/api';
+import { get, pedir, post, qs, subirArchivo } from '@/common/http/api';
 
 const BASE = '/api/v1/visitas';
 
@@ -24,6 +24,8 @@ export const verVisita = (id: number) => get<VisitaDetalle>(`${BASE}/${id}`);
 export const urlExportar = (f: Filtros = {}) => `${BASE}/exportar${qs({ q: f.q, desde: f.desde, hasta: f.hasta })}`;
 export const urlFoto = (id: number, orden: number, v = '') => `${BASE}/${id}/fotos/${orden}${v ? `?v=${encodeURIComponent(v)}` : ''}`;
 export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
+/** Elimina (oculta) una inspección con el motivo. */
+export const eliminarVisita = (id: number, motivo: string) => post(`${BASE}/${id}/eliminar`, { motivo });
 
 /** Registra la visita (idempotente por número de visita: reenviarla no la duplica). */
 export const registrarVisita = (v: VisitaEntrada, signal?: AbortSignal) =>

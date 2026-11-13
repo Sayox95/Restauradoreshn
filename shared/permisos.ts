@@ -18,6 +18,8 @@ export const PermisosVisitas = {
   Registrar: 'utcd_restauradores_visitas_registrar',
   Consultar: 'utcd_restauradores_visitas_consultar',
   Exportar: 'utcd_restauradores_visitas_exportar',
+  /** Ocultar una inspección registrada (queda en la base con quién, cuándo y por qué). */
+  Eliminar: 'utcd_restauradores_visitas_eliminar',
 } as const;
 
 /** Usuarios y solicitudes de cuenta (al migrar lo reemplaza el SSO). */
@@ -47,6 +49,7 @@ export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Perm
       { codigo: PermisosVisitas.Registrar, nombre: 'Registrar inspecciones' },
       { codigo: PermisosVisitas.Consultar, nombre: 'Consultar las inspecciones de todos' },
       { codigo: PermisosVisitas.Exportar, nombre: 'Exportar inspecciones a CSV' },
+      { codigo: PermisosVisitas.Eliminar, nombre: 'Eliminar inspecciones' },
     ],
   },
   {

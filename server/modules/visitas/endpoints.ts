@@ -1,10 +1,12 @@
 /** Endpoints del módulo Visitas (ruta base /api/v1/visitas). Cada uno declara su permiso. */
+import { eliminarVisitaEsquema } from '../../../shared/esquemas';
 import { visitaEsquema } from '../../../shared/visitas';
 import { idParam, leerJson, paginacion } from '../../plumbing/http';
 import { SOLO_SESION, r, ruta } from '../../plumbing/router';
 import { PermisosVisitas } from './permisos';
 import { detalleVisita } from './comun';
 import { descargarFoto, descargarPdf, subirFoto, subirPdf } from './features/archivos-visita';
+import { eliminarVisita } from './features/eliminar-visita';
 import { exportarVisitas } from './features/exportar';
 import { listarVisitas } from './features/listar-visitas';
 import { registrarVisita } from './features/registrar-visita';
@@ -27,6 +29,9 @@ ruta('POST', '/api/v1/visitas', [PermisosVisitas.Registrar], async (ctx) => {
 });
 ruta('GET', '/api/v1/visitas/:id', SOLO_SESION /* sin visitas_consultar, solo las que registró (filtroVisitas) */, async (ctx) =>
   r(ctx, await detalleVisita(ctx, idParam(ctx.params.id))),
+);
+ruta('POST', '/api/v1/visitas/:id/eliminar', [PermisosVisitas.Eliminar], async (ctx) =>
+  r(ctx, await eliminarVisita(ctx, idParam(ctx.params.id), (await leerJson(ctx.req, eliminarVisitaEsquema)).motivo)),
 );
 
 // --- Fotos originales (E2) y PDF de la ficha (E3) ---

@@ -35,15 +35,18 @@ export function requierePermiso(ctx: Ctx, ...permisos: Permiso[]) {
   if (!tiene(ctx.usuario, ...permisos)) throw prohibido();
 }
 
+/** Las inspecciones eliminadas no se ven en ninguna parte (las anteriores a v3 no tienen fila en v). */
+export const NO_ELIMINADA = 'v.eliminada_en IS NULL';
+
 /**
  * Inspecciones propias (alias `r` para registros y `v` para visitas_registro, ver DESDE_VISITAS): las
  * que registró el usuario y aquellas en las que figura en el personal (por su usuario_id).
  */
 export function visitasPropias(usuario: UsuarioSesion): { sql: string; binds: number[] } {
   return {
-    sql: `(v.registrado_por = ? OR EXISTS (
+    sql: `(${NO_ELIMINADA} AND (v.registrado_por = ? OR EXISTS (
       SELECT 1 FROM json_each(CASE WHEN json_valid(r.personal_json) THEN r.personal_json ELSE '[]' END) p
-      WHERE json_extract(p.value, '$.usuario_id') = ?))`,
+      WHERE json_extract(p.value, '$.usuario_id') = ?)))`,
     binds: [usuario.id, usuario.id],
   };
 }
@@ -53,7 +56,7 @@ export function visitasPropias(usuario: UsuarioSesion): { sql: string; binds: nu
  * que participó: «datos visibles sin permiso: ver lo suyo»).
  */
 export function filtroVisitas(usuario: UsuarioSesion): { sql: string; binds: number[] } {
-  if (tiene(usuario, PermisosVisitas.Consultar)) return { sql: '1=1', binds: [] };
+  if (tiene(usuario, PermisosVisitas.Consultar)) return { sql: NO_ELIMINADA, binds: [] };
   return visitasPropias(usuario);
 }
 

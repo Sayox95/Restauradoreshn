@@ -135,6 +135,40 @@ describe('ver las visitas', () => {
   });
 });
 
+describe('eliminar inspecciones (permiso Eliminar)', () => {
+  it('solo con el permiso; queda oculta en todas partes pero guardada con quién, cuándo y el motivo', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    const tec = await t.crearUsuario('beto', 'tecnico');
+    const id = (await registrar(tec.cookie)).datos.datos.visita.id as number;
+    const eliminar = (cookie: string, cuerpo: object) => t.pedir('POST', `/api/v1/visitas/${id}/eliminar`, { cookie, cuerpo });
+    // El supervisor y el técnico no tienen el permiso; sin motivo no se elimina.
+    expect((await eliminar(sup.cookie, { motivo: 'x' })).status).toBe(403);
+    expect((await eliminar(tec.cookie, { motivo: 'x' })).status).toBe(403);
+    expect((await eliminar(admin.cookie, { motivo: '  ' })).status).toBe(422);
+    expect((await eliminar(admin.cookie, { motivo: 'Inspección de prueba' })).status).toBe(200);
+    // Ya no aparece: lista, propias, detalle, PDF y CSV.
+    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: tec.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: admin.cookie })).status).toBe(404);
+    expect((await t.pedir('GET', `/api/v1/visitas/${id}/pdf`, { cookie: admin.cookie })).status).toBe(404);
+    expect(String((await t.pedir('GET', '/api/v1/visitas/exportar', { cookie: admin.cookie })).datos)).not.toContain('HV-20261101-080000');
+    // Pero sigue en la base, con el registro de quién, cuándo y por qué.
+    const fila = await t.DB.prepare('SELECT eliminada_por, eliminada_en, motivo_eliminacion FROM visitas_registro WHERE registro_id = ?').bind(id).first();
+    expect(fila).toEqual({ eliminada_por: admin.id, eliminada_en: t.reloj.ahora, motivo_eliminacion: 'Inspección de prueba' });
+    expect(await t.DB.prepare('SELECT 1 FROM registros WHERE id = ?').bind(id).first()).not.toBeNull();
+    const aud = await t.DB.prepare("SELECT accion FROM auditoria WHERE entidad = 'visita' AND accion = 'eliminar'").first();
+    expect(aud).toEqual({ accion: 'eliminar' });
+  });
+
+  it('también elimina inspecciones de la versión anterior (sin fila de registro)', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const r = await t.DB.prepare("INSERT INTO registros (visita_num, fecha_visita) VALUES ('HV-VIEJA', '2026-01-01') RETURNING id").first<{ id: number }>();
+    expect((await t.pedir('POST', `/api/v1/visitas/${r!.id}/eliminar`, { cookie: admin.cookie, cuerpo: { motivo: 'Prueba' } })).status).toBe(200);
+    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: admin.cookie })).datos.datos.total).toBe(0);
+  });
+});
+
 describe('fotos originales y PDF (E2, E3)', () => {
   it('solo quien registró sube fotos; se sirven solo a quien puede ver la visita', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');

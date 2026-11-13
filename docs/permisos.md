@@ -9,6 +9,7 @@ El código **nunca pregunta por un rol**: solo por permisos.
 | `utcd_restauradores_visitas` | `utcd_restauradores_visitas_registrar` | Registrar inspecciones de restaurador (y ver las propias) |
 | | `utcd_restauradores_visitas_consultar` | Consultar las inspecciones de todos |
 | | `utcd_restauradores_visitas_exportar` | Exportar inspecciones a CSV |
+| | `utcd_restauradores_visitas_eliminar` | Eliminar inspecciones: quedan ocultas en toda la app, pero guardadas con quién, cuándo y el motivo (`visitas_registro.eliminada_*`) |
 | `utcd_restauradores_usuarios` | `utcd_restauradores_usuarios_gestionar` | Usuarios y solicitudes de cuenta |
 | `utcd_restauradores_catalogos` | `utcd_restauradores_catalogos_gestionar` | Restauradores, materiales, tipos, marcas, tableros, cargos y zona horaria |
 

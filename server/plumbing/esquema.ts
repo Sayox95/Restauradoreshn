@@ -108,6 +108,12 @@ export const CATALOGO_CARGOS = [
   `ALTER TABLE usuarios DROP COLUMN cargo`,
 ];
 
+export const ELIMINAR_INSPECCIONES = [
+  `ALTER TABLE visitas_registro ADD COLUMN eliminada_en TEXT`,
+  `ALTER TABLE visitas_registro ADD COLUMN eliminada_por INTEGER REFERENCES usuarios(id)`,
+  `ALTER TABLE visitas_registro ADD COLUMN motivo_eliminacion TEXT`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -136,6 +142,7 @@ export const CAMBIOS: Cambio[] = [
   },
   { migracion: '0007_permisos_usuario.sql', sentencias: PERMISOS_USUARIO, yaAplicado: existeColumna('usuarios', 'permisos_personalizados') },
   { migracion: '0008_catalogo_cargos.sql', sentencias: CATALOGO_CARGOS, yaAplicado: existeTabla('cargos') },
+  { migracion: '0009_eliminar_inspecciones.sql', sentencias: ELIMINAR_INSPECCIONES, yaAplicado: existeColumna('visitas_registro', 'motivo_eliminacion') },
 ];
 
 export let listo = false;

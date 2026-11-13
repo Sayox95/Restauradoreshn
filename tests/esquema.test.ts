@@ -44,6 +44,7 @@ describe('migraciones', () => {
       '0006_roles_por_modulo.sql',
       '0007_permisos_usuario.sql',
       '0008_catalogo_cargos.sql',
+      '0009_eliminar_inspecciones.sql',
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.
@@ -96,9 +97,9 @@ describe('migraciones', () => {
     reiniciarEsquemaParaPruebas();
     expect((await t.pedir('GET', '/api/v1/sesion/yo')).status).toBe(200);
     expect((await t.DB.prepare('SELECT usuario_id, rol_codigo FROM usuario_roles ORDER BY usuario_id').all()).results).toEqual(roles);
-    // El administrador tiene los cinco permisos por su rol.
+    // El administrador tiene todos los permisos por su rol (incluidos los que se agregaron después).
     const n = await t.DB.prepare("SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'").first<{ n: number }>();
-    expect(n!.n).toBe(5);
+    expect(n!.n).toBe(6);
   });
 
   it('el cargo de texto de cada cuenta pasa al catálogo de cargos sin perderse', async () => {
