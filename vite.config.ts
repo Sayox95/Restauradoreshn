@@ -1,11 +1,26 @@
 import react from '@vitejs/plugin-react';
 import { resolve } from 'node:path';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+/**
+ * Versión de esta compilación. Va dentro de la app (__VERSION_APP__) y en /version.json (fuera del caché
+ * del service worker): si una página se abrió sin service worker (p. ej. recarga forzada) y luego toma el
+ * control uno nuevo, la app compara ambas para saber si quedó vieja (ver src/common/pwa/pwa.ts).
+ */
+const VERSION_APP = new Date().toISOString();
+const archivoVersion = (): Plugin => ({
+  name: 'archivo-version',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: VERSION_APP }) });
+  },
+});
+
 export default defineConfig({
+  define: { __VERSION_APP__: JSON.stringify(VERSION_APP) },
   plugins: [
     react(),
+    archivoVersion(),
     VitePWA({
       // Actualización por eventos (sin consultas periódicas): el service worker nuevo se activa en
       // cuanto se instala (skipWaiting + clientsClaim) y la app recarga al detectar el cambio de

@@ -64,6 +64,8 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   aviso y la versión nueva se aplica al terminarla; nunca se recarga encima de lo escrito.
 - La versión nueva se detecta solo por eventos (abrir, volver a la app, foco, conexión, cambio de
   sección); sin consultas periódicas.
+- Página abierta sin service worker al mando (primera visita o recarga forzada): al tomar el control
+  uno nuevo se compara `__VERSION_APP__` con `/version.json` (sin caché) para saber si quedó vieja.
 
 ## Pendientes acordados
 

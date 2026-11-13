@@ -1,7 +1,7 @@
 import { RefreshCcw, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { iniciarActualizaciones } from '@/common/pwa/pwa';
+import { iniciarActualizaciones, revisarActualizacion } from '@/common/pwa/pwa';
 import { alCambiarTrabajo, hayTrabajoEnCurso } from '@/common/pwa/trabajo';
 
 /**
@@ -31,6 +31,8 @@ export function ActualizacionAutomatica() {
   useEffect(() => alCambiarTrabajo(() => setEnCurso(hayTrabajoEnCurso())), []);
 
   const ruta = useLocation().pathname;
+  // Cambiar de sección es uno de los eventos en que se revisa si hay versión nueva.
+  useEffect(() => revisarActualizacion(), [ruta]);
   useEffect(() => {
     if (!hayNueva) return;
     let hecho = false;
