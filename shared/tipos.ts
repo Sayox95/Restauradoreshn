@@ -1,4 +1,4 @@
-import type { EstadoVisita, Rol } from './constantes';
+import type { Equipo, EstadoVisita, Rol } from './constantes';
 import type { Visita } from './visitas';
 
 export interface UsuarioSesion {
@@ -105,6 +105,8 @@ export interface FotoVisita {
 export interface VisitaResumen {
   id: number;
   visita_num: string;
+  /** Equipo inspeccionado (EQUIPOS). */
+  equipo: Equipo;
   fecha_visita: string | null;
   tipo_visita: string | null;
   codigo_energis: string | null;

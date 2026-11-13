@@ -125,6 +125,21 @@ describe('ver las visitas', () => {
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: luis.cookie })).status).toBe(404);
   });
 
+  it('cada inspección lleva su equipo y la lista se filtra por equipo, tipo de visita y zona', async () => {
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    await registrar(sup.cookie);
+    // Una de la versión anterior (sin fila de registro): se lee como restaurador.
+    await t.DB.prepare("INSERT INTO registros (visita_num, fecha_visita, tipo_visita, zona) VALUES ('HV-VIEJA', '2026-01-01', 'Visita 2', 'NORTE')").run();
+    const lista = async (filtros: string) => (await t.pedir('GET', `/api/v1/visitas${filtros}`, { cookie: sup.cookie })).datos.datos;
+    const todas = await lista('');
+    expect(todas.filas.map((f: { equipo: string }) => f.equipo)).toEqual(['restaurador', 'restaurador']);
+    expect((await lista('?equipo=restaurador')).total).toBe(2);
+    expect((await lista('?tipo_visita=Visita%202')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    expect((await lista('?zona=norte')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    // Un valor que no está en la lista se ignora.
+    expect((await lista('?equipo=otro')).total).toBe(2);
+  });
+
   it('exporta a CSV con permiso de exportar', async () => {
     const sup = await t.crearUsuario('carla', 'supervisor');
     await registrar(sup.cookie);

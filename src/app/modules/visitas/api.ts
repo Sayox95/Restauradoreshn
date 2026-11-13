@@ -9,6 +9,9 @@ export interface Filtros {
   q?: string;
   desde?: string;
   hasta?: string;
+  equipo?: string;
+  tipo_visita?: string;
+  zona?: string;
   pagina?: number;
 }
 export interface ListaVisitas {
@@ -21,7 +24,7 @@ export interface ListaVisitas {
 export const misVisitas = (f: Filtros = {}) => get<ListaVisitas>(`${BASE}/mios${qs({ ...f })}`);
 export const listarVisitas = (f: Filtros = {}) => get<ListaVisitas>(`${BASE}${qs({ ...f })}`);
 export const verVisita = (id: number) => get<VisitaDetalle>(`${BASE}/${id}`);
-export const urlExportar = (f: Filtros = {}) => `${BASE}/exportar${qs({ q: f.q, desde: f.desde, hasta: f.hasta })}`;
+export const urlExportar = ({ pagina: _pagina, ...f }: Filtros = {}) => `${BASE}/exportar${qs({ ...f })}`;
 export const urlFoto = (id: number, orden: number, v = '') => `${BASE}/${id}/fotos/${orden}${v ? `?v=${encodeURIComponent(v)}` : ''}`;
 export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
 /** Elimina (oculta) una inspección con el motivo. */

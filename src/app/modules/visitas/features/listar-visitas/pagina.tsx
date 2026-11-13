@@ -3,9 +3,10 @@
  * las suyas), lo guardado en el teléfono que falta enviar (excepción E1), filtros y CSV con Exportar.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { EQUIPO_ETIQUETA, EQUIPOS, TIPOS_VISITA } from '@shared/constantes';
 import type { VisitaResumen } from '@shared/tipos';
-import { CalendarDays, CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
 import { type Columna, Tabla } from '@/common/components/Tabla';
@@ -14,11 +15,13 @@ import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
+import { useCatalogosVisita } from '../../components/catalogos';
 import { alEnviarInspecciones, useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
 
 const fechaDe = (v: VisitaResumen) => (v.fecha_visita ? fecha(`${v.fecha_visita}T12:00:00`) : '—');
+const equipoDe = (v: VisitaResumen) => EQUIPO_ETIQUETA[v.equipo] ?? v.equipo;
 
 const Archivos = ({ v }: { v: VisitaResumen }) => (
   <span className="inline-flex items-center gap-3 text-slate-500">
@@ -34,11 +37,24 @@ function columnas(todas: boolean): Columna<VisitaResumen>[] {
   return [
     { titulo: 'Folio', celda: (v) => <span className="font-mono text-xs">{v.visita_num}</span>, clase: 'whitespace-nowrap' },
     { titulo: 'Fecha', celda: fechaDe, clase: 'whitespace-nowrap' },
+    { titulo: 'Equipo', celda: equipoDe, clase: 'whitespace-nowrap' },
     { titulo: 'Energis', celda: (v) => <span className="font-semibold">{v.codigo_energis ?? '—'}</span> },
-    { titulo: 'Circuito', celda: (v) => v.circuito ?? '—', clase: 'whitespace-nowrap' },
-    { titulo: 'Ubicación', celda: (v) => v.ubicacion ?? '—' },
+    // La ubicación va debajo del circuito: como columna aparte la tabla no cabe en una pantalla común.
+    {
+      titulo: 'Circuito · ubicación',
+      celda: (v) => (
+        <span className="block max-w-[14rem]">
+          <span className="block">{v.circuito ?? '—'}</span>
+          {v.ubicacion && (
+            <span className="block truncate text-xs text-slate-500" title={v.ubicacion}>
+              {v.ubicacion}
+            </span>
+          )}
+        </span>
+      ),
+    },
     { titulo: 'Tipo', celda: (v) => v.tipo_visita ?? '—', clase: 'whitespace-nowrap' },
-    ...(todas ? [{ titulo: 'Registró', celda: (v: VisitaResumen) => v.registrado_por ?? '—' }] : []),
+    ...(todas ? [{ titulo: 'Registró', celda: (v: VisitaResumen) => v.registrado_por ?? '—', clase: 'whitespace-nowrap' }] : []),
     { titulo: 'Estado', celda: (v) => <BadgeVisita estado={v.estado} /> },
     { titulo: 'Archivos', celda: (v) => <Archivos v={v} /> },
   ];
@@ -54,6 +70,7 @@ function TarjetaVisita({ v, todas }: { v: VisitaResumen; todas: boolean }) {
       <p className="truncate text-sm text-slate-600">{[v.circuito, v.ubicacion].filter(Boolean).join(' · ') || 'Sin ubicación'}</p>
       <p className="mt-0.5 flex flex-wrap items-center gap-x-3 text-xs text-slate-500">
         <span>{fechaDe(v)}</span>
+        <span>{equipoDe(v)}</span>
         <span>{v.tipo_visita}</span>
         <span className="font-mono">{v.visita_num}</span>
         {todas && v.registrado_por && <span>{v.registrado_por}</span>}
@@ -104,6 +121,66 @@ function Pendientes() {
   );
 }
 
+/** Filtros de la lista (además de la búsqueda); vacío = sin filtrar. */
+const SIN_FILTROS = { equipo: '', tipo_visita: '', zona: '', desde: '', hasta: '' };
+type ValoresFiltro = typeof SIN_FILTROS;
+
+/** Panel de filtros: se muestra y oculta con el botón «Filtros». */
+function PanelFiltros({ valores, onCambiar, zonas }: { valores: ValoresFiltro; onCambiar: (v: ValoresFiltro) => void; zonas: string[] }) {
+  const campo = (clave: keyof ValoresFiltro, valor: string) => onCambiar({ ...valores, [clave]: valor });
+  const activos = Object.values(valores).some(Boolean);
+  return (
+    <div id="panel-filtros" className="tarjeta p-3">
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <label className="text-xs font-semibold text-slate-600">
+          Equipo
+          <select className="campo mt-1" value={valores.equipo} onChange={(e) => campo('equipo', e.target.value)}>
+            <option value="">Todos</option>
+            {EQUIPOS.map((x) => (
+              <option key={x} value={x}>
+                {EQUIPO_ETIQUETA[x]}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Tipo de visita
+          <select className="campo mt-1" value={valores.tipo_visita} onChange={(e) => campo('tipo_visita', e.target.value)}>
+            <option value="">Todos</option>
+            {TIPOS_VISITA.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <label className="col-span-2 text-xs font-semibold text-slate-600 lg:col-span-1">
+          Zona
+          <select className="campo mt-1" value={valores.zona} onChange={(e) => campo('zona', e.target.value)}>
+            <option value="">Todas</option>
+            {zonas.map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Desde
+          <input type="date" className="campo mt-1" value={valores.desde} onChange={(e) => campo('desde', e.target.value)} />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Hasta
+          <input type="date" className="campo mt-1" value={valores.hasta} onChange={(e) => campo('hasta', e.target.value)} />
+        </label>
+      </div>
+      {activos && (
+        <div className="mt-3 flex justify-end">
+          <button type="button" className="text-sm font-semibold text-marca-600 hover:underline" onClick={() => onCambiar(SIN_FILTROS)}>
+            Limpiar filtros
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /**
  * «Inspecciones y registros»: una sola sección. Con permiso de consultar muestra las inspecciones de
  * todos; sin él, las que registró la persona. Quien registra ve además lo pendiente de envío.
@@ -115,11 +192,21 @@ export function ListarVisitas() {
   const todas = hasAccess([PermisosVisitas.Consultar]);
   const registra = hasAccess([PermisosVisitas.Registrar]);
   const [q, setQ] = useState('');
-  const [desde, setDesde] = useState('');
-  const [hasta, setHasta] = useState('');
-  const [verFechas, setVerFechas] = useState(false);
+  const [valores, setValores] = useState<ValoresFiltro>(SIN_FILTROS);
+  const [verFiltros, setVerFiltros] = useState(false);
   const [pagina, setPagina] = useState(1);
-  const filtros = { q: q.trim() || undefined, desde: desde || undefined, hasta: hasta || undefined, pagina };
+  const activos = Object.values(valores).filter(Boolean).length;
+  const filtros = {
+    q: q.trim() || undefined,
+    ...Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, v || undefined])),
+    pagina,
+  };
+  // Zonas para el filtro: las de los restauradores del catálogo.
+  const catalogos = useCatalogosVisita();
+  const zonas = useMemo(
+    () => [...new Set((catalogos.data?.restauradores ?? []).map((r) => r.zona?.trim()).filter((z): z is string => !!z))].sort(),
+    [catalogos.data],
+  );
   const consulta = useQuery({
     queryKey: ['visitas', todas ? 'todas' : 'mias', filtros],
     queryFn: () => (todas ? listarVisitas(filtros) : misVisitas(filtros)),
@@ -163,30 +250,24 @@ export function ListarVisitas() {
               aria-label="Buscar"
             />
           </div>
-          {/* Las fechas van plegadas: en el teléfono ocupan pantalla y se usan poco. */}
           <button
             type="button"
-            onClick={() => setVerFechas(!verFechas)}
-            aria-expanded={verFechas}
-            aria-controls="filtro-fechas"
-            className={`relative flex w-12 shrink-0 items-center justify-center rounded-xl border ${verFechas ? 'border-marca-300 bg-marca-50 text-marca-700' : 'border-slate-300 bg-white text-slate-600'}`}
-            aria-label="Filtrar por fechas"
-            title="Filtrar por fechas"
+            onClick={() => setVerFiltros(!verFiltros)}
+            aria-expanded={verFiltros}
+            aria-controls="panel-filtros"
+            className={`relative flex shrink-0 items-center gap-2 rounded-xl border px-3 text-sm font-semibold ${verFiltros ? 'border-marca-300 bg-marca-50 text-marca-700' : 'border-slate-300 bg-white text-slate-600'}`}
+            aria-label={activos ? `Filtros (${activos} activos)` : 'Filtros'}
           >
-            <CalendarDays className="h-5 w-5" aria-hidden />
-            {(desde || hasta) && <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-marca-600" aria-hidden />}
+            <SlidersHorizontal className="h-5 w-5" aria-hidden />
+            <span className="hidden sm:inline">Filtros</span>
+            {activos > 0 && (
+              <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-marca-600 px-1 text-[11px] font-bold text-white">
+                {activos}
+              </span>
+            )}
           </button>
         </div>
-        <div id="filtro-fechas" className={verFechas ? 'grid grid-cols-2 gap-2' : 'hidden'}>
-          <label className="text-xs font-semibold text-slate-600">
-            Desde
-            <input type="date" className="campo mt-1" value={desde} onChange={(e) => filtrar(() => setDesde(e.target.value))} />
-          </label>
-          <label className="text-xs font-semibold text-slate-600">
-            Hasta
-            <input type="date" className="campo mt-1" value={hasta} onChange={(e) => filtrar(() => setHasta(e.target.value))} />
-          </label>
-        </div>
+        {verFiltros && <PanelFiltros valores={valores} zonas={zonas} onCambiar={(v) => filtrar(() => setValores(v))} />}
       </div>
       {consulta.isPending && consulta.fetchStatus === 'paused' ? (
         // Sin señal la consulta queda en pausa (no es «no hay inspecciones»): se hace sola al volver la señal.
@@ -196,7 +277,7 @@ export function ListarVisitas() {
       ) : consulta.isError ? (
         <CajaError error={consulta.error} reintentar={() => void consulta.refetch()} />
       ) : !datos?.filas.length ? (
-        <Vacio texto={q || desde || hasta ? 'No hay inspecciones con esos filtros.' : 'Todavía no hay inspecciones registradas.'} />
+        <Vacio texto={q || activos ? 'No hay inspecciones con esos filtros.' : 'Todavía no hay inspecciones registradas.'} />
       ) : (
         <>
           <Tabla

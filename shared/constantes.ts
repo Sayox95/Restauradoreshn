@@ -62,6 +62,14 @@ export const MAX_PDF_BYTES = 15 * 1024 * 1024;
 
 // ── Opciones del formulario (tomadas de la hoja de visita en uso) ─────────────────────────
 export const TIPOS_VISITA = ['Visita 1', 'Visita 2', 'Visita 3'] as const;
+
+/**
+ * Equipo que se inspecciona: cada tipo de inspección de «+ Nueva» registra el suyo (columna «Equipo» y
+ * filtro de la lista). Al agregar un tipo (p. ej. regulador) se agrega aquí.
+ */
+export const EQUIPOS = ['restaurador'] as const;
+export type Equipo = (typeof EQUIPOS)[number];
+export const EQUIPO_ETIQUETA: Record<Equipo, string> = { restaurador: 'Restaurador' };
 export const MEDIOS_EXTINCION = ['Vacío', 'Aceite (VWE)', 'SF6'] as const;
 export const TIPOS_MODEM = ['Modem Datos', 'Modem Telemetria', 'Radio Modem'] as const;
 export const ANTENAS = ['INTERNA', 'EXTERNA'] as const;

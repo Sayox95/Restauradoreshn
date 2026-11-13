@@ -1,3 +1,4 @@
+import { EQUIPO_ETIQUETA, type Equipo } from '../../../../shared/constantes';
 import type { Ctx } from '../../../plumbing/contexto';
 import { fechaLocal, zonaHoraria } from '../../../plumbing/zona';
 import { DESDE_VISITAS } from '../comun';
@@ -5,6 +6,7 @@ import { filtrosVisitas } from './listar-visitas';
 
 const COLUMNAS: [string, string][] = [
   ['visita_num', 'Folio'],
+  ['equipo', 'Equipo'],
   ['fecha_visita', 'Fecha'],
   ['tipo_visita', 'Tipo de visita'],
   ['hora_llegada', 'Llegada'],
@@ -51,16 +53,22 @@ export async function exportarVisitas(ctx: Ctx) {
   const f = filtrosVisitas(ctx, false);
   const tz = await zonaHoraria(ctx.env);
   const { results } = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS.filter(([c]) => !['estado', 'registrado_por', 'registrado_en'].includes(c))
+    `SELECT ${COLUMNAS.filter(([c]) => !['equipo', 'estado', 'registrado_por', 'registrado_en'].includes(c))
       .map(([c]) => `r.${c}`)
-      .join(', ')}, COALESCE(v.estado, 'registrada') AS estado, u.nombre AS registrado_por, v.registrado_en FROM ${DESDE_VISITAS}
+      .join(
+        ', ',
+      )}, COALESCE(v.equipo, 'restaurador') AS equipo, COALESCE(v.estado, 'registrada') AS estado, u.nombre AS registrado_por, v.registrado_en FROM ${DESDE_VISITAS}
      WHERE ${f.sql} ORDER BY r.fecha_visita DESC, r.id DESC LIMIT 10000`,
   )
     .bind(...f.binds)
     .all<Record<string, unknown>>();
   const lineas = [
     COLUMNAS.map(([, t]) => celda(t)).join(','),
-    ...results.map((r) => COLUMNAS.map(([c]) => celda(c === 'registrado_en' ? fechaLocal((r[c] as string) ?? null, tz) : r[c])).join(',')),
+    ...results.map((r) =>
+      COLUMNAS.map(([c]) =>
+        celda(c === 'registrado_en' ? fechaLocal((r[c] as string) ?? null, tz) : c === 'equipo' ? (EQUIPO_ETIQUETA[r[c] as Equipo] ?? r[c]) : r[c]),
+      ).join(','),
+    ),
   ];
   return new Response('﻿' + lineas.join('\n'), {
     headers: {

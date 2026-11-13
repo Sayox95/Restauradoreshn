@@ -71,8 +71,8 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
       // Estado, quién, cuándo y la firma van aparte: `registros` está en el límite de columnas de D1.
       db
         .prepare(
-          `INSERT INTO visitas_registro (registro_id, estado, registrado_por, registrado_en, capturado_en, firma_img)
-           VALUES ((SELECT id FROM registros WHERE visita_num = ?), 'registrada', ?, ?, ?, ?)`,
+          `INSERT INTO visitas_registro (registro_id, estado, equipo, registrado_por, registrado_en, capturado_en, firma_img)
+           VALUES ((SELECT id FROM registros WHERE visita_num = ?), 'registrada', 'restaurador', ?, ?, ?, ?)`,
         )
         .bind(v.visita_num, ctx.usuario.id, ctx.ahora, v.capturado_en, firma_img),
       db

@@ -1,6 +1,7 @@
 /**
  * Detalle de una inspección (solo lectura). Las secciones salen de la misma estructura que el PDF
  * (components/ficha.ts): mismo orden y mismos bloques; en PC aprovechan el ancho con varias columnas.
+ * La firma solo va en el PDF.
  */
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
@@ -195,40 +196,25 @@ export function VerVisita() {
         )}
       </Tarjeta>
 
-      <Tarjeta titulo="Observaciones, personal y firma">
-        <div className="grid items-start gap-3 lg:grid-cols-[3fr_2fr]">
-          <div className="space-y-3">
-            {v.obs_generales && <Bloque b={{ tipo: 'textos', textos: [['Observaciones generales', v.obs_generales]] }} />}
-            <div className="overflow-hidden rounded-lg border border-slate-200">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                  <tr>
-                    <th className="px-3 py-2">Nombre</th>
-                    <th className="px-3 py-2">Cargo</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {v.personal.map((p, i) => (
-                    <tr key={i}>
-                      <td className="px-3 py-2 font-semibold text-slate-900">{p.nombre}</td>
-                      <td className="px-3 py-2 text-slate-600">{p.cargo ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-          <figure className="flex flex-col items-center justify-center rounded-lg border border-slate-200 bg-slate-50 p-4">
-            {v.firma_img ? (
-              <img src={v.firma_img} alt="Firma del responsable" className="max-h-28 w-auto" />
-            ) : (
-              <p className="text-sm text-slate-500">Sin firma.</p>
-            )}
-            <figcaption className="mt-2 w-full border-t border-slate-300 pt-2 text-center text-sm font-semibold text-marca-900">
-              {v.firma_responsable ?? '—'}
-              <span className="block text-[11px] font-normal uppercase tracking-wide text-slate-500">Firma del responsable</span>
-            </figcaption>
-          </figure>
+      <Tarjeta titulo="Observaciones y personal">
+        {v.obs_generales && <Bloque b={{ tipo: 'textos', textos: [['Observaciones generales', v.obs_generales]] }} />}
+        <div className="overflow-hidden rounded-lg border border-slate-200">
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              <tr>
+                <th className="px-3 py-2">Nombre</th>
+                <th className="px-3 py-2">Cargo</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {v.personal.map((p, i) => (
+                <tr key={i}>
+                  <td className="px-3 py-2 font-semibold text-slate-900">{p.nombre}</td>
+                  <td className="px-3 py-2 text-slate-600">{p.cargo ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </Tarjeta>
 

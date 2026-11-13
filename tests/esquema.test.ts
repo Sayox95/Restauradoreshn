@@ -45,6 +45,7 @@ describe('migraciones', () => {
       '0007_permisos_usuario.sql',
       '0008_catalogo_cargos.sql',
       '0009_eliminar_inspecciones.sql',
+      '0010_equipo_inspeccion.sql',
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.

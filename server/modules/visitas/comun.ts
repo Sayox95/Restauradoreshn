@@ -1,4 +1,4 @@
-import type { EstadoVisita } from '../../../shared/constantes';
+import type { Equipo, EstadoVisita } from '../../../shared/constantes';
 import type { FotoVisita, VisitaDetalle, VisitaResumen } from '../../../shared/tipos';
 import type { Visita } from '../../../shared/visitas';
 import { type Ctx, filtroVisitas } from '../../plumbing/contexto';
@@ -134,12 +134,13 @@ export const DESDE_VISITAS = `registros r
   LEFT JOIN usuarios u ON u.id = v.registrado_por`;
 
 export const SELECT_RESUMEN = `
-  r.id, r.visita_num, r.fecha_visita, r.tipo_visita, r.codigo_energis, r.circuito, r.ubicacion, r.zona, r.marca_reconectador,
+  r.id, r.visita_num, COALESCE(v.equipo, 'restaurador') AS equipo, r.fecha_visita, r.tipo_visita, r.codigo_energis, r.circuito, r.ubicacion, r.zona, r.marca_reconectador,
   COALESCE(v.estado, 'registrada') AS estado, v.registrado_en, u.nombre AS registrado_por, COALESCE(r.num_fotos, 0) AS num_fotos, (r.pdf_r2_key IS NOT NULL AND r.pdf_r2_key <> '') AS tiene_pdf`;
 
 export const resumen = (f: Record<string, unknown>): VisitaResumen => ({
   id: Number(f.id),
   visita_num: String(f.visita_num),
+  equipo: ((f.equipo as string) ?? 'restaurador') as Equipo,
   fecha_visita: (f.fecha_visita as string) ?? null,
   tipo_visita: (f.tipo_visita as string) ?? null,
   codigo_energis: f.codigo_energis === null || f.codigo_energis === undefined ? null : String(f.codigo_energis),

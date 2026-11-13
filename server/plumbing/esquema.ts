@@ -114,6 +114,11 @@ export const ELIMINAR_INSPECCIONES = [
   `ALTER TABLE visitas_registro ADD COLUMN motivo_eliminacion TEXT`,
 ];
 
+export const EQUIPO_INSPECCION = [
+  `ALTER TABLE visitas_registro ADD COLUMN equipo TEXT NOT NULL DEFAULT 'restaurador'`,
+  `CREATE INDEX IF NOT EXISTS ix_visitas_registro_equipo ON visitas_registro(equipo)`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -143,6 +148,7 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0007_permisos_usuario.sql', sentencias: PERMISOS_USUARIO, yaAplicado: existeColumna('usuarios', 'permisos_personalizados') },
   { migracion: '0008_catalogo_cargos.sql', sentencias: CATALOGO_CARGOS, yaAplicado: existeTabla('cargos') },
   { migracion: '0009_eliminar_inspecciones.sql', sentencias: ELIMINAR_INSPECCIONES, yaAplicado: existeColumna('visitas_registro', 'motivo_eliminacion') },
+  { migracion: '0010_equipo_inspeccion.sql', sentencias: EQUIPO_INSPECCION, yaAplicado: existeColumna('visitas_registro', 'equipo') },
 ];
 
 export let listo = false;
