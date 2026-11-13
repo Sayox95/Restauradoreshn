@@ -36,12 +36,25 @@ export function requierePermiso(ctx: Ctx, ...permisos: Permiso[]) {
 }
 
 /**
- * Filtro de visitas (alias `r` para registros y `v` para visitas_registro, ver DESDE_VISITAS): con permiso de consultar, todas; sin él, solo las que registró el
- * usuario («datos visibles sin permiso: ver lo suyo»).
+ * Inspecciones propias (alias `r` para registros y `v` para visitas_registro, ver DESDE_VISITAS): las
+ * que registró el usuario y aquellas en las que figura en el personal (por su usuario_id).
+ */
+export function visitasPropias(usuario: UsuarioSesion): { sql: string; binds: number[] } {
+  return {
+    sql: `(v.registrado_por = ? OR EXISTS (
+      SELECT 1 FROM json_each(CASE WHEN json_valid(r.personal_json) THEN r.personal_json ELSE '[]' END) p
+      WHERE json_extract(p.value, '$.usuario_id') = ?))`,
+    binds: [usuario.id, usuario.id],
+  };
+}
+
+/**
+ * Filtro de visitas: con permiso de consultar, todas; sin él, las propias (las que registró o en las
+ * que participó: «datos visibles sin permiso: ver lo suyo»).
  */
 export function filtroVisitas(usuario: UsuarioSesion): { sql: string; binds: number[] } {
   if (tiene(usuario, PermisosVisitas.Consultar)) return { sql: '1=1', binds: [] };
-  return { sql: 'v.registrado_por = ?', binds: [usuario.id] };
+  return visitasPropias(usuario);
 }
 
 export async function auditar(

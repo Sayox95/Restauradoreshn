@@ -7,6 +7,7 @@ import { cargarVisita, nombreSeguro } from '../comun';
 /** Solo quien registró la visita le agrega fotos o su PDF. */
 async function visitaPropia(ctx: Ctx, id: number) {
   const f = await cargarVisita(ctx, id);
+  // Fotos y PDF los sube solo quien la registró (el personal de la inspección solo la ve).
   if (f.registrado_por_id !== ctx.usuario.id) throw prohibido();
   return f;
 }

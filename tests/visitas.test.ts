@@ -103,6 +103,28 @@ describe('ver las visitas', () => {
     expect(det.datos.datos.datos).toMatchObject({ has_modem1: 'NO', personal: [{ nombre: 'Mauricio Cerros' }] });
   });
 
+  it('quien figura en el personal también la ve (lista, detalle y PDF), pero no sube archivos', async () => {
+    const beto = await t.crearUsuario('beto', 'tecnico');
+    const ana = await t.crearUsuario('ana', 'tecnico');
+    const luis = await t.crearUsuario('luis', 'tecnico');
+    const personal = [
+      { usuario_id: beto.id, nombre: 'Nombre beto', cargo: 'Técnico SCADA' },
+      { usuario_id: ana.id, nombre: 'Nombre ana', cargo: null },
+    ];
+    const id = (await registrar(beto.cookie, { personal })).datos.datos.visita.id;
+    await t.pedir('PUT', `/api/v1/visitas/${id}/pdf`, { cookie: beto.cookie, binario: PDF, headers: { 'Content-Type': 'application/pdf' } });
+    // Ana participó: la ve en su lista, en el detalle y descarga el PDF.
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: ana.cookie })).datos.datos.total).toBe(1);
+    expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: ana.cookie })).status).toBe(200);
+    expect((await t.pedir('GET', `/api/v1/visitas/${id}/pdf`, { cookie: ana.cookie })).status).toBe(200);
+    // Pero los archivos los sube solo quien la registró.
+    const foto = await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, { cookie: ana.cookie, binario: JPEG, headers: { 'Content-Type': 'image/jpeg' } });
+    expect(foto.status).toBe(403);
+    // Luis no participó: no la ve.
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: luis.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: luis.cookie })).status).toBe(404);
+  });
+
   it('exporta a CSV con permiso de exportar', async () => {
     const sup = await t.crearUsuario('carla', 'supervisor');
     await registrar(sup.cookie);

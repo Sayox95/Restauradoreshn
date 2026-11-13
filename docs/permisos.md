@@ -15,8 +15,10 @@ El código **nunca pregunta por un rol**: solo por permisos.
 ## Datos visibles sin permiso adicional (lo propio)
 
 - **Inspecciones y registros** (una sola sección): con `visitas_consultar` muestra las de todos
-  (`GET /api/v1/visitas`); sin él, las que registró la persona (`GET /api/v1/visitas/mios`). El detalle,
-  las fotos y el PDF siguen la misma regla (`filtroVisitas` en `server/plumbing/contexto.ts`).
+  (`GET /api/v1/visitas`); sin él, las **propias**: las que registró la persona y aquellas en las que
+  figura en el personal (`GET /api/v1/visitas/mios`). El detalle, las fotos y el PDF siguen la misma
+  regla (`visitasPropias` / `filtroVisitas` en `server/plumbing/contexto.ts`). Subir fotos y el PDF
+  solo lo hace quien la registró.
 - **Mi cuenta** y **cambiar contraseña**: los datos del propio usuario.
 
 ## Roles

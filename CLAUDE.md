@@ -10,7 +10,8 @@ en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
 
 - En pantalla se dice **inspección** (no «visita»); internamente el módulo es `visitas`. «Fecha de
   visita» y «Tipo de visita» (Visita 1/2/3) son campos de la hoja y se quedan.
-- Menú: «Inspecciones y registros» (una sola sección: con Consultar, todas; si no, las propias) y
+- Menú: «Inspecciones y registros» (una sola sección: con Consultar, todas; si no, las propias: las que
+  registró y en las que figura en el personal) y
   «+ Nueva», que reúne los tipos que declara cada módulo (`OpcionNueva`). Sin botones repetidos.
 
 ## Reglas del proyecto

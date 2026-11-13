@@ -1,4 +1,4 @@
-import { type Ctx, filtroVisitas } from '../../../plumbing/contexto';
+import { type Ctx, filtroVisitas, visitasPropias } from '../../../plumbing/contexto';
 import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /** Filtros de la lista: texto (folio, Energis, circuito, ubicación) y rango de fechas de visita. */
@@ -6,7 +6,7 @@ export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const q = ctx.url.searchParams.get('q')?.trim();
   const desde = ctx.url.searchParams.get('desde');
   const hasta = ctx.url.searchParams.get('hasta');
-  const fv = soloMias ? { sql: 'v.registrado_por = ?', binds: [ctx.usuario.id] as unknown[] } : filtroVisitas(ctx.usuario);
+  const fv = soloMias ? visitasPropias(ctx.usuario) : filtroVisitas(ctx.usuario);
   const condiciones = [fv.sql];
   const binds: unknown[] = [...fv.binds];
   if (q) {

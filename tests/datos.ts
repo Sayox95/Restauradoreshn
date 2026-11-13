@@ -53,7 +53,7 @@ export function visitaCompleta(extra: Partial<VisitaEntrada> = {}): VisitaEntrad
     num_pararrayos: 3,
     tiene_potencial: 'NO',
     alimentado_acometida: 'SI',
-    personal: [{ usuario_id: 1, nombre: 'Mauricio Cerros', cargo: 'Técnico SCADA' }],
+    personal: [{ usuario_id: null, nombre: 'Mauricio Cerros', cargo: 'Técnico SCADA' }],
     firma_responsable: 'Mauricio Cerros',
     firma_img: FIRMA_PNG,
     num_fotos: 1,

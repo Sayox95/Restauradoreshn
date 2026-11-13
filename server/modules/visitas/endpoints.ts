@@ -10,7 +10,7 @@ import { listarVisitas } from './features/listar-visitas';
 import { registrarVisita } from './features/registrar-visita';
 
 // Lo propio del usuario (sin permiso: cada quien ve lo que registró). Van antes de /:id.
-ruta('GET', '/api/v1/visitas/mios', SOLO_SESION /* solo las visitas que registró el usuario */, async (ctx) => {
+ruta('GET', '/api/v1/visitas/mios', SOLO_SESION /* las propias: las que registró el usuario o en las que figura en el personal */, async (ctx) => {
   const { pagina, porPagina, offset } = paginacion(ctx.url);
   return r(ctx, await listarVisitas(ctx, pagina, porPagina, offset, true));
 });
