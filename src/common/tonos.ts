@@ -46,6 +46,9 @@ export const TONO_ESTADO_VISITA: Record<EstadoVisita, { etiqueta: string; punto:
   registrada: { etiqueta: 'bg-sky-50 text-sky-800 ring-sky-200', punto: 'bg-sky-400' },
 };
 
+/** Botón de salida o de cancelar: rojo muy suave, casi transparente (p. ej. «Salir» del formulario). */
+export const TONO_SALIDA = 'border-rose-200/60 bg-rose-50/40 text-rose-700 hover:bg-rose-50/80';
+
 /** Estado de una cuenta de usuario. */
 export const TONO_CUENTA: Record<EstadoCuenta, string> = {
   pendiente: TONO.atencion.etiqueta,

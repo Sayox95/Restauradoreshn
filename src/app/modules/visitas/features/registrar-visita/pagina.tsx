@@ -10,7 +10,7 @@ import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
 import { Cargando } from '@/common/components/ui';
 import { useSesion } from '@/common/seguridad/sesion';
-import { TONO } from '@/common/tonos';
+import { TONO_SALIDA } from '@/common/tonos';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { useAvisos } from '@/common/components/Toast';
 import { fijarModoCaptura } from '@/common/menu/modo-captura';
@@ -249,11 +249,7 @@ export function RegistrarVisita() {
           <p className="truncate text-xs text-slate-500">{b.visita_num}</p>
         </div>
         {/* Modo captura: sin el menú inferior; «Salir» (a la derecha, en rojo suave) vuelve a Inspecciones. */}
-        <button
-          type="button"
-          onClick={salir}
-          className={`flex h-10 shrink-0 items-center gap-1 rounded-xl border px-3 text-sm font-semibold hover:bg-rose-100 ${TONO.mal.caja}`}
-        >
+        <button type="button" onClick={salir} className={`flex h-10 shrink-0 items-center gap-1 rounded-xl border px-3 text-sm font-semibold ${TONO_SALIDA}`}>
           <X className="h-4 w-4" aria-hidden /> Salir
         </button>
       </div>
