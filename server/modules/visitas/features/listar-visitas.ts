@@ -1,18 +1,18 @@
 import { type Ctx, filtroVisitas, visitasPropias } from '../../../plumbing/contexto';
-import { EQUIPOS, TIPOS_VISITA } from '../../../../shared/constantes';
+import { EQUIPOS } from '../../../../shared/constantes';
 import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /**
  * Filtros de la lista (y del CSV): texto (folio, Energis, circuito, ubicación), rango de fechas de visita,
- * equipo, tipo de visita y zona. Valores fuera de las listas se ignoran.
+ * equipo, zona y circuito. Un equipo fuera de la lista se ignora.
  */
 export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const q = ctx.url.searchParams.get('q')?.trim();
   const desde = ctx.url.searchParams.get('desde');
   const hasta = ctx.url.searchParams.get('hasta');
   const equipo = ctx.url.searchParams.get('equipo');
-  const tipo = ctx.url.searchParams.get('tipo_visita');
   const zona = ctx.url.searchParams.get('zona')?.trim();
+  const circuito = ctx.url.searchParams.get('circuito')?.trim();
   const fv = soloMias ? visitasPropias(ctx.usuario) : filtroVisitas(ctx.usuario);
   const condiciones = [fv.sql];
   const binds: unknown[] = [...fv.binds];
@@ -33,13 +33,13 @@ export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
     condiciones.push("COALESCE(v.equipo, 'restaurador') = ?");
     binds.push(equipo);
   }
-  if (tipo && (TIPOS_VISITA as readonly string[]).includes(tipo)) {
-    condiciones.push('r.tipo_visita = ?');
-    binds.push(tipo);
-  }
   if (zona) {
     condiciones.push('lower(r.zona) = lower(?)');
     binds.push(zona.slice(0, 80));
+  }
+  if (circuito) {
+    condiciones.push('lower(r.circuito) = lower(?)');
+    binds.push(circuito.slice(0, 80));
   }
   return { sql: condiciones.join(' AND '), binds };
 }

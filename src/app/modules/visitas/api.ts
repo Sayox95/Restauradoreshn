@@ -10,8 +10,8 @@ export interface Filtros {
   desde?: string;
   hasta?: string;
   equipo?: string;
-  tipo_visita?: string;
   zona?: string;
+  circuito?: string;
   pagina?: number;
 }
 export interface ListaVisitas {

@@ -3,7 +3,8 @@
  * las suyas), lo guardado en el teléfono que falta enviar (excepción E1), filtros y CSV con Exportar.
  */
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { EQUIPO_ETIQUETA, EQUIPOS, TIPOS_VISITA } from '@shared/constantes';
+import { EQUIPO_ETIQUETA, EQUIPOS } from '@shared/constantes';
+import type { Restaurador } from '@shared/tipos';
 import type { VisitaResumen } from '@shared/tipos';
 import { CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -122,12 +123,32 @@ function Pendientes() {
 }
 
 /** Filtros de la lista (además de la búsqueda); vacío = sin filtrar. */
-const SIN_FILTROS = { equipo: '', tipo_visita: '', zona: '', desde: '', hasta: '' };
+const SIN_FILTROS = { equipo: '', zona: '', circuito: '', desde: '', hasta: '' };
 type ValoresFiltro = typeof SIN_FILTROS;
 
 /** Panel de filtros: se muestra y oculta con el botón «Filtros». */
-function PanelFiltros({ valores, onCambiar, zonas }: { valores: ValoresFiltro; onCambiar: (v: ValoresFiltro) => void; zonas: string[] }) {
+/** Valores distintos y ordenados de una columna del catálogo de restauradores. */
+const distintos = (lista: Restaurador[], f: (r: Restaurador) => string | null) =>
+  [...new Set(lista.map((r) => f(r)?.trim()).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+
+function PanelFiltros({ valores, onCambiar, restauradores }: { valores: ValoresFiltro; onCambiar: (v: ValoresFiltro) => void; restauradores: Restaurador[] }) {
   const campo = (clave: keyof ValoresFiltro, valor: string) => onCambiar({ ...valores, [clave]: valor });
+  const zonas = useMemo(() => distintos(restauradores, (r) => r.zona), [restauradores]);
+  // Los circuitos se acotan a la zona elegida.
+  const circuitos = useMemo(
+    () =>
+      distintos(
+        restauradores.filter((r) => !valores.zona || r.zona?.trim().toLowerCase() === valores.zona.toLowerCase()),
+        (r) => r.circuito,
+      ),
+    [restauradores, valores.zona],
+  );
+  // Al cambiar de zona, el circuito elegido se quita si no pertenece a la nueva.
+  const elegirZona = (zona: string) => {
+    const r = restauradores.filter((x) => !zona || x.zona?.trim().toLowerCase() === zona.toLowerCase());
+    const sigue = !valores.circuito || r.some((x) => x.circuito?.trim() === valores.circuito);
+    onCambiar({ ...valores, zona, circuito: sigue ? valores.circuito : '' });
+  };
   const activos = Object.values(valores).some(Boolean);
   return (
     <div id="panel-filtros" className="tarjeta p-3">
@@ -144,19 +165,19 @@ function PanelFiltros({ valores, onCambiar, zonas }: { valores: ValoresFiltro; o
           </select>
         </label>
         <label className="text-xs font-semibold text-slate-600">
-          Tipo de visita
-          <select className="campo mt-1" value={valores.tipo_visita} onChange={(e) => campo('tipo_visita', e.target.value)}>
-            <option value="">Todos</option>
-            {TIPOS_VISITA.map((x) => (
+          Zona
+          <select className="campo mt-1" value={valores.zona} onChange={(e) => elegirZona(e.target.value)}>
+            <option value="">Todas</option>
+            {zonas.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
         </label>
         <label className="col-span-2 text-xs font-semibold text-slate-600 lg:col-span-1">
-          Zona
-          <select className="campo mt-1" value={valores.zona} onChange={(e) => campo('zona', e.target.value)}>
-            <option value="">Todas</option>
-            {zonas.map((x) => (
+          Circuito
+          <select className="campo mt-1" value={valores.circuito} onChange={(e) => campo('circuito', e.target.value)}>
+            <option value="">Todos</option>
+            {circuitos.map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>
@@ -201,12 +222,8 @@ export function ListarVisitas() {
     ...Object.fromEntries(Object.entries(valores).map(([k, v]) => [k, v || undefined])),
     pagina,
   };
-  // Zonas para el filtro: las de los restauradores del catálogo.
-  const catalogos = useCatalogosVisita();
-  const zonas = useMemo(
-    () => [...new Set((catalogos.data?.restauradores ?? []).map((r) => r.zona?.trim()).filter((z): z is string => !!z))].sort(),
-    [catalogos.data],
-  );
+  // Zonas y circuitos para los filtros: los de los restauradores del catálogo.
+  const restauradores = useCatalogosVisita().data?.restauradores;
   const consulta = useQuery({
     queryKey: ['visitas', todas ? 'todas' : 'mias', filtros],
     queryFn: () => (todas ? listarVisitas(filtros) : misVisitas(filtros)),
@@ -267,7 +284,7 @@ export function ListarVisitas() {
             )}
           </button>
         </div>
-        {verFiltros && <PanelFiltros valores={valores} zonas={zonas} onCambiar={(v) => filtrar(() => setValores(v))} />}
+        {verFiltros && <PanelFiltros valores={valores} restauradores={restauradores ?? []} onCambiar={(v) => filtrar(() => setValores(v))} />}
       </div>
       {consulta.isPending && consulta.fetchStatus === 'paused' ? (
         // Sin señal la consulta queda en pausa (no es «no hay inspecciones»): se hace sola al volver la señal.
