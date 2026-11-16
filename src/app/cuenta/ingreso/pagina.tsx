@@ -4,6 +4,7 @@ import { CheckCircle2, Loader2 } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { mensajeError } from '@/common/http/api';
 import { iniciarSesion, solicitarCuenta } from '@/common/seguridad/api';
+import { tomarAvisoIngreso } from '@/common/seguridad/sesion';
 
 export function Marco({ subtitulo, children }: { subtitulo: string; children: ReactNode }) {
   return (
@@ -129,6 +130,8 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [creando, setCreando] = useState(false);
+  // «Su sesión terminó…»: solo si la sesión terminó sin que la persona saliera (se lee una vez).
+  const [aviso] = useState(tomarAvisoIngreso);
   const qc = useQueryClient();
   if (creando) return <CrearCuenta onVolver={() => setCreando(false)} />;
   const entrar = async (e: FormEvent) => {
@@ -148,6 +151,11 @@ export function Login() {
   return (
     <Marco subtitulo="UTCD · Hojas de inspección">
       <form onSubmit={entrar} className="tarjeta w-full max-w-sm space-y-4 p-6">
+        {aviso && !error && (
+          <p className="rounded-lg bg-marca-50 px-3 py-2 text-sm text-marca-900" role="status">
+            {aviso}
+          </p>
+        )}
         <Campo
           id="usuario"
           etiqueta="Usuario o correo"
