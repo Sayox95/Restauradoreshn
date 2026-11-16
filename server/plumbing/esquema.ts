@@ -166,9 +166,43 @@ export function reiniciarEsquemaParaPruebas() {
  */
 export async function asegurarEsquema(env: Env): Promise<void> {
   if (listo) return;
+  if (await alDia(env)) {
+    listo = true;
+    return;
+  }
   await aplicar(env);
   await sembrarPermisos(env);
   listo = true;
+}
+
+/**
+ * Huella de los permisos y roles de shared/permisos.ts: cambia cuando cambian, y entonces se vuelven a
+ * sembrar. Se guarda en `configuracion` al sembrar.
+ */
+const HUELLA_PERMISOS = (() => {
+  const texto = JSON.stringify({ MODULOS, ROLES_SISTEMA });
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
+  return `${h.toString(36)}-${texto.length}`;
+})();
+
+/**
+ * Camino rápido del arranque (el primer pedido después de un rato sin uso): en una sola ida a la base se
+ * comprueba que todas las migraciones estén anotadas, que los permisos sembrados sean los de esta
+ * versión y que no haya cuentas sin rol. Si algo falta (o la base es nueva), se hace el camino completo.
+ */
+async function alDia(env: Env): Promise<boolean> {
+  try {
+    const [migraciones, huella, sinRoles] = await env.DB.batch<{ name?: string; valor?: string; n?: number }>([
+      env.DB.prepare('SELECT name FROM d1_migrations'),
+      env.DB.prepare("SELECT valor FROM configuracion WHERE clave = 'permisos_sembrados'"),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)'),
+    ]);
+    const anotadas = new Set(migraciones!.results.map((m) => m.name));
+    return CAMBIOS.every((c) => anotadas.has(c.migracion)) && huella!.results[0]?.valor === HUELLA_PERMISOS && sinRoles!.results[0]?.n === 0;
+  } catch {
+    return false; // p. ej. base nueva sin tablas
+  }
 }
 
 /**
@@ -203,6 +237,9 @@ export async function sembrarPermisos(env: Env) {
     db.prepare(`DELETE FROM rol_permisos WHERE rol_codigo IN (${roles.map(() => '?').join(',')})`).bind(...roles),
     ...ROLES_SISTEMA.flatMap((r) => r.permisos.map((p) => db.prepare('INSERT INTO rol_permisos (rol_codigo, permiso_codigo) VALUES (?,?)').bind(r.codigo, p))),
     ...sinRoles.map((u) => db.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(u.id, rolDePerfil(u.rol))),
+    db
+      .prepare("INSERT INTO configuracion (clave, valor) VALUES ('permisos_sembrados', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor")
+      .bind(HUELLA_PERMISOS),
   ]);
 }
 
@@ -222,14 +259,16 @@ async function pendientes(env: Env, sentencias: string[]) {
 
 export async function aplicar(env: Env) {
   for (const c of CAMBIOS) {
-    if (await c.yaAplicado(env)) continue;
-    try {
-      const sentencias = await pendientes(env, c.sentencias);
-      if (sentencias.length) await env.DB.batch(sentencias.map((sql) => env.DB.prepare(sql)));
-    } catch (e) {
-      // Otra instancia pudo aplicarla al mismo tiempo: si ya quedó aplicada, se sigue.
-      if (!(await c.yaAplicado(env))) throw e;
-    }
+    // Una migración ya aplicada (p. ej. 0000 a 0002, anteriores a esta versión) también se anota: así el
+    // arranque rápido (alDia) puede confirmar con una sola consulta que no falta ninguna.
+    if (!(await c.yaAplicado(env)))
+      try {
+        const sentencias = await pendientes(env, c.sentencias);
+        if (sentencias.length) await env.DB.batch(sentencias.map((sql) => env.DB.prepare(sql)));
+      } catch (e) {
+        // Otra instancia pudo aplicarla al mismo tiempo: si ya quedó aplicada, se sigue.
+        if (!(await c.yaAplicado(env))) throw e;
+      }
     await env.DB.batch([
       env.DB.prepare(
         'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)',

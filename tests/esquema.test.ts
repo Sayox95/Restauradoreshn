@@ -37,7 +37,11 @@ describe('migraciones', () => {
     expect((await t.pedir('GET', '/api/v1/sesion/yo')).status).toBe(200);
     const sup = await t.crearUsuario('carla', 'supervisor');
     const aplicadas = (await t.DB.prepare('SELECT name FROM d1_migrations ORDER BY name').all<{ name: string }>()).results.map((r) => r.name);
+    // Todas quedan anotadas: 0000 a 0002 ya estaban (se anotan sin volver a aplicarse) y las demás se aplican.
     expect(aplicadas).toEqual([
+      '0000_base.sql',
+      '0001_registros_visita_num_unique.sql',
+      '0002_campos_formulario_v2.sql',
       '0003_cuentas.sql',
       '0004_visitas_registro.sql',
       '0005_cargo_usuario.sql',
@@ -129,6 +133,37 @@ describe('migraciones', () => {
     await t.pedir('GET', '/api/v1/sesion/yo');
     const cols = (await t.DB.prepare("SELECT name FROM pragma_table_info('usuarios')").all<{ name: string }>()).results.map((c) => c.name);
     expect(cols).not.toContain('cargo');
+  });
+
+  it('al arrancar con todo al día basta una sola ida a la base (primer pedido tras un rato sin uso)', async () => {
+    const t = await crearEntorno();
+    await t.crearUsuario('ana', 'admin');
+    // Arranque nuevo (como un servidor que despierta): se cuentan las idas a la base.
+    reiniciarEsquemaParaPruebas();
+    let idas = 0;
+    const { batch, prepare } = t.DB;
+    t.DB.batch = ((...a: Parameters<typeof batch>) => (idas++, batch.apply(t.DB, a))) as typeof batch;
+    t.DB.prepare = ((sql: string) => {
+      const s = prepare.call(t.DB, sql);
+      for (const m of ['first', 'all', 'run'] as const) {
+        const f = s[m].bind(s) as (...x: unknown[]) => unknown;
+        (s as unknown as Record<string, unknown>)[m] = (...x: unknown[]) => (idas++, f(...x));
+      }
+      return s;
+    }) as typeof prepare;
+    expect((await t.pedir('GET', '/api/v1/sesion/yo')).status).toBe(200);
+    // Una para el esquema; «yo» sin cookie no consulta nada más.
+    expect(idas).toBe(1);
+  });
+
+  it('si cambian los permisos de shared/permisos.ts se vuelven a sembrar', async () => {
+    const t = await crearEntorno();
+    await t.pedir('GET', '/api/v1/sesion/yo');
+    await t.DB.prepare("UPDATE configuracion SET valor = 'otra' WHERE clave = 'permisos_sembrados'").run();
+    await t.DB.prepare("DELETE FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_tecnico'").run();
+    reiniciarEsquemaParaPruebas();
+    await t.pedir('GET', '/api/v1/sesion/yo');
+    expect(await t.DB.prepare("SELECT 1 FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_tecnico'").first()).not.toBeNull();
   });
 
   it('ninguna tabla pasa de 100 columnas (límite de D1)', async () => {

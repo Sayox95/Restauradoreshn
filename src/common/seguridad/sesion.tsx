@@ -56,11 +56,15 @@ async function consultarSesion(): Promise<Yo> {
 export function ProveedorSesion({ children }: { children: ReactNode }) {
   const qc = useQueryClient();
   const navegar = useNavigate();
+  // Con una sesión recordada la app se dibuja de inmediato y el servidor la confirma en paralelo (las
+  // pantallas piden sus datos al mismo tiempo, no una tras otra). Si el servidor dice que no hay sesión,
+  // pasa al ingreso como siempre; los datos nunca se muestran sin que el servidor valide la cookie.
   const { data, isLoading } = useQuery({
     queryKey: ['yo'],
     queryFn: consultarSesion,
     staleTime: 5 * 60_000,
     retry: false,
+    placeholderData: recordada,
   });
   if (data?.zona_horaria) fijarZona(data.zona_horaria);
 
