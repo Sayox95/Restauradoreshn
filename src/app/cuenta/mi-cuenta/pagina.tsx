@@ -10,6 +10,8 @@ import { useAccess } from '@/common/seguridad/acceso';
 import { useSesion } from '@/common/seguridad/sesion';
 import { zonaActual } from '@/common/utils/fechas';
 import { FormCambiarPassword } from '@/app/cuenta/cambiar-password/FormCambiarPassword';
+import { leerBorrador } from '@/app/modules/visitas/components/almacen';
+import { useCola } from '@/app/modules/visitas/components/envio';
 
 /**
  * Mi cuenta: igual para todos los perfiles (lo propio de cada quien, sin permiso). Los datos de la cuenta
@@ -21,6 +23,7 @@ export function MiCuenta() {
   const confirmar = useConfirmar();
   const avisar = useAvisos();
   const [cambiandoClave, setCambiandoClave] = useState(false);
+  const { pendientes } = useCola();
   if (!usuario) return null;
   const perfil = resumenAcceso(usuario.rol, !igualAlPerfil(usuario.rol, usuario.permisos));
   const permisos = MODULOS.flatMap((m) => m.permisos).filter((p) => usuario.permisos.includes(p.codigo));
@@ -100,7 +103,27 @@ export function MiCuenta() {
         </div>
       </Seccion>
 
-      <button className="btn-secundario mb-4 w-full" onClick={() => salir()}>
+      <button
+        className="btn-secundario mb-4 w-full"
+        onClick={async () => {
+          // Lo guardado en el dispositivo no se borra al salir: se avisa para que nadie piense que se perdió.
+          const borrador = await leerBorrador().catch(() => undefined);
+          const notas = [
+            pendientes.length
+              ? `${pendientes.length === 1 ? 'Hay 1 inspección' : `Hay ${pendientes.length} inspecciones`} sin enviar en este dispositivo: se conserva${pendientes.length === 1 ? '' : 'n'} y se enviará${pendientes.length === 1 ? '' : 'n'} al volver a ingresar.`
+              : null,
+            borrador ? 'La inspección en curso se conserva en este dispositivo.' : null,
+          ].filter(Boolean);
+          if (
+            await confirmar({
+              titulo: '¿Cerrar sesión?',
+              mensaje: notas.length ? notas.join(' ') : 'Tendrá que ingresar de nuevo con su usuario y contraseña.',
+              confirmar: 'Cerrar sesión',
+            })
+          )
+            void salir();
+        }}
+      >
         <LogOut className="h-5 w-5" /> Cerrar sesión
       </button>
       <p className="px-1 text-center text-xs text-slate-500">Las fechas se muestran en la zona horaria {zonaActual()}.</p>

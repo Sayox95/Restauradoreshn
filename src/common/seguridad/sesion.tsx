@@ -1,6 +1,7 @@
 import type { UsuarioSesion } from '@shared/tipos';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createContext, type ReactNode, useCallback, useContext, useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorApi, configurarExpiracion } from '@/common/http/api';
 import { fijarZona } from '@/common/utils/fechas';
@@ -63,13 +64,46 @@ function recordadaReciente(): Yo | undefined {
   return r && Date.now() - r.confirmada_en < VIGENCIA_SEGURA_MS ? r.yo : undefined;
 }
 
-/** Aviso para la pantalla de ingreso cuando la sesión terminó sin que la persona saliera. */
+/** Aviso para la pantalla de ingreso: la sesión terminó sola, o la persona la cerró. */
 const CLAVE_AVISO = 'aviso-ingreso';
-function avisarSesionTerminada() {
+function avisarIngreso(texto: string) {
   try {
-    sessionStorage.setItem(CLAVE_AVISO, 'Su sesión terminó. Ingrese de nuevo para continuar.');
+    sessionStorage.setItem(CLAVE_AVISO, texto);
   } catch {
     /* almacenamiento no disponible */
+  }
+}
+const avisarSesionTerminada = () => avisarIngreso('Su sesión terminó. Ingrese de nuevo para continuar.');
+
+/**
+ * Cierre sin señal: la cookie es HttpOnly y solo el servidor puede invalidarla. Se marca el cierre como
+ * pendiente y, mientras lo esté, la app no usa la sesión; al volver la señal se cierra en el servidor
+ * antes de cualquier otra cosa.
+ */
+const CLAVE_CIERRE = 'cierre-pendiente';
+const cierrePendiente = () => {
+  try {
+    return localStorage.getItem(CLAVE_CIERRE);
+  } catch {
+    return null;
+  }
+};
+function marcarCierre(todas: boolean | null) {
+  try {
+    if (todas === null) localStorage.removeItem(CLAVE_CIERRE);
+    else localStorage.setItem(CLAVE_CIERRE, todas ? 'todas' : 'esta');
+  } catch {
+    /* almacenamiento no disponible */
+  }
+}
+/** Cierra en el servidor; `false` si no hubo respuesta (sin señal o demasiado lento). */
+async function cerrarEnServidor(todas: boolean) {
+  try {
+    await Promise.race([cerrarSesion(todas), new Promise((_, no) => setTimeout(() => no(new ErrorApi(0, 'lento')), 8000))]);
+    return true;
+  } catch (e) {
+    // Sin respuesta: queda pendiente. Cualquier otra respuesta (p. ej. ya no había sesión) cuenta como cerrada.
+    return !(e instanceof ErrorApi && e.status === 0);
   }
 }
 /** Lee el aviso una sola vez (lo usa la pantalla de ingreso). */
@@ -84,6 +118,11 @@ export function tomarAvisoIngreso(): string | null {
 }
 
 async function consultarSesion(): Promise<Yo> {
+  const pendiente = cierrePendiente();
+  if (pendiente) {
+    if (await cerrarEnServidor(pendiente === 'todas')) marcarCierre(null);
+    return null;
+  }
   try {
     const yo = await quienSoy();
     // Había una sesión recordada y el servidor ya no la reconoce: terminó (vencida o cerrada por otro).
@@ -144,22 +183,52 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     if (idUsuario) canal?.postMessage('entrar');
   }, [idUsuario]);
 
+  const [cerrando, setCerrando] = useState(false);
   const usuario = data?.usuario ?? null;
   const valor: Sesion = {
     usuario,
     cargando: isLoading,
+    /**
+     * Cierre de sesión: pantalla «Cerrando sesión…» mientras se cierra en el servidor (que además pide
+     * al navegador vaciar su caché HTTP del sitio), se borran los datos en memoria, la sesión recordada
+     * y lo de esta pestaña, y se avisa a las demás. Lo guardado para enviar (inspecciones sin señal y el
+     * borrador) se conserva. Sin señal, el cierre queda pendiente (ver cierrePendiente).
+     */
     salir: async (todas = false) => {
-      await cerrarSesion(todas).catch(() => {});
+      if (cerrando) return;
+      setCerrando(true);
+      const minimo = new Promise((ok) => setTimeout(ok, 700)); // que se alcance a leer el aviso
+      if (!(await cerrarEnServidor(todas))) marcarCierre(todas);
+      await minimo;
       try {
         sessionStorage.clear();
       } catch {
         /* almacenamiento no disponible */
       }
+      avisarIngreso(cierrePendiente() ? 'Sesión cerrada en este dispositivo. Se terminará de cerrar al volver la señal.' : 'Sesión cerrada.');
       limpiar();
       canal?.postMessage('salir');
+      setCerrando(false);
     },
   };
-  return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={valor}>
+      {children}
+      {cerrando && (
+        <div
+          className="anim-fondo fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/40 p-4"
+          role="alertdialog"
+          aria-modal="true"
+          aria-label="Cerrando sesión"
+        >
+          <div className="anim-dialogo flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-2xl">
+            <Loader2 className="h-5 w-5 animate-spin text-marca-600" aria-hidden />
+            <span className="font-semibold text-slate-900">Cerrando sesión…</span>
+          </div>
+        </div>
+      )}
+    </Ctx.Provider>
+  );
 }
 
 export function useSesion() {
