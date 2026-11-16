@@ -1,5 +1,5 @@
 import { MAX_FOTOS, MAX_FOTO_BYTES } from '@shared/constantes';
-import { Camera, ImageOff, Loader2, Pencil, Plus, X } from 'lucide-react';
+import { Camera, ImageOff, Images, Loader2, Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useConfirmar } from '@/common/components/ConfirmDialog';
 import { Hoja } from '@/common/components/Hoja';
@@ -29,27 +29,42 @@ function Miniatura({ foto }: { foto: FotoLocal }) {
 
 /**
  * Fotos de la visita (excepción E2): 1 obligatoria y hasta 3 más, en su resolución original.
- * Cada una lleva una observación opcional.
+ * Cada una lleva una observación opcional. Se toman con la cámara o se eligen de la galería (una o
+ * varias a la vez, hasta completar las disponibles).
  */
 export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio: (f: FotoLocal[]) => void; falta?: boolean }) {
-  const entrada = useRef<HTMLInputElement>(null);
+  const camara = useRef<HTMLInputElement>(null);
+  const galeria = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
   const [editando, setEditando] = useState<number | null>(null);
   const [obs, setObs] = useState('');
   const confirmar = useConfirmar();
   const avisar = useAvisos();
 
-  const elegida = async (archivo: File | undefined) => {
-    if (!archivo) return;
-    if (!archivo.type.startsWith('image/') && !/\.(heic|heif)$/i.test(archivo.name)) return avisar('El archivo no es una imagen.', { tipo: 'error' });
-    if (archivo.size > MAX_FOTO_BYTES) return avisar(`La foto pesa ${MB(archivo.size)}; el máximo es ${MB(MAX_FOTO_BYTES)}.`, { tipo: 'error' });
+  const disponibles = MAX_FOTOS - fotos.length;
+
+  /** Agrega las fotos elegidas (de la cámara, una; de la galería, una o varias). */
+  const elegidas = async (lista: FileList | null) => {
+    const archivos = [...(lista ?? [])];
+    if (!archivos.length) return;
+    if (archivos.length > disponibles) avisar(`Solo quedan ${disponibles} espacio(s): se agregan las primeras ${disponibles}.`, { tipo: 'error' });
+    const validas: File[] = [];
+    for (const a of archivos.slice(0, disponibles)) {
+      if (!a.type.startsWith('image/') && !/\.(heic|heif)$/i.test(a.name)) avisar(`«${a.name}» no es una imagen.`, { tipo: 'error' });
+      else if (a.size > MAX_FOTO_BYTES) avisar(`La foto pesa ${MB(a.size)}; el máximo es ${MB(MAX_FOTO_BYTES)}.`, { tipo: 'error' });
+      else validas.push(a);
+    }
+    if (!validas.length) return;
     setProcesando(true);
-    const copia = await copiaReducida(archivo);
+    const nuevas = await Promise.all(validas.map(async (a) => ({ original: a, nombre: a.name, copia: await copiaReducida(a), observacion: null })));
     setProcesando(false);
-    const nuevas = [...fotos, { original: archivo, nombre: archivo.name, copia, observacion: null }];
-    onCambio(nuevas);
-    setObs('');
-    setEditando(nuevas.length - 1);
+    const todas = [...fotos, ...nuevas];
+    onCambio(todas);
+    // Con una sola foto se abre su observación; con varias, cada una se anota con el lápiz.
+    if (nuevas.length === 1) {
+      setObs('');
+      setEditando(todas.length - 1);
+    }
   };
 
   const quitar = async (i: number) => {
@@ -90,27 +105,47 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
             </div>
           </div>
         ))}
-        {fotos.length < MAX_FOTOS && (
-          <button
-            type="button"
-            onClick={() => entrada.current?.click()}
-            disabled={procesando}
-            className="flex min-h-[180px] flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white text-slate-500 hover:bg-slate-50"
-          >
-            {procesando ? <Loader2 className="h-7 w-7 animate-spin" /> : fotos.length ? <Plus className="h-7 w-7" /> : <Camera className="h-7 w-7" />}
-            <span className="text-sm font-semibold">{fotos.length ? 'Agregar foto' : 'Foto 1 (obligatoria)'}</span>
-            <span className="text-xs">{MAX_FOTOS - fotos.length} disponible(s)</span>
-          </button>
+        {disponibles > 0 && (
+          <div className="flex min-h-[180px] flex-col items-stretch justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-3 text-slate-500">
+            {procesando ? (
+              <Loader2 className="mx-auto h-7 w-7 animate-spin" aria-label="Preparando las fotos" />
+            ) : (
+              <>
+                <p className="text-center text-sm font-semibold text-slate-700">{fotos.length ? 'Agregar foto' : 'Foto 1 (obligatoria)'}</p>
+                <button type="button" className="btn-secundario min-h-[44px] px-2 text-sm" onClick={() => camara.current?.click()}>
+                  <Camera className="h-5 w-5" aria-hidden /> Tomar foto
+                </button>
+                <button type="button" className="btn-secundario min-h-[44px] px-2 text-sm" onClick={() => galeria.current?.click()}>
+                  <Images className="h-5 w-5" aria-hidden /> Galería
+                </button>
+                <p className="text-center text-xs">{disponibles} disponible(s)</p>
+              </>
+            )}
+          </div>
         )}
       </div>
+      {/* Cámara: abre la cámara trasera. Galería: sin `capture`, elige fotos ya tomadas (varias a la vez). */}
       <input
-        ref={entrada}
+        ref={camara}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
+        aria-label="Tomar foto"
         onChange={(e) => {
-          void elegida(e.target.files?.[0]);
+          void elegidas(e.target.files);
+          e.target.value = '';
+        }}
+      />
+      <input
+        ref={galeria}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hidden"
+        aria-label="Elegir de la galería"
+        onChange={(e) => {
+          void elegidas(e.target.files);
           e.target.value = '';
         }}
       />
