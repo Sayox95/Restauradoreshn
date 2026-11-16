@@ -46,7 +46,10 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 | Atomicidad | Visita + auditoría en `DB.batch()` | Se guardan juntas o no se guardan. |
 | Idempotencia | `visita_num` único (índice); reenviar la misma visita devuelve la existente | El envío se repite sin duplicar (E1). |
 | Columnas | Nunca `SELECT r.*` sobre `registros` | La tabla tiene 100 columnas y D1 no devuelve resultados de más de 100. |
-| Esquema | Migraciones aplicadas solas al arrancar (`asegurarEsquema`) | No hay pasos manuales al publicar. |
+| Esquema | Migraciones aplicadas solas al arrancar (`asegurarEsquema`); con todo al día basta una consulta (`alDia`: migraciones anotadas y huella de permisos) | No hay pasos manuales al publicar y el primer pedido de un servidor que despierta no espera. |
+| Abrir la app | Con una sesión confirmada en los últimos 14 días se dibuja de inmediato y el servidor la confirma en paralelo; si no, espera al servidor | Abre al instante sin mostrar nada que luego se quite: tras cada uso a la sesión le quedan al menos 15 días. |
+| Cerrar sesión | Confirmación (avisa si hay envíos pendientes o una inspección en curso, que se conservan), «Cerrando sesión…», limpieza y aviso «Sesión cerrada.»; sin señal el cierre queda pendiente | Lineamientos: «Cerrar sesión la borra en el servidor y limpia los datos del navegador» y «Cerrar sesión con envíos pendientes pide confirmación y no borra la cola». |
+| Filtros | `SelectorMultiple` (listas con casillas; sin nada marcado = todos), en la URL; circuitos agrupados por subestación con buscador | Lineamientos de UX; los filtros se conservan al abrir una inspección y volver. |
 | Tiempo real | Avisos sin datos por WebSocket (opcional) | Si el Worker no está publicado la app funciona igual y no reintenta. |
 
 ## Excepciones acordadas (ver CLAUDE.md)

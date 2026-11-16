@@ -6,9 +6,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { EQUIPO_ETIQUETA, EQUIPOS } from '@shared/constantes';
 import type { Restaurador } from '@shared/tipos';
 import type { VisitaResumen } from '@shared/tipos';
-import { CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send, SlidersHorizontal } from 'lucide-react';
+import { CloudOff, Download, FileText, Image as Imagen, Loader2, Search, Send, SlidersHorizontal, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { SelectorMultiple } from '@/common/components/SelectorMultiple';
 import { BadgeVisita, CajaError, Cargando, Encabezado, Paginacion, Seccion, Vacio } from '@/common/components/ui';
 import { type Columna, Tabla } from '@/common/components/Tabla';
 import { useAvisos } from '@/common/components/Toast';
@@ -17,7 +18,6 @@ import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import { listarVisitas, misVisitas, urlExportar } from '../../api';
 import { useCatalogosVisita } from '../../components/catalogos';
-import { SelectorCircuitos } from '../../components/selector-circuitos';
 import { alEnviarInspecciones, useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
@@ -123,88 +123,19 @@ function Pendientes() {
   );
 }
 
-/** Filtros de la lista (además de la búsqueda); vacío = sin filtrar. Circuitos: varios a la vez. */
-interface ValoresFiltro {
-  equipo: string;
-  zona: string;
-  circuitos: string[];
-  desde: string;
-  hasta: string;
-}
-const SIN_FILTROS: ValoresFiltro = { equipo: '', zona: '', circuitos: [], desde: '', hasta: '' };
-/** Cuántos filtros hay puestos (para el contador del botón). */
-const contarActivos = (v: ValoresFiltro) => Object.values(v).filter((x) => (Array.isArray(x) ? x.length > 0 : !!x)).length;
+/** Filtros que van en la URL (se conservan al abrir una inspección y volver). Listas: separadas por coma. */
+const CLAVES_FILTRO = ['equipo', 'zona', 'circuito', 'desde', 'hasta'] as const;
+const lista = (v: string | null) => (v ? v.split(',').filter(Boolean) : []);
+const fechaValida = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
 
 /** Valores distintos y ordenados de una columna del catálogo de restauradores. */
-const distintos = (lista: Restaurador[], f: (r: Restaurador) => string | null) =>
-  [...new Set(lista.map((r) => f(r)?.trim()).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+const distintos = (rs: Restaurador[], f: (r: Restaurador) => string | null) =>
+  [...new Set(rs.map((r) => f(r)?.trim()).filter((x): x is string => !!x))].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
 
-/** Panel de filtros: se muestra y oculta con el botón «Filtros». */
-function PanelFiltros({ valores, onCambiar, restauradores }: { valores: ValoresFiltro; onCambiar: (v: ValoresFiltro) => void; restauradores: Restaurador[] }) {
-  const campo = (clave: 'equipo' | 'desde' | 'hasta', valor: string) => onCambiar({ ...valores, [clave]: valor });
-  const zonas = useMemo(() => distintos(restauradores, (r) => r.zona), [restauradores]);
-  // Los circuitos se acotan a la zona elegida.
-  const circuitos = useMemo(
-    () =>
-      distintos(
-        restauradores.filter((r) => !valores.zona || r.zona?.trim().toLowerCase() === valores.zona.toLowerCase()),
-        (r) => r.circuito,
-      ),
-    [restauradores, valores.zona],
-  );
-  // Al cambiar de zona, se quitan los circuitos elegidos que no pertenecen a la nueva.
-  const elegirZona = (zona: string) => {
-    const deLaZona = new Set(restauradores.filter((x) => !zona || x.zona?.trim().toLowerCase() === zona.toLowerCase()).map((x) => x.circuito?.trim()));
-    onCambiar({ ...valores, zona, circuitos: valores.circuitos.filter((c) => deLaZona.has(c)) });
-  };
-  const activos = contarActivos(valores) > 0;
-  return (
-    <div id="panel-filtros" className="tarjeta p-3">
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-        <label className="text-xs font-semibold text-slate-600">
-          Equipo
-          <select className="campo mt-1" value={valores.equipo} onChange={(e) => campo('equipo', e.target.value)}>
-            <option value="">Todos</option>
-            {EQUIPOS.map((x) => (
-              <option key={x} value={x}>
-                {EQUIPO_ETIQUETA[x]}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-xs font-semibold text-slate-600">
-          Zona
-          <select className="campo mt-1" value={valores.zona} onChange={(e) => elegirZona(e.target.value)}>
-            <option value="">Todas</option>
-            {zonas.map((x) => (
-              <option key={x}>{x}</option>
-            ))}
-          </select>
-        </label>
-        {/* No es <label>: el selector tiene sus propios botones y casillas. */}
-        <div className="col-span-2 text-xs font-semibold text-slate-600 lg:col-span-1">
-          Circuito
-          <SelectorCircuitos circuitos={circuitos} elegidos={valores.circuitos} onCambiar={(c) => onCambiar({ ...valores, circuitos: c })} />
-        </div>
-        <label className="text-xs font-semibold text-slate-600">
-          Desde
-          <input type="date" className="campo mt-1" value={valores.desde} onChange={(e) => campo('desde', e.target.value)} />
-        </label>
-        <label className="text-xs font-semibold text-slate-600">
-          Hasta
-          <input type="date" className="campo mt-1" value={valores.hasta} onChange={(e) => campo('hasta', e.target.value)} />
-        </label>
-      </div>
-      {activos && (
-        <div className="mt-3 flex justify-end">
-          <button type="button" className="text-sm font-semibold text-marca-600 hover:underline" onClick={() => onCambiar(SIN_FILTROS)}>
-            Limpiar filtros
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+/** Subestación de un circuito: lo que va antes del primer guion («BER-L205» → BER); sin guion, «Otros». */
+const subestacionDe = (circuito: string) => (circuito.includes('-') ? circuito.split('-')[0]!.trim().toUpperCase() : 'Otros');
+
+const OPCIONES_EQUIPO = EQUIPOS.map((e) => ({ valor: e as string, texto: EQUIPO_ETIQUETA[e] }));
 
 /**
  * «Inspecciones y registros»: una sola sección. Con permiso de consultar muestra las inspecciones de
@@ -216,23 +147,60 @@ export function ListarVisitas() {
   const resaltar = (useLocation().state as { resaltar?: string } | null)?.resaltar;
   const todas = hasAccess([PermisosVisitas.Consultar]);
   const registra = hasAccess([PermisosVisitas.Registrar]);
-  const [q, setQ] = useState('');
-  const [valores, setValores] = useState<ValoresFiltro>(SIN_FILTROS);
-  const [verFiltros, setVerFiltros] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const equipos = lista(params.get('equipo'));
+  const zonas = lista(params.get('zona'));
+  const circuitos = lista(params.get('circuito'));
+  const desde = fechaValida(params.get('desde'));
+  const hasta = fechaValida(params.get('hasta'));
+  const activos = [equipos.length, zonas.length, circuitos.length, desde, hasta].filter(Boolean).length;
+  const [verFiltros, setVerFiltros] = useState(activos > 0);
   const [pagina, setPagina] = useState(1);
-  const activos = contarActivos(valores);
+  const fijar = (cambios: Partial<Record<(typeof CLAVES_FILTRO)[number], string>>) => {
+    const p = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(cambios)) {
+      if (v) p.set(k, v);
+      else p.delete(k);
+    }
+    setParams(p, { replace: true });
+    setPagina(1);
+  };
+  const limpiar = () => fijar(Object.fromEntries(CLAVES_FILTRO.map((k) => [k, ''])));
+  // La búsqueda espera a que se deje de escribir (un pedido, no uno por letra).
+  const [texto, setTexto] = useState('');
+  const [q, setQ] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setQ(texto.trim());
+      setPagina(1);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [texto]);
   const filtros = {
-    q: q.trim() || undefined,
-    equipo: valores.equipo || undefined,
-    zona: valores.zona || undefined,
-    // Varios circuitos van separados por coma (los nombres de circuito no llevan comas).
-    circuitos: valores.circuitos.length ? [...valores.circuitos].sort().join(',') : undefined,
-    desde: valores.desde || undefined,
-    hasta: valores.hasta || undefined,
+    q: q || undefined,
+    equipo: equipos.join(',') || undefined,
+    zona: zonas.join(',') || undefined,
+    // Los nombres de circuito no llevan comas.
+    circuitos: [...circuitos].sort().join(',') || undefined,
+    desde: desde || undefined,
+    hasta: hasta || undefined,
     pagina,
   };
-  // Zonas y circuitos para los filtros: los de los restauradores del catálogo.
+  // Zonas y circuitos para los filtros: los del catálogo de restauradores; los circuitos, de las zonas elegidas.
   const restauradores = useCatalogosVisita().data?.restauradores;
+  const opcionesZona = useMemo(() => distintos(restauradores ?? [], (r) => r.zona).map((z) => ({ valor: z, texto: z })), [restauradores]);
+  const deZonas = (zs: string[]) => (restauradores ?? []).filter((r) => !zs.length || zs.some((z) => z.toLowerCase() === r.zona?.trim().toLowerCase()));
+  const zonasClave = zonas.join(',');
+  const opcionesCircuito = useMemo(
+    () => distintos(deZonas(lista(zonasClave)), (r) => r.circuito).map((c) => ({ valor: c, texto: c })),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [restauradores, zonasClave],
+  );
+  // Al cambiar las zonas se quitan los circuitos elegidos que no les pertenecen.
+  const elegirZonas = (zs: string[]) => {
+    const validos = new Set(distintos(deZonas(zs), (r) => r.circuito));
+    fijar({ zona: zs.join(','), circuito: circuitos.filter((c) => validos.has(c)).join(',') });
+  };
   const consulta = useQuery({
     queryKey: ['visitas', todas ? 'todas' : 'mias', filtros],
     queryFn: () => (todas ? listarVisitas(filtros) : misVisitas(filtros)),
@@ -243,10 +211,6 @@ export function ListarVisitas() {
   // recarga por tanda (no en cada paso del envío: registrar, cada foto, el PDF).
   const { refetch } = consulta;
   useEffect(() => alEnviarInspecciones(() => void refetch()), [refetch]);
-  const filtrar = (fn: () => void) => {
-    fn();
-    setPagina(1);
-  };
   const datos = consulta.data;
   const paginas = datos ? Math.max(1, Math.ceil(datos.total / datos.por_pagina)) : 1;
 
@@ -266,13 +230,13 @@ export function ListarVisitas() {
       <div className="mb-4 space-y-2">
         <div className="flex gap-2">
           <div className="relative flex-1">
-            <Search className="pointer-events-none absolute left-3 top-3.5 h-4 w-4 text-slate-400" aria-hidden />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden />
             <input
               className="campo pl-9"
               inputMode="search"
               placeholder="Buscar por Energis, circuito, ubicación o folio"
-              value={q}
-              onChange={(e) => filtrar(() => setQ(e.target.value))}
+              value={texto}
+              onChange={(e) => setTexto(e.target.value)}
               aria-label="Buscar"
             />
           </div>
@@ -293,7 +257,55 @@ export function ListarVisitas() {
             )}
           </button>
         </div>
-        {verFiltros && <PanelFiltros valores={valores} restauradores={restauradores ?? []} onCambiar={(v) => filtrar(() => setValores(v))} />}
+        {verFiltros && (
+          <div
+            id="panel-filtros"
+            className="tarjeta grid grid-cols-2 gap-3 p-3 lg:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,1.4fr)_repeat(2,minmax(0,1fr))_auto] lg:items-start"
+          >
+            <SelectorMultiple etiqueta="Equipo" opciones={OPCIONES_EQUIPO} valor={equipos} onChange={(v) => fijar({ equipo: v.join(',') })} />
+            <SelectorMultiple etiqueta="Zona" textoTodas="Todas" opciones={opcionesZona} valor={zonas} onChange={elegirZonas} />
+            <SelectorMultiple
+              etiqueta="Circuito"
+              className="col-span-2 lg:col-span-1"
+              opciones={opcionesCircuito}
+              valor={circuitos}
+              onChange={(v) => fijar({ circuito: v.join(',') })}
+              grupo={(o) => subestacionDe(o.valor)}
+              buscar
+            />
+            <div>
+              <label className="etiqueta" htmlFor="f-desde">
+                Desde
+              </label>
+              <input
+                id="f-desde"
+                type="date"
+                className="campo h-11 py-0"
+                value={desde}
+                max={hasta || undefined}
+                onChange={(e) => fijar({ desde: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="etiqueta" htmlFor="f-hasta">
+                Hasta
+              </label>
+              <input
+                id="f-hasta"
+                type="date"
+                className="campo h-11 py-0"
+                value={hasta}
+                min={desde || undefined}
+                onChange={(e) => fijar({ hasta: e.target.value })}
+              />
+            </div>
+            {activos > 0 && (
+              <button type="button" className="btn-secundario col-span-2 lg:col-span-1 lg:mt-6 lg:self-start" onClick={limpiar}>
+                <X className="h-4 w-4" aria-hidden /> Limpiar
+              </button>
+            )}
+          </div>
+        )}
       </div>
       {consulta.isPending && consulta.fetchStatus === 'paused' ? (
         // Sin señal la consulta queda en pausa (no es «no hay inspecciones»): se hace sola al volver la señal.

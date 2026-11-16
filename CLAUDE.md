@@ -67,6 +67,16 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
 - Página abierta sin service worker al mando (primera visita o recarga forzada): al tomar el control
   uno nuevo se compara `__VERSION_APP__` con `/version.json` (sin caché) para saber si quedó vieja.
 
+## Sesión
+
+- Abrir la app: con una sesión confirmada por el servidor en los últimos 14 días se dibuja de inmediato y
+  se confirma en paralelo (acuerdo del proyecto, no está en los lineamientos); si no, espera al servidor.
+  Si el servidor ya no la reconoce, el ingreso dice «Su sesión terminó…».
+- Cerrar sesión (lineamientos): confirma, avisa si hay envíos pendientes o una inspección en curso (se
+  conservan), muestra «Cerrando sesión…», borra la sesión en el servidor y los datos del navegador. Sin
+  señal queda pendiente (`cierre-pendiente`) y se completa al volver la señal.
+- Filtros de listas: `SelectorMultiple` (casillas; sin nada marcado = todos) y en la URL.
+
 ## Pendientes acordados
 
 - **Optimizar `registros` (96 columnas, límite de D1: 100)** — después de estabilizar la versión 3.

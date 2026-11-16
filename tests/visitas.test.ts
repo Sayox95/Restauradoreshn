@@ -138,6 +138,8 @@ describe('ver las visitas', () => {
     // Varios circuitos a la vez.
     expect((await lista('?circuitos=L-501,ber-l207')).total).toBe(2);
     expect((await lista('?zona=norte')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    // Varias zonas a la vez (la de la visita de datos de prueba y NORTE).
+    expect((await lista('?zona=norte,zona-que-no-existe')).total).toBe(1);
     // Un valor que no está en la lista se ignora.
     expect((await lista('?equipo=otro')).total).toBe(2);
   });

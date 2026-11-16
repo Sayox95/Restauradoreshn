@@ -2,24 +2,29 @@ import { type Ctx, filtroVisitas, visitasPropias } from '../../../plumbing/conte
 import { EQUIPOS } from '../../../../shared/constantes';
 import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
+/** Valores de un parámetro separado por coma (sin repetidos, en minúsculas y acotados). */
+const valoresDe = (ctx: Ctx, clave: string, max = 300) =>
+  [
+    ...new Set(
+      (ctx.url.searchParams.get(clave) ?? '')
+        .split(',')
+        .map((c) => c.trim().toLowerCase().slice(0, 80))
+        .filter(Boolean),
+    ),
+  ].slice(0, max);
+
 /**
- * Filtros de la lista (y del CSV): texto (folio, Energis, circuito, ubicación), rango de fechas de visita,
- * equipo, zona y circuitos (varios, separados por coma). Un equipo fuera de la lista se ignora.
+ * Filtros de la lista (y del CSV): texto (folio, Energis, circuito, ubicación), rango de fechas de visita
+ * y, con varios valores separados por coma, equipos, zonas y circuitos. Un equipo fuera de la lista se
+ * ignora.
  */
 export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
   const q = ctx.url.searchParams.get('q')?.trim();
   const desde = ctx.url.searchParams.get('desde');
   const hasta = ctx.url.searchParams.get('hasta');
-  const equipo = ctx.url.searchParams.get('equipo');
-  const zona = ctx.url.searchParams.get('zona')?.trim();
-  const circuitos = [
-    ...new Set(
-      (ctx.url.searchParams.get('circuitos') ?? '')
-        .split(',')
-        .map((c) => c.trim().toLowerCase().slice(0, 80))
-        .filter(Boolean),
-    ),
-  ].slice(0, 300);
+  const equipos = valoresDe(ctx, 'equipo').filter((e) => (EQUIPOS as readonly string[]).includes(e));
+  const zonas = valoresDe(ctx, 'zona');
+  const circuitos = valoresDe(ctx, 'circuitos');
   const fv = soloMias ? visitasPropias(ctx.usuario) : filtroVisitas(ctx.usuario);
   const condiciones = [fv.sql];
   const binds: unknown[] = [...fv.binds];
@@ -36,18 +41,14 @@ export function filtrosVisitas(ctx: Ctx, soloMias: boolean) {
     condiciones.push('r.fecha_visita <= ?');
     binds.push(hasta);
   }
-  if (equipo && (EQUIPOS as readonly string[]).includes(equipo)) {
-    condiciones.push("COALESCE(v.equipo, 'restaurador') = ?");
-    binds.push(equipo);
-  }
-  if (zona) {
-    condiciones.push('lower(r.zona) = lower(?)');
-    binds.push(zona.slice(0, 80));
-  }
-  if (circuitos.length) {
-    condiciones.push(`lower(r.circuito) IN (${circuitos.map(() => '?').join(',')})`);
-    binds.push(...circuitos);
-  }
+  const enLista = (columna: string, valores: string[]) => {
+    if (!valores.length) return;
+    condiciones.push(`${columna} IN (${valores.map(() => '?').join(',')})`);
+    binds.push(...valores);
+  };
+  enLista("COALESCE(v.equipo, 'restaurador')", equipos);
+  enLista('lower(trim(r.zona))', zonas);
+  enLista('lower(trim(r.circuito))', circuitos);
   return { sql: condiciones.join(' AND '), binds };
 }
 
