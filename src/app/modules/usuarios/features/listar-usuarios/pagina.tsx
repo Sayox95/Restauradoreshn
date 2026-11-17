@@ -1,6 +1,5 @@
 import { type EstadoCuenta } from '@shared/constantes';
 import { resumenAcceso } from '@shared/permisos';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Plus, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { type Columna, Tabla } from '@/common/components/Tabla';
@@ -10,16 +9,17 @@ import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/compon
 import { SelectorMultiple } from '@/common/components/SelectorMultiple';
 import { mensajeError } from '@/common/http/api';
 import { fecha } from '@/common/utils/fechas';
-import { listarUsuarios, rechazarCuenta, type Usuario } from '@/app/modules/usuarios/api';
+import { rechazarCuenta, type Usuario } from '@/app/modules/usuarios/api';
 import { Avatar, BadgeCuenta, DialogoAprobar, FormCuenta } from '@/app/modules/usuarios/components/cuenta';
 import { urlUsuario } from '@/app/modules/usuarios/urls';
+import { useRecargarUsuarios, useUsuarios } from '../../hooks/useUsuarios';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 
 type Filtro = Exclude<EstadoCuenta, 'pendiente'>;
 
 /** Solicitud de cuenta hecha desde la pantalla de ingreso: se aprueba (eligiendo el perfil) o se rechaza. */
 function Solicitud({ u, onAprobar }: { u: Usuario; onAprobar: () => void }) {
-  const qc = useQueryClient();
+  const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
   const confirmar = useConfirmar();
   const [enviando, setEnviando] = useState(false);
@@ -36,7 +36,7 @@ function Solicitud({ u, onAprobar }: { u: Usuario; onAprobar: () => void }) {
     setEnviando(true);
     try {
       await rechazarCuenta(u.id);
-      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      void recargar(u.id);
       avisar('Solicitud rechazada');
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });
@@ -105,7 +105,7 @@ export function Usuarios() {
   // Sin estados elegidos se ven todas las cuentas (las solicitudes van aparte, arriba).
   const [filtro, setFiltro] = useState<Filtro[]>([]);
   const [buscar, setBuscar] = useState('');
-  const q = useQuery({ queryKey: ['usuarios'], queryFn: listarUsuarios });
+  const q = useUsuarios();
   useTiempoReal(['usuarios'], () => void q.refetch());
   const todos = q.data ?? [];
   const cuenta = (e: EstadoCuenta) => todos.filter((u) => u.estado === e).length;

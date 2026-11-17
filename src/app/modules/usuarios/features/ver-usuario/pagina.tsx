@@ -1,6 +1,5 @@
 import { ROL_ETIQUETA, type Rol } from '@shared/constantes';
 import { MODULOS, TODOS_LOS_PERMISOS } from '@shared/permisos';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, KeyRound, LogOut, Pencil, Power, UserX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -10,17 +9,10 @@ import { CajaError, Cargando, Encabezado, Seccion } from '@/common/components/ui
 import { mensajeError } from '@/common/http/api';
 import { useSesion } from '@/common/seguridad/sesion';
 import { fecha, fechaHora } from '@/common/utils/fechas';
-import {
-  activarCuenta,
-  cerrarSesionesDe,
-  desactivarCuenta,
-  type EventoCuenta,
-  rechazarCuenta,
-  restablecerPassword,
-  verUsuario,
-} from '@/app/modules/usuarios/api';
+import { activarCuenta, cerrarSesionesDe, desactivarCuenta, type EventoCuenta, rechazarCuenta, restablecerPassword } from '@/app/modules/usuarios/api';
 import { BadgeCuenta, ClaveTemporal, DialogoAprobar, FormCuenta } from '@/app/modules/usuarios/components/cuenta';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
+import { useRecargarUsuarios, useUsuario } from '../../hooks/useUsuarios';
 
 const ACCION: Record<string, string> = {
   solicitar_cuenta: 'Solicitó la cuenta',
@@ -99,9 +91,9 @@ function BotonAccion({
 export function VerUsuario() {
   const id = Number(useParams().id);
   const yo = useSesion().usuario;
-  const q = useQuery({ queryKey: ['usuario', id], queryFn: () => verUsuario(id) });
+  const q = useUsuario(id);
   useTiempoReal(['usuarios'], (e) => (e === 'reconectado' || e.id === id || e.id === null) && void q.refetch());
-  const qc = useQueryClient();
+  const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
   const confirmar = useConfirmar();
   const [editando, setEditando] = useState(false);
@@ -116,8 +108,7 @@ export function VerUsuario() {
   const ejecutar = async (fn: () => Promise<unknown>, aviso: string) => {
     try {
       await fn();
-      qc.invalidateQueries({ queryKey: ['usuarios'] });
-      qc.invalidateQueries({ queryKey: ['usuario', id] });
+      void recargar(id);
       avisar(aviso);
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });
@@ -135,7 +126,7 @@ export function VerUsuario() {
       return;
     try {
       const r = await restablecerPassword(u.id);
-      qc.invalidateQueries({ queryKey: ['usuario', id] });
+      void recargar(id);
       setTemporal(r.password_temporal);
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });

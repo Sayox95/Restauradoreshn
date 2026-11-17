@@ -3,7 +3,6 @@
  * (components/ficha.ts): mismo orden y mismos bloques; en PC aprovechan el ancho con varias columnas.
  * La firma solo va en el PDF.
  */
-import { useQuery } from '@tanstack/react-query';
 import { FileDown, ImageOff } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
@@ -15,7 +14,8 @@ import { TONO } from '@/common/tonos';
 import { fecha, fechaHora } from '@/common/utils/fechas';
 import type { FotoVisita } from '@shared/tipos';
 import type { Visita } from '@shared/visitas';
-import { urlFoto, urlPdf, verVisita } from '../../api';
+import { urlFoto, urlPdf } from '../../api';
+import { useInspeccion } from '../../hooks/useInspecciones';
 import { BotonEliminar } from '../../components/eliminar';
 import { type BloqueFicha, type CampoFicha, estructuraFicha, tonoEstado } from '../../components/ficha';
 import { useFotoPantalla } from '../../hooks/useFotoPantalla';
@@ -168,7 +168,7 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
 
 export function VerVisita() {
   const id = Number(useParams().id);
-  const consulta = useQuery({ queryKey: ['visita', id], queryFn: () => verVisita(id), enabled: Number.isInteger(id) });
+  const consulta = useInspeccion(id);
   const [foto, setFoto] = useState<number | null>(null);
   const { hasAccess } = useAccess();
   if (consulta.isPending && consulta.fetchStatus === 'paused') return <Vacio texto="Sin conexión: la inspección se mostrará al volver la señal." />;

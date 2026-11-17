@@ -17,7 +17,7 @@ import { fijarModoCaptura } from '@/common/menu/modo-captura';
 import { marcarTrabajo } from '@/common/pwa/trabajo';
 import { mensajeError } from '@/common/http/api';
 import { type FotoLocal, borrarBorrador, guardarBorrador, guardarEnCola, leerBorrador } from '../../components/almacen';
-import { useCatalogosVisita } from '../../components/catalogos';
+import { useCatalogosVisita } from '../../hooks/useCatalogosVisita';
 import { alCambiarPaso, cancelarEnvio, enviarPendientes } from '../../components/envio';
 import { generarFicha } from '../../components/ficha-pdf';
 import { type Borrador, type Cambios, aEntrada, borradorNuevo, requisitos, tieneDatos } from '../../components/formulario';

@@ -1,12 +1,11 @@
 /** Eliminar una inspección (permiso Eliminar): pide el motivo, que queda en el registro. */
-import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Hoja } from '@/common/components/Hoja';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
-import { eliminarVisita } from '../api';
+import { useEliminarInspeccion } from '../hooks/useInspecciones';
 import { urlInspecciones } from '../urls';
 
 export function BotonEliminar({ id, folio }: { id: number; folio: string }) {
@@ -31,16 +30,14 @@ function DialogoEliminar({ id, folio, onCerrar }: { id: number; folio: string; o
   const [motivo, setMotivo] = useState('');
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const qc = useQueryClient();
+  const eliminarInspeccion = useEliminarInspeccion();
   const avisar = useAvisos();
   const navegar = useNavigate();
   const eliminar = async () => {
     setEnviando(true);
     setError(null);
     try {
-      await eliminarVisita(id, motivo.trim());
-      qc.removeQueries({ queryKey: ['visita', id] });
-      await qc.invalidateQueries({ queryKey: ['visitas'] });
+      await eliminarInspeccion(id, motivo.trim());
       avisar('Inspección eliminada');
       navegar(urlInspecciones, { replace: true });
     } catch (e) {

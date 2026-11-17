@@ -21,7 +21,7 @@ import { Plus, Search, X } from 'lucide-react';
 import { Avatar } from '@/common/components/Avatar';
 import { useMemo, useState } from 'react';
 import { Bloque, Campo, FilaMediciones, Lista, Opciones, Texto } from './campos';
-import { opcionesDe } from './catalogos';
+import { opcionesDe } from '../hooks/useCatalogosVisita';
 import { Firma } from './Firma';
 import { Fotos } from './Fotos';
 import type { Borrador, Cambios, MaterialB, PersonaB } from './formulario';

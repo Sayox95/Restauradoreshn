@@ -4,7 +4,7 @@
  */
 import type { CatalogosVisita } from '@shared/tipos';
 import { type ContextoReglas, type Visita, type VisitaEntrada, folioNuevo, requisitosVisita, visitaEsquema } from '@shared/visitas';
-import { opcionesDe } from './catalogos';
+import { opcionesDe } from '../hooks/useCatalogosVisita';
 
 export interface MaterialB {
   /** Código del catálogo, «OTRO» (se escribe a mano) o vacío (sin elegir). */

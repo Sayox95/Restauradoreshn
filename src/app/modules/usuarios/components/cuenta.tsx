@@ -1,7 +1,6 @@
 /** Piezas comunes de la gestión de cuentas: estado, perfil y permisos, contraseña temporal y formularios. */
 import { DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, ROL_ETIQUETA, ROLES, type EstadoCuenta, type Rol, usuarioDeCorreo } from '@shared/constantes';
 import { igualAlPerfil, MODULOS, permisosDePerfil } from '@shared/permisos';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Hoja } from '@/common/components/Hoja';
@@ -9,7 +8,8 @@ export { Avatar } from '@/common/components/Avatar';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
 import { TONO_CUENTA, TONO_PERSONALIZADO } from '@/common/tonos';
-import { aprobarCuenta, crearUsuario, editarUsuario, listarCargos, type Usuario } from '@/app/modules/usuarios/api';
+import { aprobarCuenta, crearUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
+import { useCargos, useRecargarUsuarios } from '../hooks/useUsuarios';
 
 export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
   return (
@@ -165,13 +165,13 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
     permisos: u?.permisos ?? permisosDePerfil(u?.rol ?? 'tecnico'),
     cargo_id: u?.cargo_id ? String(u.cargo_id) : '',
   });
-  const cargos = useQuery({ queryKey: ['usuarios', 'cargos'], queryFn: listarCargos }).data ?? [];
+  const cargos = useCargos().data ?? [];
   // Si su cargo actual fue desactivado en el catálogo, se sigue mostrando para no perderlo al guardar.
   const opcionesCargo = u?.cargo_id && u.cargo && !cargos.some((c) => c.id === u.cargo_id) ? [...cargos, { id: u.cargo_id, nombre: u.cargo }] : cargos;
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ usuario: string; password_temporal: string } | null>(null);
-  const qc = useQueryClient();
+  const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
   const correo = f.correo.trim().toLowerCase();
   const usuario = correo.endsWith(`@${DOMINIO_CORREO}`) ? usuarioDeCorreo(correo) : '';
@@ -183,9 +183,8 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
       const datos = { ...f, correo, telefono: f.telefono.trim() || null, cargo_id: f.cargo_id ? Number(f.cargo_id) : null };
       if (u) await editarUsuario(u.id, { ...datos, correo: correo || undefined });
       else setCreada(await crearUsuario(datos));
-      qc.invalidateQueries({ queryKey: ['usuarios'] });
+      void recargar(u?.id);
       if (u) {
-        qc.invalidateQueries({ queryKey: ['usuario', u.id] });
         avisar('Usuario actualizado');
         onCerrar();
       }
@@ -282,15 +281,14 @@ export function DialogoAprobar({ u, onCerrar }: { u: Usuario; onCerrar: () => vo
   const [permisos, setPermisos] = useState<string[]>(() => permisosDePerfil('tecnico'));
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const qc = useQueryClient();
+  const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
   const aprobar = async () => {
     setEnviando(true);
     setError(null);
     try {
       await aprobarCuenta(u.id, { rol, permisos });
-      qc.invalidateQueries({ queryKey: ['usuarios'] });
-      qc.invalidateQueries({ queryKey: ['usuario', u.id] });
+      void recargar(u.id);
       avisar('Cuenta aprobada');
       onCerrar();
     } catch (e) {

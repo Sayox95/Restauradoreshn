@@ -231,6 +231,12 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   );
 }
 
+/** Vuelve a pedir la sesión al servidor (al ingresar, tras cambiar la contraseña o si cambiaron los permisos). */
+export function useRecargarSesion() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: ['yo'] });
+}
+
 export function useSesion() {
   const s = useContext(Ctx);
   if (!s) throw new Error('useSesion fuera de ProveedorSesion');

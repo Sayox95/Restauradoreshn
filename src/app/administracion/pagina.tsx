@@ -1,11 +1,10 @@
 import { PermisosCatalogos, PermisosUsuarios } from '@shared/permisos';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronRight, Settings, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Encabezado } from '@/common/components/ui';
 import { useAccess } from '@/common/seguridad/acceso';
 import { urlCatalogos } from '@/app/modules/catalogos/urls';
-import { listarUsuarios } from '@/app/modules/usuarios/api';
+import { useUsuarios } from '@/app/modules/usuarios/hooks/useUsuarios';
 import { urlUsuarios } from '@/app/modules/usuarios/urls';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 
@@ -13,7 +12,7 @@ import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 export function Administracion() {
   const { hasAccess } = useAccess();
   const gestionaUsuarios = hasAccess([PermisosUsuarios.Gestionar]);
-  const usuarios = useQuery({ queryKey: ['usuarios'], queryFn: listarUsuarios, enabled: gestionaUsuarios });
+  const usuarios = useUsuarios(gestionaUsuarios);
   useTiempoReal(['usuarios'], () => gestionaUsuarios && void usuarios.refetch());
   const pendientes = usuarios.data?.filter((u) => u.estado === 'pendiente').length ?? 0;
   const secciones = [

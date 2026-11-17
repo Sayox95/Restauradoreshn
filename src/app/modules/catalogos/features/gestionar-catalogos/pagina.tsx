@@ -1,5 +1,5 @@
+import type { UseQueryResult } from '@tanstack/react-query';
 import { ELEMENTOS_MARCA } from '@shared/constantes';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
@@ -10,15 +10,8 @@ import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/compon
 import { mensajeError } from '@/common/http/api';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fijarZona, zonaActual } from '@/common/utils/fechas';
-import {
-  type TipoCatalogo,
-  crearItemCatalogo,
-  editarItemCatalogo,
-  guardarConfiguracion,
-  guardarTablero,
-  listarCatalogo,
-  listarTableros,
-} from '@/app/modules/catalogos/api';
+import { type TipoCatalogo, crearItemCatalogo, editarItemCatalogo, guardarConfiguracion, guardarTablero } from '@/app/modules/catalogos/api';
+import { useCatalogo, useRecargarCatalogos, useTableros } from '../../hooks/useCatalogos';
 import { SECCION, esSeccionCatalogo } from '../../secciones';
 import { urlCatalogos } from '../../urls';
 
@@ -91,7 +84,7 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
   const [activo, setActivo] = useState(item?.activo ?? true);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const qc = useQueryClient();
+  const recargar = useRecargarCatalogos();
   const avisar = useAvisos();
   const guardar = async () => {
     setEnviando(true);
@@ -100,7 +93,7 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
       const datos = { ...Object.fromEntries(def.campos.map((c) => [c.clave, f[c.clave]?.trim() || null])), activo };
       if (item) await editarItemCatalogo(tipo, item.id, datos);
       else await crearItemCatalogo(tipo, datos);
-      await qc.invalidateQueries({ queryKey: ['catalogo', tipo] });
+      await recargar(tipo);
       avisar(item ? 'Registro actualizado' : 'Registro agregado');
       onCerrar();
     } catch (e) {
@@ -163,7 +156,8 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
 
 function Catalogo({ tipo }: { tipo: TipoCatalogo }) {
   const def = DEFINICIONES[tipo];
-  const q = useQuery({ queryKey: ['catalogo', tipo], queryFn: () => listarCatalogo(tipo) as unknown as Promise<Fila[]> });
+  // Las pantallas de catálogo comparten la fila genérica (cada catálogo declara sus campos arriba).
+  const q = useCatalogo(tipo) as unknown as UseQueryResult<Fila[]>;
   useTiempoReal(['catalogos'], () => void q.refetch());
   const [buscar, setBuscar] = useState('');
   const [editando, setEditando] = useState<Fila | null | 'nuevo'>(null);
@@ -263,7 +257,7 @@ function FormTablero({ marca, campos, onCerrar }: { marca: string; campos: strin
   const [lista, setLista] = useState<string[]>(campos.length ? campos : ['']);
   const [error, setError] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-  const qc = useQueryClient();
+  const recargar = useRecargarCatalogos();
   const avisar = useAvisos();
   const mover = (i: number, d: number) => {
     const n = [...lista];
@@ -275,7 +269,7 @@ function FormTablero({ marca, campos, onCerrar }: { marca: string; campos: strin
     setError(null);
     try {
       await guardarTablero(m.trim(), lista.map((c) => c.trim()).filter(Boolean));
-      await qc.invalidateQueries({ queryKey: ['tableros'] });
+      await recargar('tableros');
       avisar('Tablero guardado');
       onCerrar();
     } catch (e) {
@@ -333,7 +327,7 @@ function FormTablero({ marca, campos, onCerrar }: { marca: string; campos: strin
 }
 
 function Tableros() {
-  const q = useQuery({ queryKey: ['tableros'], queryFn: listarTableros });
+  const q = useTableros();
   const [editando, setEditando] = useState<{ marca: string; campos: string[] } | null>(null);
   const porMarca = useMemo(() => {
     const m = new Map<string, string[]>();
@@ -379,13 +373,13 @@ function ZonaHoraria() {
   const [zona, setZona] = useState(zonaActual());
   const [guardando, setGuardando] = useState(false);
   const avisar = useAvisos();
-  const qc = useQueryClient();
+  const recargar = useRecargarCatalogos();
   const guardar = async () => {
     setGuardando(true);
     try {
       await guardarConfiguracion({ zona_horaria: zona });
       fijarZona(zona);
-      qc.invalidateQueries();
+      void recargar();
       avisar('Zona horaria actualizada');
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });

@@ -2,7 +2,6 @@
  * «Inspecciones y registros»: las inspecciones que la persona puede ver (todas con Consultar; si no,
  * las suyas), lo guardado en el teléfono que falta enviar (excepción E1), filtros y CSV con Exportar.
  */
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { EQUIPO_ETIQUETA, EQUIPOS } from '@shared/constantes';
 import type { Restaurador } from '@shared/tipos';
 import type { VisitaResumen } from '@shared/tipos';
@@ -16,8 +15,9 @@ import { useAvisos } from '@/common/components/Toast';
 import { useAccess } from '@/common/seguridad/acceso';
 import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
 import { fecha, fechaHora } from '@/common/utils/fechas';
-import { listarVisitas, misVisitas, urlExportar } from '../../api';
-import { useCatalogosVisita } from '../../components/catalogos';
+import { urlExportar } from '../../api';
+import { useInspecciones } from '../../hooks/useInspecciones';
+import { useCatalogosVisita } from '../../hooks/useCatalogosVisita';
 import { alEnviarInspecciones, useCola } from '../../components/envio';
 import { PermisosVisitas } from '../../permisos';
 import { urlVisita } from '../../urls';
@@ -201,11 +201,7 @@ export function ListarVisitas() {
     const validos = new Set(distintos(deZonas(zs), (r) => r.circuito));
     fijar({ zona: zs.join(','), circuito: circuitos.filter((c) => validos.has(c)).join(',') });
   };
-  const consulta = useQuery({
-    queryKey: ['visitas', todas ? 'todas' : 'mias', filtros],
-    queryFn: () => (todas ? listarVisitas(filtros) : misVisitas(filtros)),
-    placeholderData: keepPreviousData,
-  });
+  const consulta = useInspecciones(filtros, todas);
   useTiempoReal(['visitas'], () => void consulta.refetch());
   // Al terminar de enviarse lo guardado en el teléfono, la lista lo muestra sin esperar al canal: una
   // recarga por tanda (no en cada paso del envío: registrar, cada foto, el PDF).

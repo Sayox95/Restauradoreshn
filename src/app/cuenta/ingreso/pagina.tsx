@@ -1,10 +1,9 @@
-import { useQueryClient } from '@tanstack/react-query';
 import { DOMINIO_CORREO, PATRON_USUARIO, usuarioDeCorreo } from '@shared/constantes';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { type FormEvent, type ReactNode, useState } from 'react';
 import { mensajeError } from '@/common/http/api';
 import { iniciarSesion, solicitarCuenta } from '@/common/seguridad/api';
-import { tomarAvisoIngreso } from '@/common/seguridad/sesion';
+import { tomarAvisoIngreso, useRecargarSesion } from '@/common/seguridad/sesion';
 
 export function Marco({ subtitulo, children }: { subtitulo: string; children: ReactNode }) {
   return (
@@ -132,7 +131,7 @@ export function Login() {
   const [creando, setCreando] = useState(false);
   // «Su sesión terminó…»: solo si la sesión terminó sin que la persona saliera (se lee una vez).
   const [aviso] = useState(tomarAvisoIngreso);
-  const qc = useQueryClient();
+  const recargarSesion = useRecargarSesion();
   if (creando) return <CrearCuenta onVolver={() => setCreando(false)} />;
   const entrar = async (e: FormEvent) => {
     e.preventDefault();
@@ -140,7 +139,7 @@ export function Login() {
     setError(null);
     try {
       await iniciarSesion(usuario, password);
-      await qc.invalidateQueries({ queryKey: ['yo'] });
+      await recargarSesion();
     } catch (err) {
       setError(mensajeError(err));
     } finally {

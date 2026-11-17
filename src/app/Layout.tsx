@@ -1,5 +1,4 @@
 import { CloudOff, Menu, WifiOff } from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { fijarCuenta } from '@/app/modules/visitas/components/almacen';
@@ -9,7 +8,7 @@ import { useModoCaptura } from '@/common/menu/modo-captura';
 import { Cargando } from '@/common/components/ui';
 import { ErrorPantalla } from '@/common/components/ErrorPantalla';
 import { useAccess } from '@/common/seguridad/acceso';
-import { useSesion } from '@/common/seguridad/sesion';
+import { useRecargarSesion, useSesion } from '@/common/seguridad/sesion';
 import { menuPrincipal } from '@/app/menu';
 import { urlMiCuenta } from '@/app/cuenta/urls';
 import { Notificaciones } from '@/app/Notificaciones';
@@ -76,10 +75,10 @@ export function Layout() {
   }, []);
   // Si cambia su propia cuenta (perfil, desactivación) o la configuración, se recarga la sesión:
   // el menú y los permisos se actualizan solos (y si la desactivaron, sale).
-  const qc = useQueryClient();
+  const recargarSesion = useRecargarSesion();
   const idUsuario = usuario?.id;
   useTiempoReal(['usuarios', 'catalogos'], (e) => {
-    if (e === 'reconectado' || e.modulo === 'catalogos' || e.id === idUsuario) void qc.invalidateQueries({ queryKey: ['yo'] });
+    if (e === 'reconectado' || e.modulo === 'catalogos' || e.id === idUsuario) void recargarSesion();
   });
 
   return (

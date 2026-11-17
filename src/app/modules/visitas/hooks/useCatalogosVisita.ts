@@ -6,7 +6,7 @@ import type { CatalogosVisita } from '@shared/tipos';
 import { useQuery } from '@tanstack/react-query';
 import { ErrorApi } from '@/common/http/api';
 import { catalogosVisita } from '@/app/modules/catalogos/api';
-import { guardarCatalogosLocales, leerCatalogosLocales } from './almacen';
+import { guardarCatalogosLocales, leerCatalogosLocales } from '../components/almacen';
 
 async function cargar(): Promise<CatalogosVisita & { local?: boolean }> {
   try {
