@@ -119,6 +119,8 @@ export const EQUIPO_INSPECCION = [
   `CREATE INDEX IF NOT EXISTS ix_visitas_registro_equipo ON visitas_registro(equipo)`,
 ];
 
+export const COPIA_FOTO = [`ALTER TABLE registros_fotos ADD COLUMN copia_r2_key TEXT`];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
 const existeIndice = (indice: string) => async (env: Env) =>
@@ -149,6 +151,7 @@ export const CAMBIOS: Cambio[] = [
   { migracion: '0008_catalogo_cargos.sql', sentencias: CATALOGO_CARGOS, yaAplicado: existeTabla('cargos') },
   { migracion: '0009_eliminar_inspecciones.sql', sentencias: ELIMINAR_INSPECCIONES, yaAplicado: existeColumna('visitas_registro', 'motivo_eliminacion') },
   { migracion: '0010_equipo_inspeccion.sql', sentencias: EQUIPO_INSPECCION, yaAplicado: existeColumna('visitas_registro', 'equipo') },
+  { migracion: '0011_copia_foto.sql', sentencias: COPIA_FOTO, yaAplicado: existeColumna('registros_fotos', 'copia_r2_key') },
 ];
 
 export let listo = false;

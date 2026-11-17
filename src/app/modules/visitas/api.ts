@@ -28,6 +28,16 @@ export const verVisita = (id: number) => get<VisitaDetalle>(`${BASE}/${id}`);
 export const urlExportar = ({ pagina: _pagina, ...f }: Filtros = {}) => `${BASE}/exportar${qs({ ...f })}`;
 export const urlFoto = (id: number, orden: number, v = '') => `${BASE}/${id}/fotos/${orden}${v ? `?v=${encodeURIComponent(v)}` : ''}`;
 export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
+/** Copia reducida de una foto (la que se muestra en pantalla; E2). */
+export const urlFotoCopia = (id: number, orden: number, v = '') => `${BASE}/${id}/fotos/${orden}/copia${v ? `?v=${encodeURIComponent(v)}` : ''}`;
+/** Foto original como archivo (para generar la copia de pantalla de las inspecciones que no la tienen). */
+export async function descargarFotoOriginal(id: number, orden: number, v = '') {
+  const r = await fetch(urlFoto(id, orden, v), { credentials: 'same-origin' });
+  if (!r.ok) throw new Error('No se pudo descargar la foto.');
+  return r.blob();
+}
+export const subirCopiaFoto = (id: number, orden: number, copia: Blob, signal?: AbortSignal) =>
+  subirArchivo(`${BASE}/${id}/fotos/${orden}/copia`, copia, { tipo: 'image/jpeg', signal });
 /** Elimina (oculta) una inspección con el motivo. */
 export const eliminarVisita = (id: number, motivo: string) => post(`${BASE}/${id}/eliminar`, { motivo });
 

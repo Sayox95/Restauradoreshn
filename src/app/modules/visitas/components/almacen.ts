@@ -29,6 +29,8 @@ export interface Pendiente {
   id?: number;
   /** Órdenes (1..n) de las fotos ya subidas. */
   fotos_subidas: number[];
+  /** Órdenes de las fotos cuya copia reducida ya se subió (o no se pudo subir y no se reintenta). */
+  copias_subidas?: number[];
   pdf_subido: boolean;
   /** Último error que no es de conexión (el servidor rechazó algo): se muestra a la persona. */
   error?: string;

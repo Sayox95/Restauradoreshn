@@ -7,7 +7,8 @@
 import { visitaEsquema } from '@shared/visitas';
 import { useEffect, useState } from 'react';
 import { ErrorApi, mensajeError } from '@/common/http/api';
-import { registrarVisita, subirFoto, subirPdf } from '@/app/modules/visitas/api';
+import { blobDeDataUrl } from '@/common/utils/imagen';
+import { registrarVisita, subirCopiaFoto, subirFoto, subirPdf } from '@/app/modules/visitas/api';
 import { type Pendiente, alCambiarCola, guardarEnCola, listarCola, quitarDeCola } from './almacen';
 import { generarFicha } from './ficha-pdf';
 
@@ -42,6 +43,20 @@ async function enviarUna(p: Pendiente, signal: AbortSignal): Promise<number> {
     avisarPaso(`Subiendo foto ${orden} de ${p.fotos.length}`);
     await subirFoto(p.id, orden, f.original, f.observacion, signal);
     p.fotos_subidas = [...p.fotos_subidas, orden];
+    await guardarEnCola(p);
+  }
+  // Copias reducidas para las pantallas (E2). Si el servidor rechaza una, la pantalla la genera del
+  // original: no se detiene el envío ni se reintenta; sin señal sí se reintenta después.
+  for (let i = 0; i < p.fotos.length; i++) {
+    const orden = i + 1;
+    const copia = p.fotos[i]!.copia;
+    if (!copia || (p.copias_subidas ?? []).includes(orden)) continue;
+    try {
+      await subirCopiaFoto(p.id, orden, blobDeDataUrl(copia), signal);
+    } catch (e) {
+      if (e instanceof ErrorApi && (e.status === 0 || e.status === 401)) throw e;
+    }
+    p.copias_subidas = [...(p.copias_subidas ?? []), orden];
     await guardarEnCola(p);
   }
   if (!p.pdf_subido) {

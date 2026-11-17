@@ -1,3 +1,33 @@
+/** Convierte un data URL (la copia reducida guardada en el teléfono) en un archivo para subirlo. */
+export function blobDeDataUrl(dataUrl: string): Blob {
+  const [cabecera, datos = ''] = dataUrl.split(',');
+  const tipo = /data:([^;]+)/.exec(cabecera ?? '')?.[1] ?? 'image/jpeg';
+  const binario = atob(datos);
+  const bytes = new Uint8Array(binario.length);
+  for (let i = 0; i < binario.length; i++) bytes[i] = binario.charCodeAt(i);
+  return new Blob([bytes], { type: tipo });
+}
+
+/**
+ * Copia reducida para mostrar en pantalla, generada del original ya descargado. `createImageBitmap` con
+ * `resizeWidth` decodifica y achica fuera del hilo principal, así la pantalla no se traba con un
+ * original de varios MB. Devuelve una URL local (revocarla al dejar de usarla) o null si no se puede.
+ */
+export async function vistaReducida(original: Blob, ancho = 800): Promise<string | null> {
+  try {
+    const bitmap = await createImageBitmap(original, { imageOrientation: 'from-image', resizeWidth: ancho, resizeQuality: 'medium' });
+    const canvas = document.createElement('canvas');
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/jpeg', 0.8));
+    return blob ? URL.createObjectURL(blob) : null;
+  } catch {
+    return null;
+  }
+}
+
 const LADO_MAX = 1600;
 const CALIDAD = 0.85;
 

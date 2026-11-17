@@ -4,19 +4,21 @@
  * La firma solo va en el PDF.
  */
 import { useQuery } from '@tanstack/react-query';
-import { FileDown } from 'lucide-react';
+import { FileDown, ImageOff } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeVisita, CajaError, Cargando, Encabezado, Vacio } from '@/common/components/ui';
+import { BadgeVisita, CajaError, Encabezado, Vacio } from '@/common/components/ui';
 import { type Columna, Tabla } from '@/common/components/Tabla';
 import { VisorFotos } from '@/common/components/VisorFotos';
 import { useAccess } from '@/common/seguridad/acceso';
 import { TONO } from '@/common/tonos';
 import { fecha, fechaHora } from '@/common/utils/fechas';
+import type { FotoVisita } from '@shared/tipos';
 import type { Visita } from '@shared/visitas';
 import { urlFoto, urlPdf, verVisita } from '../../api';
 import { BotonEliminar } from '../../components/eliminar';
 import { type BloqueFicha, type CampoFicha, estructuraFicha, tonoEstado } from '../../components/ficha';
+import { useFotoPantalla } from '../../hooks/useFotoPantalla';
 import { PermisosVisitas } from '../../permisos';
 
 // Clases fijas por cantidad de columnas (Tailwind necesita verlas escritas completas).
@@ -85,6 +87,76 @@ function Bloque({ b }: { b: BloqueFicha }) {
   );
 }
 
+/**
+ * Una foto en la cuadrícula: espacio reservado (4:3) con esqueleto hasta que la imagen está lista y
+ * entrada con fundido, así nada salta. Muestra la copia reducida; al tocarla, el visor abre el original.
+ */
+function FotoEnPantalla({ idVisita, foto, numero, onAbrir }: { idVisita: number; foto: FotoVisita; numero: number; onAbrir: () => void }) {
+  const { src, fallo, marcarFallo } = useFotoPantalla(idVisita, foto);
+  const [lista, setLista] = useState(false);
+  return (
+    <button type="button" className="overflow-hidden rounded-xl border border-slate-200 text-left" onClick={onAbrir}>
+      <div className="relative aspect-[4/3] w-full bg-slate-100">
+        {!lista && !fallo && <div className="absolute inset-0 animate-pulse bg-slate-200" aria-hidden />}
+        {fallo ? (
+          <div className="absolute inset-0 flex items-center justify-center text-slate-400" role="img" aria-label="Vista previa no disponible">
+            <ImageOff className="h-8 w-8" aria-hidden />
+          </div>
+        ) : (
+          src && (
+            <img
+              src={src}
+              alt={foto.observacion ?? `Foto ${numero}`}
+              decoding="async"
+              onLoad={() => setLista(true)}
+              onError={marcarFallo}
+              className={`absolute inset-0 h-full w-full object-cover ${lista ? 'anim-solo-fundido' : 'opacity-0'}`}
+            />
+          )
+        )}
+      </div>
+      <p className="px-3 py-2 text-xs text-slate-600">
+        <span className="font-bold text-marca-900">Foto {numero}</span>
+        {foto.observacion ? ` · ${foto.observacion}` : ''}
+      </p>
+    </button>
+  );
+}
+
+/** Esqueleto con la forma del detalle: encabezado, franja de datos y tarjetas (nada salta al cargar). */
+function EsqueletoDetalle() {
+  const barra = 'rounded bg-slate-200';
+  return (
+    <div className="animate-pulse" role="status" aria-label="Cargando la inspección">
+      <div className="mb-5 space-y-2">
+        <div className={`h-7 w-2/3 max-w-sm ${barra}`} />
+        <div className={`h-4 w-1/2 max-w-xs ${barra}`} />
+      </div>
+      <div className="tarjeta mb-4 grid grid-cols-3 gap-2 p-3 sm:grid-cols-6">
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="space-y-1.5 py-1">
+            <div className={`mx-auto h-3 w-12 ${barra}`} />
+            <div className={`mx-auto h-4 w-16 ${barra}`} />
+          </div>
+        ))}
+      </div>
+      {[6, 6, 4, 8].map((celdas, i) => (
+        <div key={i} className="tarjeta mb-4 overflow-hidden">
+          <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
+            <div className={`h-4 w-40 ${barra}`} />
+          </div>
+          <div className="grid grid-cols-2 gap-2 p-4 sm:grid-cols-3 lg:grid-cols-6">
+            {Array.from({ length: celdas }, (_, j) => (
+              <div key={j} className="h-12 rounded-lg bg-slate-100" />
+            ))}
+          </div>
+        </div>
+      ))}
+      <span className="sr-only">Cargando la inspección</span>
+    </div>
+  );
+}
+
 type Material = Visita['materiales'][number];
 const COLUMNAS_MATERIALES: Columna<Material>[] = [
   { titulo: 'Código', celda: (m) => m.codigo ?? '—', clase: 'whitespace-nowrap' },
@@ -100,11 +172,12 @@ export function VerVisita() {
   const [foto, setFoto] = useState<number | null>(null);
   const { hasAccess } = useAccess();
   if (consulta.isPending && consulta.fetchStatus === 'paused') return <Vacio texto="Sin conexión: la inspección se mostrará al volver la señal." />;
-  if (consulta.isPending) return <Cargando />;
+  if (consulta.isPending) return <EsqueletoDetalle />;
   if (consulta.isError || !consulta.data)
     return <CajaError error={consulta.error ?? new Error('Inspección no encontrada')} reintentar={() => void consulta.refetch()} />;
   const d = consulta.data;
   const v = d.datos;
+  // El visor abre el ORIGINAL (a pedido, E2); la cuadrícula muestra la copia reducida.
   const fotos = d.fotos.map((f) => ({ src: urlFoto(d.id, f.orden, f.v), alt: f.observacion ?? `Foto ${f.orden}`, obs: f.observacion }));
 
   // Franja de datos de la inspección (como el encabezado del PDF).
@@ -118,7 +191,7 @@ export function VerVisita() {
   ];
 
   return (
-    <div>
+    <div className="anim-solo-fundido">
       <Encabezado
         volver
         titulo={`${v.codigo_energis ?? 'Inspección'}${v.circuito ? ` · ${v.circuito}` : ''}`}
@@ -181,14 +254,8 @@ export function VerVisita() {
       <Tarjeta titulo={`Registro fotográfico (${fotos.length})`}>
         {fotos.length ? (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {fotos.map((f, i) => (
-              <button key={f.src} type="button" className="overflow-hidden rounded-xl border border-slate-200 text-left" onClick={() => setFoto(i)}>
-                <img src={f.src} alt={f.alt} loading="lazy" className="aspect-[4/3] w-full bg-slate-100 object-cover" />
-                <p className="px-3 py-2 text-xs text-slate-600">
-                  <span className="font-bold text-marca-900">Foto {i + 1}</span>
-                  {f.obs ? ` · ${f.obs}` : ''}
-                </p>
-              </button>
+            {d.fotos.map((f, i) => (
+              <FotoEnPantalla key={`${f.orden}-${f.v}`} idVisita={d.id} foto={f} numero={i + 1} onAbrir={() => setFoto(i)} />
             ))}
           </div>
         ) : (

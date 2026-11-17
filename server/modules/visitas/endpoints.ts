@@ -5,7 +5,7 @@ import { idParam, leerJson, paginacion } from '../../plumbing/http';
 import { SOLO_SESION, r, ruta } from '../../plumbing/router';
 import { PermisosVisitas } from './permisos';
 import { detalleVisita } from './comun';
-import { descargarFoto, descargarPdf, subirFoto, subirPdf } from './features/archivos-visita';
+import { descargarCopiaFoto, descargarFoto, descargarPdf, subirCopiaFoto, subirFoto, subirPdf } from './features/archivos-visita';
 import { eliminarVisita } from './features/eliminar-visita';
 import { exportarVisitas } from './features/exportar';
 import { listarVisitas } from './features/listar-visitas';
@@ -40,6 +40,12 @@ ruta('PUT', '/api/v1/visitas/:id/fotos/:orden', [PermisosVisitas.Registrar] /* s
 );
 ruta('GET', '/api/v1/visitas/:id/fotos/:orden', SOLO_SESION /* fotos de las visitas que puede ver (filtroVisitas) */, async (ctx) =>
   descargarFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
+);
+ruta('PUT', '/api/v1/visitas/:id/fotos/:orden/copia', [PermisosVisitas.Registrar] /* solo en sus visitas */, async (ctx) =>
+  r(ctx, await subirCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden), 201),
+);
+ruta('GET', '/api/v1/visitas/:id/fotos/:orden/copia', SOLO_SESION /* copias de las visitas que puede ver (filtroVisitas) */, async (ctx) =>
+  descargarCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
 );
 ruta('PUT', '/api/v1/visitas/:id/pdf', [PermisosVisitas.Registrar] /* solo en sus visitas */, async (ctx) =>
   r(ctx, await subirPdf(ctx, idParam(ctx.params.id)), 201),

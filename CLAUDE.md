@@ -51,7 +51,8 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   idempotente por `visita_num` (índice único) y un solo envío a la vez (Web Locks).
 - **E2 · Fotos en resolución original** — módulo visitas. Motivo: las fotos son evidencia técnica (placas,
   lecturas). 1 obligatoria y hasta 3 más, máximo 25 MB cada una, subidas una por una a R2
-  (`fotos/<visita>/<orden>.<ext>`) y registradas en `registros_fotos`.
+  (`fotos/<visita>/<orden>.<ext>`) y registradas en `registros_fotos`. En pantalla se muestra la copia
+  reducida (`<orden>-copia.jpg`, generada en el teléfono); el original se abre a pedido en el visor.
 - **E3 · PDF generado en la app** — ficha de visita. Motivo: no existe un formato oficial seriado. Se
   genera con jsPDF, se archiva en R2 (`pdfs/<visita>.pdf`) y la base sigue siendo la fuente oficial.
 - **E4 · Mediciones numéricas cortas en una fila** — formulario de visita. El resto del formulario va en

@@ -103,6 +103,10 @@
   .anim-fondo {
     animation: fundido 180ms ease-out;
   }
+  /* Contenido que reemplaza a su esqueleto: solo fundido, sin desplazamiento (que nada salte). */
+  .anim-solo-fundido {
+    animation: fundido 240ms ease-out;
+  }
   .anim-hoja {
     animation: hoja-subir 240ms cubic-bezier(0.22, 1, 0.36, 1);
   }
@@ -222,6 +226,7 @@
   .anim-aparecer,
   .anim-menu,
   .anim-fondo,
+  .anim-solo-fundido,
   .anim-hoja,
   .anim-dialogo,
   .anim-aviso,

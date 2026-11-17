@@ -100,6 +100,8 @@ export interface FotoVisita {
   size: number;
   /** Cambia al reemplazar la foto (para no mostrar la anterior desde la caché). */
   v: string;
+  /** Hay copia reducida para mostrar en pantalla (E2); si no, la app la genera del original. */
+  copia: boolean;
 }
 
 export interface VisitaResumen {

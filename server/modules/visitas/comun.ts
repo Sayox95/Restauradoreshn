@@ -181,7 +181,7 @@ export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle
     .bind(id)
     .first<Record<string, unknown>>();
   const { results } = await ctx.env.DB.prepare(
-    "SELECT orden, observacion, content_type, size, r2_key, COALESCE(created_at, '') AS v FROM registros_fotos WHERE visita_num = ? ORDER BY orden",
+    "SELECT orden, observacion, content_type, size, r2_key, COALESCE(created_at, '') AS v, copia_r2_key IS NOT NULL AS copia FROM registros_fotos WHERE visita_num = ? ORDER BY orden",
   )
     .bind(f.visita_num)
     .all<Record<string, unknown>>();
@@ -191,6 +191,7 @@ export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle
     content_type: String(x.content_type ?? 'image/jpeg'),
     size: Number(x.size ?? 0),
     v: `${x.size ?? 0}-${x.v}`,
+    copia: !!x.copia,
   }));
   return { ...resumen(f), datos: filaAVisita(datos ?? {}), fotos };
 }

@@ -45,6 +45,8 @@ export function usuarioDeCorreo(correo: string): string {
 }
 
 // ── Fotos (excepción E2: resolución original) ─────────────────────────────────────────────
+/** Copia reducida de una foto (JPEG de 1600 px como máximo): tamaño máximo que acepta el servidor. */
+export const MAX_COPIA_BYTES = 5 * 1024 * 1024;
 export const MAX_FOTOS = 4;
 export const MAX_FOTO_BYTES = 25 * 1024 * 1024;
 export const MIMES_FOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const;
