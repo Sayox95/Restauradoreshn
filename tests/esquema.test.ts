@@ -51,6 +51,7 @@ describe('migraciones', () => {
       '0009_eliminar_inspecciones.sql',
       '0010_equipo_inspeccion.sql',
       '0011_copia_foto.sql',
+      '0012_evento_auditoria.sql',
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.

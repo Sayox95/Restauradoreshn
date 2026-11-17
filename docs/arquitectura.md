@@ -44,6 +44,7 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 | --- | --- | --- |
 | Reglas de la hoja | `shared/visitas.ts` (`requisitosVisita`) las usan la app y el servidor | Se escriben una vez: la app valida por sección y el servidor rechaza una visita incompleta (422). |
 | Atomicidad | Visita + auditoría en `DB.batch()` | Se guardan juntas o no se guardan. |
+| Auditoría | Cada fila lleva `evento`, el nombre del evento de dominio que tendrá en TI (`server/plumbing/eventos.ts`) | Al migrar, la bitácora por eventos usa los mismos nombres (lineamientos §7). |
 | Idempotencia | `visita_num` único (índice); reenviar la misma visita devuelve la existente | El envío se repite sin duplicar (E1). |
 | Columnas | Nunca `SELECT r.*` sobre `registros` | La tabla tiene 100 columnas y D1 no devuelve resultados de más de 100. |
 | Esquema | Migraciones aplicadas solas al arrancar (`asegurarEsquema`); con todo al día basta una consulta (`alDia`: migraciones anotadas y huella de permisos) | No hay pasos manuales al publicar y el primer pedido de un servidor que despierta no espera. |

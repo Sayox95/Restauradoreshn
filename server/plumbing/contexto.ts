@@ -2,6 +2,7 @@ import type { DestinoNotificacion, Notificacion, NotificacionCanal } from '../..
 import type { UsuarioSesion } from '../../shared/tipos';
 import { type Permiso, PermisosVisitas, tieneAcceso } from '../../shared/permisos';
 import { prohibido } from './http';
+import { eventoDe } from './eventos';
 
 export interface Env {
   DB: D1Database;
@@ -83,9 +84,10 @@ export function sentenciaAuditoria(
   despues: unknown,
   ahora: string,
 ) {
-  return env.DB.prepare('INSERT INTO auditoria (usuario_id, accion, entidad, entidad_id, antes, despues, creado_en) VALUES (?,?,?,?,?,?,?)').bind(
+  return env.DB.prepare('INSERT INTO auditoria (usuario_id, accion, evento, entidad, entidad_id, antes, despues, creado_en) VALUES (?,?,?,?,?,?,?,?)').bind(
     usuarioId,
     accion,
+    eventoDe(accion, entidad),
     entidad,
     entidadId,
     antes === null || antes === undefined ? null : JSON.stringify(antes),

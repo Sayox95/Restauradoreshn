@@ -3,6 +3,7 @@ import type { Ctx } from '../../../plumbing/contexto';
 import { ApiError, esErrorUnico } from '../../../plumbing/http';
 import { catalogosVisita } from '../../catalogos/features/gestionar-catalogos';
 import { COLUMNAS_DATOS, DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
+import { eventoDe } from '../../../plumbing/eventos';
 
 /** Datos de la visita → valores de cada columna de `registros`. */
 function valores(v: Visita): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
@@ -77,10 +78,10 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
         .bind(v.visita_num, ctx.usuario.id, ctx.ahora, v.capturado_en, firma_img),
       db
         .prepare(
-          `INSERT INTO auditoria (usuario_id, accion, entidad, entidad_id, antes, despues, creado_en)
-           VALUES (?, 'registrar', 'visita', (SELECT id FROM registros WHERE visita_num = ?), NULL, ?, ?)`,
+          `INSERT INTO auditoria (usuario_id, accion, evento, entidad, entidad_id, antes, despues, creado_en)
+           VALUES (?, 'registrar', ?, 'visita', (SELECT id FROM registros WHERE visita_num = ?), NULL, ?, ?)`,
         )
-        .bind(ctx.usuario.id, v.visita_num, JSON.stringify({ ...paraAuditoria, firma: !!firma_img }), ctx.ahora),
+        .bind(ctx.usuario.id, eventoDe('registrar', 'visita'), v.visita_num, JSON.stringify({ ...paraAuditoria, firma: !!firma_img }), ctx.ahora),
     ]);
   } catch (e) {
     // Dos envíos simultáneos de la misma visita: el índice único deja pasar solo uno.
