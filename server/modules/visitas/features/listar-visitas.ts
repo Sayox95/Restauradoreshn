@@ -1,5 +1,6 @@
 import { type Ctx, filtroVisitas, visitasPropias } from '../../../plumbing/contexto';
 import { EQUIPOS } from '../../../../shared/constantes';
+import { pagina as paginaDe } from '../../../plumbing/http';
 import { DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
 
 /** Valores de un parámetro separado por coma (sin repetidos, en minúsculas y acotados). */
@@ -65,5 +66,5 @@ export async function listarVisitas(ctx: Ctx, pagina: number, porPagina: number,
       .bind(...f.binds, porPagina, offset),
     db.prepare(`SELECT COUNT(*) AS n FROM ${DESDE_VISITAS} WHERE ${f.sql}`).bind(...f.binds),
   ]);
-  return { filas: filas!.results.map(resumen), total: Number(total!.results[0]!.n), pagina, por_pagina: porPagina };
+  return paginaDe(filas!.results.map(resumen), Number(total!.results[0]!.n), pagina, porPagina);
 }

@@ -17,9 +17,13 @@ export interface UsuarioSesion {
   permisos: string[];
 }
 
-export interface Respuesta<T> {
-  datos: T;
-  servidor_ahora: string;
+/** Lista con la forma paginada de TI (lineamientos §8). */
+export interface Pagina<T> {
+  data: T[];
+  currentPage: number;
+  lastPage: number;
+  pageSize: number;
+  total: number;
 }
 
 // ── Catálogos de la hoja de visita ─────────────────────────────────────────────────────────

@@ -25,20 +25,25 @@ export function json(datos: unknown, status = 200, headers: HeadersInit = {}): R
   });
 }
 
+/** Un error en el contrato de TI (lineamientos §8): una lista de `{ message }`. */
+export interface ErrorDeApi {
+  message: string;
+  /** Campo del formulario al que se refiere (errores de validación). */
+  campo?: string;
+}
+
+/**
+ * Respuesta de error con el contrato de TI: validación y reglas de negocio → 400 con
+ * `[{ message }]`; los demás códigos (401, 403, 404, 409, 413, 415, 429…) se conservan.
+ */
 export function respuestaError(e: unknown): Response {
-  if (e instanceof ApiError) return json({ error: e.message, ...e.extra }, e.status);
+  if (e instanceof ApiError) return json([{ message: e.message, ...e.extra }], e.status === 422 ? 400 : e.status);
   if (e instanceof ZodError) {
-    const issue = e.issues[0];
-    return json(
-      {
-        error: issue?.message ?? 'Datos inválidos',
-        campo: issue?.path.join('.'),
-      },
-      422,
-    );
+    const errores: ErrorDeApi[] = e.issues.map((i) => ({ message: i.message, ...(i.path.length ? { campo: i.path.join('.') } : {}) }));
+    return json(errores.length ? errores : [{ message: 'Datos inválidos' }], 400);
   }
   console.error(e);
-  return json({ error: 'Ocurrió un error inesperado. Intente nuevamente.' }, 500);
+  return json([{ message: 'Ocurrió un error inesperado. Intente nuevamente.' }], 500);
 }
 
 export async function leerJson<S extends ZodTypeAny>(req: Request, esquema: S): Promise<z.output<S>> {
@@ -51,11 +56,30 @@ export async function leerJson<S extends ZodTypeAny>(req: Request, esquema: S): 
   return esquema.parse(cuerpo);
 }
 
+/** Página pedida (`page`, `pageSize`, como en TI); 25 por defecto, 100 como máximo. */
 export function paginacion(url: URL, porDefecto = 25) {
-  const pagina = Math.max(1, Number(url.searchParams.get('pagina')) || 1);
-  const porPagina = Math.min(100, Math.max(1, Number(url.searchParams.get('por_pagina')) || porDefecto));
+  const pagina = Math.max(1, Number(url.searchParams.get('page')) || 1);
+  const porPagina = Math.min(100, Math.max(1, Number(url.searchParams.get('pageSize')) || porDefecto));
   return { pagina, porPagina, offset: (pagina - 1) * porPagina };
 }
+
+/** Lista con la forma paginada de TI (lineamientos §8). */
+export interface Pagina<T> {
+  data: T[];
+  currentPage: number;
+  lastPage: number;
+  pageSize: number;
+  total: number;
+}
+export const pagina = <T>(data: T[], total: number, actual: number, porPagina: number): Pagina<T> => ({
+  data,
+  currentPage: actual,
+  lastPage: Math.max(1, Math.ceil(total / porPagina)),
+  pageSize: porPagina,
+  total,
+});
+/** Lista completa (catálogos, cuentas) en la misma forma: una sola página con todo. */
+export const listaCompleta = <T>(data: T[]): Pagina<T> => pagina(data, data.length, 1, Math.max(1, data.length));
 
 export function idParam(v: string | undefined): number {
   const n = Number(v);

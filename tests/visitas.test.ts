@@ -17,8 +17,8 @@ describe('registrar una visita', () => {
     const tec = await t.crearUsuario('beto', 'tecnico');
     const r = await registrar(tec.cookie);
     expect(r.status).toBe(201);
-    expect(r.datos.datos.creada).toBe(true);
-    expect(r.datos.datos.visita).toMatchObject({ visita_num: 'HV-20261101-080000', estado: 'registrada', registrado_por: 'Nombre beto' });
+    expect(r.datos.creada).toBe(true);
+    expect(r.datos.visita).toMatchObject({ visita_num: 'HV-20261101-080000', estado: 'registrada', registrado_por: 'Nombre beto' });
     const fila = await t.DB.prepare(
       'SELECT v.estado, v.registrado_por, v.registrado_en, v.capturado_en, r.has_modem1, r.materiales_json FROM registros r JOIN visitas_registro v ON v.registro_id = r.id',
     ).first<any>();
@@ -39,7 +39,7 @@ describe('registrar una visita', () => {
     expect((await registrar(tec.cookie)).status).toBe(201);
     const otra = await registrar(tec.cookie);
     expect(otra.status).toBe(200);
-    expect(otra.datos.datos.creada).toBe(false);
+    expect(otra.datos.creada).toBe(false);
     expect((await t.DB.prepare('SELECT COUNT(*) AS n FROM registros').first<{ n: number }>())!.n).toBe(1);
     // El mismo número usado por otra persona es un conflicto.
     const ana = await t.crearUsuario('ana', 'tecnico');
@@ -57,8 +57,8 @@ describe('registrar una visita', () => {
   it('rechaza una visita incompleta con los campos que faltan', async () => {
     const tec = await t.crearUsuario('beto', 'tecnico');
     const r = await registrar(tec.cookie, { hora_salida: '', num_fotos: 0, firma_img: null });
-    expect(r.status).toBe(422);
-    expect(r.datos.faltantes).toEqual(expect.arrayContaining(['hora_salida', 'fotos', 'firma_img']));
+    expect(r.status).toBe(400);
+    expect(r.datos[0].faltantes).toEqual(expect.arrayContaining(['hora_salida', 'fotos', 'firma_img']));
   });
 
   it('exige lo que aplica según las respuestas (potencial, batería, módem, COOPER)', () => {
@@ -92,15 +92,15 @@ describe('ver las visitas', () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
     const ana = await t.crearUsuario('ana', 'tecnico');
     const sup = await t.crearUsuario('carla', 'supervisor');
-    const id = (await registrar(beto.cookie)).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     await registrar(ana.cookie, { visita_num: 'HV-20261101-090000' });
-    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: beto.cookie })).datos.datos.total).toBe(1);
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: beto.cookie })).datos.total).toBe(1);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie })).status).toBe(200);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: ana.cookie })).status).toBe(404);
     const todas = await t.pedir('GET', '/api/v1/visitas?q=BER', { cookie: sup.cookie });
-    expect(todas.datos.datos.total).toBe(2);
+    expect(todas.datos.total).toBe(2);
     const det = await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: sup.cookie });
-    expect(det.datos.datos.datos).toMatchObject({ has_modem1: 'NO', personal: [{ nombre: 'Mauricio Cerros' }] });
+    expect(det.datos.datos).toMatchObject({ has_modem1: 'NO', personal: [{ nombre: 'Mauricio Cerros' }] });
   });
 
   it('quien figura en el personal también la ve (lista, detalle y PDF), pero no sube archivos', async () => {
@@ -111,17 +111,17 @@ describe('ver las visitas', () => {
       { usuario_id: beto.id, nombre: 'Nombre beto', cargo: 'Técnico SCADA' },
       { usuario_id: ana.id, nombre: 'Nombre ana', cargo: null },
     ];
-    const id = (await registrar(beto.cookie, { personal })).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie, { personal })).datos.visita.id;
     await t.pedir('PUT', `/api/v1/visitas/${id}/pdf`, { cookie: beto.cookie, binario: PDF, headers: { 'Content-Type': 'application/pdf' } });
     // Ana participó: la ve en su lista, en el detalle y descarga el PDF.
-    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: ana.cookie })).datos.datos.total).toBe(1);
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: ana.cookie })).datos.total).toBe(1);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: ana.cookie })).status).toBe(200);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}/pdf`, { cookie: ana.cookie })).status).toBe(200);
     // Pero los archivos los sube solo quien la registró.
     const foto = await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, { cookie: ana.cookie, binario: JPEG, headers: { 'Content-Type': 'image/jpeg' } });
     expect(foto.status).toBe(403);
     // Luis no participó: no la ve.
-    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: luis.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: luis.cookie })).datos.total).toBe(0);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: luis.cookie })).status).toBe(404);
   });
 
@@ -130,14 +130,14 @@ describe('ver las visitas', () => {
     await registrar(sup.cookie);
     // Una de la versión anterior (sin fila de registro): se lee como restaurador.
     await t.DB.prepare("INSERT INTO registros (visita_num, fecha_visita, zona, circuito) VALUES ('HV-VIEJA', '2026-01-01', 'NORTE', 'L-501')").run();
-    const lista = async (filtros: string) => (await t.pedir('GET', `/api/v1/visitas${filtros}`, { cookie: sup.cookie })).datos.datos;
+    const lista = async (filtros: string) => (await t.pedir('GET', `/api/v1/visitas${filtros}`, { cookie: sup.cookie })).datos;
     const todas = await lista('');
-    expect(todas.filas.map((f: { equipo: string }) => f.equipo)).toEqual(['restaurador', 'restaurador']);
+    expect(todas.data.map((f: { equipo: string }) => f.equipo)).toEqual(['restaurador', 'restaurador']);
     expect((await lista('?equipo=restaurador')).total).toBe(2);
-    expect((await lista('?circuitos=l-501')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    expect((await lista('?circuitos=l-501')).data.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
     // Varios circuitos a la vez.
     expect((await lista('?circuitos=L-501,ber-l207')).total).toBe(2);
-    expect((await lista('?zona=norte')).filas.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
+    expect((await lista('?zona=norte')).data.map((f: { visita_num: string }) => f.visita_num)).toEqual(['HV-VIEJA']);
     // Varias zonas a la vez (la de la visita de datos de prueba y NORTE).
     expect((await lista('?zona=norte,zona-que-no-existe')).total).toBe(1);
     // Un valor que no está en la lista se ignora.
@@ -159,16 +159,16 @@ describe('eliminar inspecciones (permiso Eliminar)', () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const sup = await t.crearUsuario('sara', 'supervisor');
     const tec = await t.crearUsuario('beto', 'tecnico');
-    const id = (await registrar(tec.cookie)).datos.datos.visita.id as number;
+    const id = (await registrar(tec.cookie)).datos.visita.id as number;
     const eliminar = (cookie: string, cuerpo: object) => t.pedir('POST', `/api/v1/visitas/${id}/eliminar`, { cookie, cuerpo });
     // El supervisor y el técnico no tienen el permiso; sin motivo no se elimina.
     expect((await eliminar(sup.cookie, { motivo: 'x' })).status).toBe(403);
     expect((await eliminar(tec.cookie, { motivo: 'x' })).status).toBe(403);
-    expect((await eliminar(admin.cookie, { motivo: '  ' })).status).toBe(422);
+    expect((await eliminar(admin.cookie, { motivo: '  ' })).status).toBe(400);
     expect((await eliminar(admin.cookie, { motivo: 'Inspección de prueba' })).status).toBe(200);
     // Ya no aparece: lista, propias, detalle, PDF y CSV.
-    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos.datos.total).toBe(0);
-    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: tec.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos.total).toBe(0);
+    expect((await t.pedir('GET', '/api/v1/visitas/mios', { cookie: tec.cookie })).datos.total).toBe(0);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: admin.cookie })).status).toBe(404);
     expect((await t.pedir('GET', `/api/v1/visitas/${id}/pdf`, { cookie: admin.cookie })).status).toBe(404);
     expect(String((await t.pedir('GET', '/api/v1/visitas/exportar', { cookie: admin.cookie })).datos)).not.toContain('HV-20261101-080000');
@@ -184,7 +184,7 @@ describe('eliminar inspecciones (permiso Eliminar)', () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const r = await t.DB.prepare("INSERT INTO registros (visita_num, fecha_visita) VALUES ('HV-VIEJA', '2026-01-01') RETURNING id").first<{ id: number }>();
     expect((await t.pedir('POST', `/api/v1/visitas/${r!.id}/eliminar`, { cookie: admin.cookie, cuerpo: { motivo: 'Prueba' } })).status).toBe(200);
-    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: admin.cookie })).datos.datos.total).toBe(0);
+    expect((await t.pedir('GET', '/api/v1/visitas', { cookie: admin.cookie })).datos.total).toBe(0);
   });
 });
 
@@ -192,7 +192,7 @@ describe('fotos originales y PDF (E2, E3)', () => {
   it('solo quien registró sube fotos; se sirven solo a quien puede ver la visita', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
     const ana = await t.crearUsuario('ana', 'tecnico');
-    const id = (await registrar(beto.cookie)).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     const subir = (cookie: string, orden = 1) => t.pedir('PUT', `/api/v1/visitas/${id}/fotos/${orden}?obs=Placa`, { cookie, binario: JPEG });
     expect((await subir(ana.cookie)).status).toBe(404);
     expect((await subir(beto.cookie, 5)).status).toBe(400);
@@ -209,9 +209,9 @@ describe('fotos originales y PDF (E2, E3)', () => {
 
   it('la copia reducida de cada foto se sube después del original y es la que se muestra (E2)', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
-    const id = (await registrar(beto.cookie)).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     const copia = (binario: Uint8Array) => t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1/copia`, { cookie: beto.cookie, binario });
-    const detalle = async () => (await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie })).datos.datos.fotos;
+    const detalle = async () => (await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie })).datos.fotos;
     // Sin el original todavía no se acepta.
     expect((await copia(JPEG)).status).toBe(409);
     await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, { cookie: beto.cookie, binario: JPEG });
@@ -232,21 +232,39 @@ describe('fotos originales y PDF (E2, E3)', () => {
 
   it('valida el formato de la foto por su contenido', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
-    const id = (await registrar(beto.cookie)).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     const r = await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, { cookie: beto.cookie, binario: new TextEncoder().encode('no soy una foto') });
     expect(r.status).toBe(415);
   });
 
   it('archiva el PDF de la ficha y lo sirve con sesión', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
-    const id = (await registrar(beto.cookie)).datos.datos.visita.id;
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     expect((await t.pedir('PUT', `/api/v1/visitas/${id}/pdf`, { cookie: beto.cookie, binario: JPEG })).status).toBe(415);
     expect((await t.pedir('PUT', `/api/v1/visitas/${id}/pdf`, { cookie: beto.cookie, binario: PDF })).status).toBe(201);
     const det = await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie });
-    expect(det.datos.datos.tiene_pdf).toBe(true);
+    expect(det.datos.tiene_pdf).toBe(true);
     const pdf = await t.pedir('GET', `/api/v1/visitas/${id}/pdf`, { cookie: beto.cookie });
     expect(pdf.status).toBe(200);
     expect(pdf.headers.get('Content-Type')).toBe('application/pdf');
     expect((await t.pedir('GET', `/api/v1/visitas/${id}/pdf`)).status).toBe(401);
+  });
+});
+
+describe('contrato de la API (lineamientos §8)', () => {
+  it('lista paginada, DTO directo, errores [{ message }] y la hora en X-Servidor-Ahora', async () => {
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    const creada = await registrar(sup.cookie);
+    expect(creada.headers.get('X-Servidor-Ahora')).toBe(t.reloj.ahora);
+    const lista = await t.pedir('GET', '/api/v1/visitas?page=1&pageSize=10', { cookie: sup.cookie });
+    expect(Object.keys(lista.datos).sort()).toEqual(['currentPage', 'data', 'lastPage', 'pageSize', 'total']);
+    expect(lista.datos).toMatchObject({ currentPage: 1, lastPage: 1, pageSize: 10, total: 1 });
+    // Lectura de un registro: el DTO sin envoltorio.
+    const detalle = await t.pedir('GET', `/api/v1/visitas/${lista.datos.data[0].id}`, { cookie: sup.cookie });
+    expect(detalle.datos.visita_num).toBe('HV-20261101-080000');
+    // Validación: 400 con una lista de mensajes.
+    const mala = await t.pedir('POST', '/api/v1/visitas', { cookie: sup.cookie, cuerpo: { visita_num: 'x' } });
+    expect(mala.status).toBe(400);
+    expect(Array.isArray(mala.datos) && typeof mala.datos[0].message).toBe('string');
   });
 });

@@ -55,8 +55,8 @@ describe('migraciones', () => {
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.
-    const lista = (await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos.datos;
-    expect(lista.filas).toMatchObject([{ visita_num: 'HV-ANTERIOR', estado: 'registrada', registrado_por: null }]);
+    const lista = (await t.pedir('GET', '/api/v1/visitas', { cookie: sup.cookie })).datos;
+    expect(lista.data).toMatchObject([{ visita_num: 'HV-ANTERIOR', estado: 'registrada', registrado_por: null }]);
     expect((await t.pedir('POST', '/api/v1/visitas', { cookie: sup.cookie, cuerpo: visitaCompleta() })).status).toBe(201);
   });
 

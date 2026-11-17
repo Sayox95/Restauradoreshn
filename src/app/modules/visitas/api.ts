@@ -1,5 +1,5 @@
 /** Llamadas HTTP del módulo Visitas (ruta base /api/v1/visitas). */
-import type { VisitaDetalle, VisitaResumen } from '@shared/tipos';
+import type { Pagina, VisitaDetalle, VisitaResumen } from '@shared/tipos';
 import type { VisitaEntrada } from '@shared/visitas';
 import { get, pedir, post, qs, subirArchivo } from '@/common/http/api';
 
@@ -13,19 +13,16 @@ export interface Filtros {
   zona?: string;
   /** Varios circuitos separados por coma. */
   circuitos?: string;
-  pagina?: number;
+  /** Página (como en TI: `page`; 25 por página). */
+  page?: number;
 }
-export interface ListaVisitas {
-  filas: VisitaResumen[];
-  total: number;
-  pagina: number;
-  por_pagina: number;
-}
+/** Una página de inspecciones con la forma paginada de TI. */
+export type ListaVisitas = Pagina<VisitaResumen>;
 
 export const misVisitas = (f: Filtros = {}) => get<ListaVisitas>(`${BASE}/mios${qs({ ...f })}`);
 export const listarVisitas = (f: Filtros = {}) => get<ListaVisitas>(`${BASE}${qs({ ...f })}`);
 export const verVisita = (id: number) => get<VisitaDetalle>(`${BASE}/${id}`);
-export const urlExportar = ({ pagina: _pagina, ...f }: Filtros = {}) => `${BASE}/exportar${qs({ ...f })}`;
+export const urlExportar = ({ page: _page, ...f }: Filtros = {}) => `${BASE}/exportar${qs({ ...f })}`;
 export const urlFoto = (id: number, orden: number, v = '') => `${BASE}/${id}/fotos/${orden}${v ? `?v=${encodeURIComponent(v)}` : ''}`;
 export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
 /** Copia reducida de una foto (la que se muestra en pantalla; E2). */

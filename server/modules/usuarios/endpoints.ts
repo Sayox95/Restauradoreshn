@@ -1,5 +1,5 @@
 /** Endpoints del módulo Usuarios (ruta base /api/v1/usuarios). Cada uno declara su permiso. */
-import { idParam, leerJson } from '../../plumbing/http';
+import { idParam, leerJson, listaCompleta } from '../../plumbing/http';
 import { r, ruta } from '../../plumbing/router';
 import { aprobarCuentaEsquema, motivoEsquema, usuarioCrearEsquema, usuarioEditarEsquema } from '../../../shared/esquemas';
 import { PermisosUsuarios } from './permisos';
@@ -12,9 +12,9 @@ import { activarCuenta, aprobarCuenta, desactivarCuenta, rechazarCuenta } from '
 
 const G = [PermisosUsuarios.Gestionar];
 // --- Consulta ---
-ruta('GET', '/api/v1/usuarios', G, async (ctx) => r(ctx, await listarUsuarios(ctx)));
+ruta('GET', '/api/v1/usuarios', G, async (ctx) => r(ctx, listaCompleta(await listarUsuarios(ctx))));
 // Cargos activos para elegir en la cuenta (el catálogo lo administra Catálogos).
-ruta('GET', '/api/v1/usuarios/cargos', G, async (ctx) => r(ctx, await listarCargos(ctx)));
+ruta('GET', '/api/v1/usuarios/cargos', G, async (ctx) => r(ctx, listaCompleta(await listarCargos(ctx))));
 ruta('GET', '/api/v1/usuarios/:id', G, async (ctx) => r(ctx, await verUsuario(ctx, idParam(ctx.params.id))));
 // --- Alta y datos ---
 ruta('POST', '/api/v1/usuarios', G, async (ctx) => r(ctx, await crearUsuario(ctx, await leerJson(ctx.req, usuarioCrearEsquema)), 201));

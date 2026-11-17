@@ -43,6 +43,7 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 | Tema | Decisión | Por qué |
 | --- | --- | --- |
 | Reglas de la hoja | `shared/visitas.ts` (`requisitosVisita`) las usan la app y el servidor | Se escriben una vez: la app valida por sección y el servidor rechaza una visita incompleta (422). |
+| Contrato de la API | DTO directo; listas `{ data, currentPage, lastPage, pageSize, total }` (`page`, `pageSize`); errores 400 `[{ message }]`; hora en `X-Servidor-Ahora` | Igual al de TI (lineamientos §8): al migrar, el frontend no cambia su forma de leer. |
 | Atomicidad | Visita + auditoría en `DB.batch()` | Se guardan juntas o no se guardan. |
 | Auditoría | Cada fila lleva `evento`, el nombre del evento de dominio que tendrá en TI (`server/plumbing/eventos.ts`) | Al migrar, la bitácora por eventos usa los mismos nombres (lineamientos §7). |
 | Idempotencia | `visita_num` único (índice); reenviar la misma visita devuelve la existente | El envío se repite sin duplicar (E1). |

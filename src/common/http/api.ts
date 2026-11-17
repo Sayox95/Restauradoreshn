@@ -1,5 +1,4 @@
 import { CABECERA_CONEXION } from '@shared/tiempo-real';
-import type { Respuesta } from '@shared/tipos';
 import { conexionActual } from '@/common/tiempo-real/canal';
 
 export class ErrorApi extends Error {
@@ -15,6 +14,24 @@ export class ErrorApi extends Error {
 /** Diferencia entre el reloj del servidor y el del teléfono; el servidor es la fuente oficial. */
 let desfaseMs = 0;
 export const ahoraServidor = () => Date.now() + desfaseMs;
+/** La hora del servidor llega en la cabecera `X-Servidor-Ahora` de cada respuesta (lineamientos §8). */
+function sincronizarReloj(valor: string | null) {
+  const t = valor ? Date.parse(valor) : NaN;
+  if (!Number.isNaN(t)) desfaseMs = t - Date.now();
+}
+
+/**
+ * Mensaje de un error del servidor con el contrato de TI (`[{ message }]`), como el interceptor de la
+ * plantilla de TI. Junta los mensajes si hay varios.
+ */
+function mensajeDelServidor(datos: unknown, status: number) {
+  const lista = Array.isArray(datos) ? (datos as { message?: string }[]) : [];
+  const textos = lista.map((x) => x?.message).filter((m): m is string => !!m);
+  if (textos.length) return textos.join(' ');
+  return status >= 500 ? 'El servidor no respondió correctamente.' : 'Solicitud rechazada.';
+}
+/** Datos extra del primer error (p. ej. el campo del formulario) para quien los necesite. */
+const extraDelError = (datos: unknown) => (Array.isArray(datos) ? (datos[0] as Record<string, unknown> | undefined) : undefined);
 
 let alExpirarSesion: () => void = () => {};
 export const configurarExpiracion = (fn: () => void) => {
@@ -49,16 +66,12 @@ export async function pedir<T>(camino: string, opciones: RequestInit & { json?: 
     if (e instanceof DOMException && e.name === 'TimeoutError') throw new ErrorApi(0, esConsulta ? SIN_RESPUESTA : SIN_CONFIRMACION, { sin_respuesta: true });
     throw new ErrorApi(0, SIN_CONEXION);
   }
+  sincronizarReloj(res.headers.get('X-Servidor-Ahora'));
   const tipo = res.headers.get('Content-Type') ?? '';
-  const datos = tipo.includes('json') ? await res.json().catch(() => null) : null;
+  const datos: unknown = tipo.includes('json') ? await res.json().catch(() => null) : null;
   if (!res.ok) {
     if (res.status === 401 && !camino.endsWith('/sesion/login')) alExpirarSesion();
-    throw new ErrorApi(res.status, datos?.error ?? (res.status >= 500 ? 'El servidor no respondió correctamente.' : 'Solicitud rechazada.'), datos);
-  }
-  if (datos && typeof datos === 'object' && 'servidor_ahora' in datos) {
-    const r = datos as Respuesta<T>;
-    desfaseMs = Date.parse(r.servidor_ahora) - Date.now();
-    return r.datos;
+    throw new ErrorApi(res.status, mensajeDelServidor(datos, res.status), extraDelError(datos));
   }
   return datos as T;
 }
@@ -107,7 +120,8 @@ export function subirArchivo<T>(
     };
     xhr.onload = () => {
       terminar();
-      let datos: (Respuesta<T> & { error?: string }) | null = null;
+      sincronizarReloj(xhr.getResponseHeader('X-Servidor-Ahora'));
+      let datos: unknown = null;
       try {
         datos = xhr.responseText ? JSON.parse(xhr.responseText) : null;
       } catch {
@@ -115,15 +129,9 @@ export function subirArchivo<T>(
       }
       if (xhr.status < 200 || xhr.status >= 300) {
         if (xhr.status === 401) alExpirarSesion();
-        return mal(
-          new ErrorApi(
-            xhr.status,
-            datos?.error ?? (xhr.status >= 500 ? 'El servidor no respondió correctamente.' : 'Solicitud rechazada.'),
-            datos as unknown as Record<string, unknown>,
-          ),
-        );
+        return mal(new ErrorApi(xhr.status, mensajeDelServidor(datos, xhr.status), extraDelError(datos)));
       }
-      ok((datos && 'datos' in datos ? datos.datos : datos) as T);
+      ok(datos as T);
     };
     sinAvance();
     xhr.send(archivo);

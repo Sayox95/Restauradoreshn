@@ -1,6 +1,6 @@
 /** Endpoints del módulo Catálogos (ruta base /api/v1/catalogos). Cada uno declara su permiso. */
 import { sentenciaAuditoria } from '../../plumbing/contexto';
-import { idParam, leerJson } from '../../plumbing/http';
+import { idParam, leerJson, listaCompleta } from '../../plumbing/http';
 import { r, ruta } from '../../plumbing/router';
 import { zonaHoraria } from '../../plumbing/zona';
 import {
@@ -31,7 +31,7 @@ for (const [cat, esquema] of [
   ['marcas', marcaCatalogoEsquema],
   ['cargos', cargoCatalogoEsquema],
 ] as const) {
-  ruta('GET', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, await listarCatalogo(ctx, cat)));
+  ruta('GET', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, listaCompleta(await listarCatalogo(ctx, cat))));
   ruta('POST', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)), 201));
   ruta('PATCH', `/api/v1/catalogos/${cat}/:id`, G, async (ctx) =>
     r(ctx, await guardarCatalogo(ctx, cat, idParam(ctx.params.id), await leerJson(ctx.req, esquema))),
@@ -39,7 +39,7 @@ for (const [cat, esquema] of [
 }
 
 // --- Tableros de control: la lista de campos de cada marca ---
-ruta('GET', '/api/v1/catalogos/tableros', G, async (ctx) => r(ctx, await listarTableros(ctx)));
+ruta('GET', '/api/v1/catalogos/tableros', G, async (ctx) => r(ctx, listaCompleta(await listarTableros(ctx))));
 ruta('PUT', '/api/v1/catalogos/tableros', G, async (ctx) => r(ctx, await guardarTablero(ctx, await leerJson(ctx.req, tableroEsquema))));
 
 // --- Configuración ---

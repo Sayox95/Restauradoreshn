@@ -1,5 +1,6 @@
 /** Llamadas HTTP del módulo Usuarios (ruta base /api/v1/usuarios). */
 import type { EstadoCuenta, Rol } from '@shared/constantes';
+import type { Pagina } from '@shared/tipos';
 import { get, patch, post } from '@/common/http/api';
 
 const BASE = '/api/v1/usuarios';
@@ -47,9 +48,9 @@ export interface DatosUsuario {
   cargo_id: number | null;
 }
 
-export const listarUsuarios = () => get<Usuario[]>(BASE);
+export const listarUsuarios = () => get<Pagina<Usuario>>(BASE).then((p) => p.data);
 /** Cargos activos del catálogo para elegir en la cuenta. */
-export const listarCargos = () => get<{ id: number; nombre: string }[]>(`${BASE}/cargos`);
+export const listarCargos = () => get<Pagina<{ id: number; nombre: string }>>(`${BASE}/cargos`).then((p) => p.data);
 export const verUsuario = (id: number) => get<DetalleUsuario>(`${BASE}/${id}`);
 export const crearUsuario = (datos: DatosUsuario) => post<{ id: number; usuario: string; password_temporal: string }>(BASE, datos);
 /** Las cuentas antiguas pueden no tener correo: entonces no se envía. */

@@ -184,7 +184,7 @@ export function ListarVisitas() {
     circuitos: [...circuitos].sort().join(',') || undefined,
     desde: desde || undefined,
     hasta: hasta || undefined,
-    pagina,
+    page: pagina,
   };
   // Zonas y circuitos para los filtros: los del catálogo de restauradores; los circuitos, de las zonas elegidas.
   const restauradores = useCatalogosVisita().data?.restauradores;
@@ -212,7 +212,7 @@ export function ListarVisitas() {
   const { refetch } = consulta;
   useEffect(() => alEnviarInspecciones(() => void refetch()), [refetch]);
   const datos = consulta.data;
-  const paginas = datos ? Math.max(1, Math.ceil(datos.total / datos.por_pagina)) : 1;
+  const paginas = datos?.lastPage ?? 1;
 
   return (
     <div>
@@ -314,13 +314,13 @@ export function ListarVisitas() {
         <Cargando />
       ) : consulta.isError ? (
         <CajaError error={consulta.error} reintentar={() => void consulta.refetch()} />
-      ) : !datos?.filas.length ? (
+      ) : !datos?.data.length ? (
         <Vacio texto={q || activos ? 'No hay inspecciones con esos filtros.' : 'Todavía no hay inspecciones registradas.'} />
       ) : (
         <>
           <Tabla
             etiqueta="Inspecciones"
-            filas={datos.filas}
+            filas={datos.data}
             clave={(v) => v.id}
             columnas={columnas(todas)}
             tarjeta={(v) => <TarjetaVisita v={v} todas={todas} />}

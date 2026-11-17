@@ -26,5 +26,8 @@ export function ruta(metodo: string, camino: string, acceso: Acceso, manejar: Ma
   rutas.push({ metodo, camino, patron, claves, acceso, manejar });
 }
 
-/** Envuelve datos con la hora del servidor para que el cliente sincronice los contadores. */
-export const r = (ctx: Ctx, datos: unknown, status = 200) => json({ datos, servidor_ahora: ctx.ahora }, status);
+/**
+ * Respuesta con el contrato de TI: el DTO directo, sin envoltorio. La hora del servidor va en la cabecera
+ * `X-Servidor-Ahora` de toda respuesta (la agrega manejarApi).
+ */
+export const r = (_ctx: Ctx, datos: unknown, status = 200) => json(datos, status);

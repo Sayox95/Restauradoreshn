@@ -25,12 +25,22 @@ const RUTAS_CON_PASSWORD_TEMPORAL = ['/api/v1/sesion/yo', '/api/v1/sesion/logout
  * Punto de entrada único de la API. `ahora` se puede inyectar en pruebas. `esperar` (waitUntil de la
  * plataforma) deja terminar el envío de avisos de tiempo real después de responder.
  */
+/** Cabecera con la hora del servidor (lineamientos §8): la app sincroniza con ella sus contadores. */
+export const CABECERA_AHORA = 'X-Servidor-Ahora';
+
 export async function manejarApi(
   req: Request,
   env: Env,
   ahora = new Date().toISOString(),
   esperar: (p: Promise<unknown>) => void = () => {},
 ): Promise<Response> {
+  const res = await atender(req, env, ahora, esperar);
+  // La conexión de tiempo real (101) no admite cabeceras nuevas.
+  if (res.status !== 101) res.headers.set(CABECERA_AHORA, ahora);
+  return res;
+}
+
+async function atender(req: Request, env: Env, ahora: string, esperar: (p: Promise<unknown>) => void): Promise<Response> {
   // Los avisos salen solo tras una escritura exitosa (avisar antes haría recargar datos viejos).
   const avisar = (avisos: Parameters<typeof enviarAvisos>[1]) => esperar(enviarAvisos(env, avisos));
   const url = new URL(req.url);
@@ -61,7 +71,7 @@ export async function manejarApi(
 
     const sesion = await resolverSesion(env, req, ahora);
     // «¿Quién soy?» sin sesión no es un error: responde «nadie» (evita errores 401 en la consola al abrir la app).
-    if (!sesion && url.pathname === '/api/v1/sesion/yo' && req.method === 'GET') return json({ datos: null, servidor_ahora: ahora });
+    if (!sesion && url.pathname === '/api/v1/sesion/yo' && req.method === 'GET') return json(null);
     if (!sesion) throw noAutenticado();
     // Con contraseña temporal solo se puede cambiarla (o salir) antes de usar la app.
     if (sesion.usuario.debe_cambiar_password && !RUTAS_CON_PASSWORD_TEMPORAL.includes(url.pathname))

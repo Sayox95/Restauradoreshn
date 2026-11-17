@@ -1,5 +1,5 @@
 /** Llamadas HTTP del módulo Catálogos (ruta base /api/v1/catalogos). Al migrar, los lee el servicio de Parámetros. */
-import type { CampoTablero, Cargo, CatalogosVisita, Marca, Material, Restaurador, TipoRestaurador } from '@shared/tipos';
+import type { CampoTablero, Cargo, CatalogosVisita, Pagina, Marca, Material, Restaurador, TipoRestaurador } from '@shared/tipos';
 import { get, patch, post, put } from '@/common/http/api';
 
 const BASE = '/api/v1/catalogos';
@@ -14,10 +14,10 @@ export interface Catalogos {
 }
 export type TipoCatalogo = keyof Catalogos;
 
-export const listarCatalogo = <T extends TipoCatalogo>(tipo: T) => get<Catalogos[T][]>(`${BASE}/${tipo}`);
+export const listarCatalogo = <T extends TipoCatalogo>(tipo: T) => get<Pagina<Catalogos[T]>>(`${BASE}/${tipo}`).then((p) => p.data);
 export const crearItemCatalogo = (tipo: TipoCatalogo, datos: unknown) => post(`${BASE}/${tipo}`, datos);
 export const editarItemCatalogo = (tipo: TipoCatalogo, id: number, datos: unknown) => patch(`${BASE}/${tipo}/${id}`, datos);
-export const listarTableros = () => get<CampoTablero[]>(`${BASE}/tableros`);
+export const listarTableros = () => get<Pagina<CampoTablero>>(`${BASE}/tableros`).then((p) => p.data);
 export const guardarTablero = (marca: string, campos: string[]) => put(`${BASE}/tableros`, { marca, campos });
 export const guardarConfiguracion = (datos: { zona_horaria: string }) => put(`${BASE}/configuracion`, datos);
 /** Lo que necesita el formulario de visita (solo activos). */

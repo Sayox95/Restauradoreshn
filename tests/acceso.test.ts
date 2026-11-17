@@ -19,7 +19,7 @@ describe('autenticación', () => {
     const a = await t.pedir('POST', '/api/v1/sesion/login', { cuerpo: { usuario: 'ana', password: 'mala' } });
     const b = await t.pedir('POST', '/api/v1/sesion/login', { cuerpo: { usuario: 'nadie', password: 'mala' } });
     expect(a.status).toBe(401);
-    expect(a.datos.error).toBe(b.datos.error);
+    expect(a.datos[0].message).toBe(b.datos[0].message);
   });
 
   it('emite cookie HttpOnly y Secure, y el logout invalida la sesión', async () => {
@@ -33,7 +33,7 @@ describe('autenticación', () => {
     const salida = await t.pedir('POST', '/api/v1/sesion/logout', { cookie: c });
     expect(salida.headers.get('Set-Cookie')).toMatch(/Max-Age=0/);
     expect(salida.headers.get('Clear-Site-Data')).toBe('"cache"');
-    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c })).datos.datos).toBeNull();
+    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c })).datos).toBeNull();
   });
 
   it('cerrar sesión solo cierra este dispositivo; con todas=1 cierra todos', async () => {
@@ -43,9 +43,9 @@ describe('autenticación', () => {
     const c2 = await entrar();
     const c3 = await entrar();
     await t.pedir('POST', '/api/v1/sesion/logout', { cookie: c1 });
-    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c2 })).datos.datos).not.toBeNull();
+    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c2 })).datos).not.toBeNull();
     await t.pedir('POST', '/api/v1/sesion/logout?todas=1', { cookie: c2 });
-    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c3 })).datos.datos).toBeNull();
+    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: c3 })).datos).toBeNull();
   });
 
   it('al iniciar sesión se borran las sesiones vencidas de cualquier usuario', async () => {
@@ -59,7 +59,7 @@ describe('autenticación', () => {
   it('la sesión expira a los 30 días sin uso', async () => {
     const { cookie } = await t.crearUsuario('ana', 'admin');
     t.avanzar(31 * DIA);
-    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie })).datos.datos).toBeNull();
+    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie })).datos).toBeNull();
     expect((await t.pedir('GET', '/api/v1/visitas', { cookie })).status).toBe(401);
   });
 
@@ -73,7 +73,7 @@ describe('autenticación', () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const enc = await t.crearUsuario('beto', 'supervisor');
     await t.pedir('POST', `/api/v1/usuarios/${enc.id}/desactivar`, { cookie: admin.cookie, cuerpo: {} });
-    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: enc.cookie })).datos.datos).toBeNull();
+    expect((await t.pedir('GET', '/api/v1/sesion/yo', { cookie: enc.cookie })).datos).toBeNull();
     expect((await t.pedir('GET', '/api/v1/visitas', { cookie: enc.cookie })).status).toBe(401);
   });
 });
@@ -128,7 +128,7 @@ describe('intentos de ingreso', () => {
     for (let i = 0; i < 5; i++) expect((await entrar('mala')).status).toBe(401);
     const r = await entrar('clave-segura-1');
     expect(r.status).toBe(429);
-    expect(r.datos.error).toMatch(/Espere 15 minutos/);
+    expect(r.datos[0].message).toMatch(/Espere 15 minutos/);
     t.avanzar(16 * 60_000);
     expect((await entrar('clave-segura-1')).status).toBe(200);
   });
@@ -153,19 +153,19 @@ describe('solicitudes de cuenta', () => {
     await t.pedir('POST', '/api/v1/sesion/solicitar-cuenta', {
       cuerpo: { nombre: 'Carlos Ruiz', correo: 'carlos@eneeutcd.hn', telefono: '9999-0000', password: 'clave-segura-1' },
     });
-    const sol = (await t.pedir('GET', '/api/v1/usuarios', { cookie: admin.cookie })).datos.datos.find((u: any) => u.usuario === 'carlos');
+    const sol = (await t.pedir('GET', '/api/v1/usuarios', { cookie: admin.cookie })).datos.data.find((u: any) => u.usuario === 'carlos');
     expect((await t.pedir('POST', `/api/v1/usuarios/${sol.id}/aprobar`, { cookie: admin.cookie, cuerpo: { rol: 'tecnico' } })).status).toBe(200);
     const login = await t.pedir('POST', '/api/v1/sesion/login', { cuerpo: { usuario: 'carlos', password: 'clave-segura-1' } });
     const yo = await t.pedir('GET', '/api/v1/sesion/yo', { cookie: login.headers.get('Set-Cookie')!.split(';')[0]! });
-    expect(yo.datos.datos.usuario.rol).toBe('tecnico');
-    expect(yo.datos.datos.usuario.permisos).toEqual(['utcd_restauradores_visitas_registrar']);
+    expect(yo.datos.usuario.rol).toBe('tecnico');
+    expect(yo.datos.usuario.permisos).toEqual(['utcd_restauradores_visitas_registrar']);
   });
 });
 
 describe('permisos por módulo y acción (códigos del SSO)', () => {
   it('«yo» devuelve los permisos del usuario como los claims del token', async () => {
     const sup = await t.crearUsuario('beto', 'supervisor');
-    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: sup.cookie })).datos.datos.usuario;
+    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: sup.cookie })).datos.usuario;
     expect(yo.permisos.sort()).toEqual(
       ['utcd_restauradores_visitas_consultar', 'utcd_restauradores_visitas_exportar', 'utcd_restauradores_visitas_registrar'].sort(),
     );
@@ -200,12 +200,12 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     // Supervisor que además gestiona catálogos, pero no exporta.
     const permisos = [P.Registrar, P.Consultar, PermisosCatalogos.Gestionar];
     expect((await t.pedir('PATCH', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie, cuerpo: { permisos } })).status).toBe(200);
-    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: sup.cookie })).datos.datos.usuario;
+    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: sup.cookie })).datos.usuario;
     expect(yo.rol).toBe('supervisor');
     expect([...yo.permisos].sort()).toEqual([...permisos].sort());
     expect((await t.pedir('GET', '/api/v1/catalogos/materiales', { cookie: sup.cookie })).status).toBe(200);
     expect((await t.pedir('GET', '/api/v1/visitas/exportar', { cookie: sup.cookie })).status).toBe(403);
-    const ficha = (await t.pedir('GET', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie })).datos.datos;
+    const ficha = (await t.pedir('GET', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie })).datos;
     expect(ficha.permisos_personalizados).toBe(true);
     // El historial guarda qué permisos tenía y cuáles le quedan.
     expect(ficha.historial[0]).toMatchObject({
@@ -215,7 +215,7 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     });
     // Volver a marcar exactamente los del perfil la deja sin personalizar.
     await t.pedir('PATCH', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie, cuerpo: { permisos: [P.Registrar, P.Consultar, P.Exportar] } });
-    expect((await t.pedir('GET', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie })).datos.datos.permisos_personalizados).toBe(false);
+    expect((await t.pedir('GET', `/api/v1/usuarios/${sup.id}`, { cookie: admin.cookie })).datos.permisos_personalizados).toBe(false);
     expect(await t.DB.prepare('SELECT 1 FROM usuario_permisos WHERE usuario_id = ?').bind(sup.id).first()).toBeNull();
   });
 
@@ -223,7 +223,7 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const tec = await t.crearUsuario('tito', 'tecnico');
     expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { rol: 'supervisor' } })).status).toBe(200);
-    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: tec.cookie })).datos.datos.usuario;
+    const yo = (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: tec.cookie })).datos.usuario;
     expect([...yo.permisos].sort()).toEqual([P.Consultar, P.Exportar, P.Registrar]);
   });
 
@@ -231,14 +231,14 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const tec = await t.crearUsuario('tito', 'tecnico');
     const r = await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { permisos: ['utcd_restauradores_todo'] } });
-    expect(r.status).toBe(422);
+    expect(r.status).toBe(400);
   });
 
   it('nadie se quita a sí mismo la gestión de usuarios ni desactiva su cuenta', async () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const quitar = await t.pedir('PATCH', `/api/v1/usuarios/${admin.id}`, { cookie: admin.cookie, cuerpo: { rol: 'supervisor' } });
-    expect(quitar.status).toBe(422);
-    expect((await t.pedir('POST', `/api/v1/usuarios/${admin.id}/desactivar`, { cookie: admin.cookie, cuerpo: {} })).status).toBe(422);
+    expect(quitar.status).toBe(400);
+    expect((await t.pedir('POST', `/api/v1/usuarios/${admin.id}/desactivar`, { cookie: admin.cookie, cuerpo: {} })).status).toBe(400);
   });
 
   it('siempre queda al menos una cuenta activa que gestione usuarios', async () => {
@@ -251,7 +251,7 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     await t.pedir('PATCH', `/api/v1/usuarios/${beto.id}`, { cookie: ana.cookie, cuerpo: { permisos: [PermisosUsuarios.Gestionar] } });
     expect((await t.pedir('POST', `/api/v1/usuarios/${ana.id}/desactivar`, { cookie: beto.cookie, cuerpo: {} })).status).toBe(200);
     // Beto es ahora la única: nadie puede quitársela.
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${beto.id}`, { cookie: beto.cookie, cuerpo: { permisos: [] } })).status).toBe(422);
+    expect((await t.pedir('PATCH', `/api/v1/usuarios/${beto.id}`, { cookie: beto.cookie, cuerpo: { permisos: [] } })).status).toBe(400);
   });
 
   it('el personal de la inspección lo forman las cuentas que registran, de su nivel o menor', async () => {
@@ -259,7 +259,7 @@ describe('permisos a la medida por usuario (el perfil es la plantilla)', () => {
     await t.crearUsuario('tito', 'tecnico');
     const admin = await t.crearUsuario('ana', 'admin');
     const nombres = async (cookie: string) =>
-      (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos.datos.personal.map((p: { nombre: string }) => p.nombre);
+      (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos.personal.map((p: { nombre: string }) => p.nombre);
     expect(await nombres(sup.cookie)).toEqual(['Nombre sara', 'Nombre tito']);
     // Un técnico sin permiso de registrar ya no aparece.
     const tito = (await t.DB.prepare("SELECT id FROM usuarios WHERE usuario = 'tito'").first<{ id: number }>())!.id;
