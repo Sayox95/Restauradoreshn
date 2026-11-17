@@ -37,10 +37,10 @@ en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
 - `shared/`: permisos (códigos `utcd_restauradores_<modulo>_<accion>`, solo en `shared/permisos.ts`),
   constantes, esquemas y las reglas de la hoja (`shared/visitas.ts`, las usan app y servidor).
 - El código **nunca pregunta por un rol**, solo por permisos. Tabla en `docs/permisos.md`.
-- Permisos a la medida por usuario (como el sistema de referencia): el perfil (un rol por cuenta) es la
-  plantilla; la pantalla de usuarios marca o desmarca cada permiso y, si difieren, la cuenta es
-  «personalizada» (`usuario_permisos`). En SQL, «tiene permiso» solo con `sqlTienePermiso`; nunca leer
-  `rol_permisos` directo.
+- Permisos a la medida por usuario (diferencia acordada, ver «Excepciones acordadas»): el perfil (un rol
+  por cuenta) es la plantilla; la pantalla de usuarios marca o desmarca cada permiso y, si difieren, la
+  cuenta es «personalizada» (`usuario_permisos`). En SQL, «tiene permiso» solo con `sqlTienePermiso`;
+  nunca leer `rol_permisos` directo.
 - Base: cambio de esquema = archivo en `migrations/` **y** su entrada en `server/plumbing/esquema.ts`
   (se aplican solos al arrancar). Nunca `SELECT r.*` sobre `registros` (100 columnas, límite de D1).
 
@@ -62,6 +62,22 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   una sola columna; solo voltajes (AC, baterías, cargador), corrientes (IA, IB, IC, IN) y resistencias de
   aterrizaje van en una fila.
 
+### Diferencias con los lineamientos v2 (17/11/2026)
+
+Aprobó: dueño del proyecto, 2026-11-17. Motivo común: la app ya estaba avanzada y en uso cuando salió la
+versión 2 de los lineamientos; estos cambios moverían datos de producción o rehacer partes estables.
+Se revisan con TI al migrar al marco de TI.
+
+- **Permisos a la medida por usuario** (omite §6 «nunca permisos sueltos»): se conserva el perfil como
+  plantilla con casillas por permiso (`usuario_permisos`). Al migrar, cada combinación personalizada
+  necesita su rol en el SSO o que TI permita permisos por persona.
+- **Identificadores numéricos y folio del dispositivo** (omite §9 y E1 v2: UUID y `codigo` desde
+  `contadores`): las tablas siguen con `id` entero y el folio `IR-…` lo genera el teléfono.
+- **Catálogos sin `codigo`** (omite §10): las inspecciones guardan el texto del ítem, no su código.
+- **Formulario de la inspección sin react-hook-form** (omite §11 solo en ese formulario): conserva su
+  estado propio (borrador, validación por sección, sin señal) y valida con las mismas reglas compartidas
+  que el servidor (`requisitosVisita`). Los demás formularios sí usan react-hook-form.
+
 ## Actualizaciones de la app
 
 - «Momento tranquilo»: formulario sin datos. Si hay una visita en curso (`marcarTrabajo`) se muestra el
@@ -69,7 +85,7 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
 - La versión nueva se detecta solo por eventos (abrir, volver a la app, foco, conexión, cambio de
   sección); sin consultas periódicas.
 - Página abierta sin service worker al mando (primera visita o recarga forzada): al tomar el control
-  uno nuevo se compara `__VERSION_APP__` con `/version.json` (sin caché) para saber si quedó vieja.
+  uno nuevo se compara `__COMPILACION__` con `/version.json` (sin caché) para saber si quedó vieja.
 
 ## Sesión
 
