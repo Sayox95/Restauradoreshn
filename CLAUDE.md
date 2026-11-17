@@ -76,6 +76,8 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
 - Cerrar sesión (lineamientos): confirma, avisa si hay envíos pendientes o una inspección en curso (se
   conservan), muestra «Cerrando sesión…», borra la sesión en el servidor y los datos del navegador. Sin
   señal queda pendiente (`cierre-pendiente`) y se completa al volver la señal.
+- Lo que vive en el dispositivo (borrador y cola sin señal) es de la cuenta que lo creó (`fijarCuenta` en
+  `almacen.ts`): cada cuenta ve, continúa y envía solo lo suyo.
 - Filtros de listas: `SelectorMultiple` (casillas; sin nada marcado = todos) y en la URL.
 
 ## Pendientes acordados

@@ -2,6 +2,7 @@ import { CloudOff, Menu, WifiOff } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { fijarCuenta } from '@/app/modules/visitas/components/almacen';
 import { useCola, useEnvioAutomatico } from '@/app/modules/visitas/components/envio';
 import { urlInspecciones } from '@/app/modules/visitas/urls';
 import { useModoCaptura } from '@/common/menu/modo-captura';
@@ -53,6 +54,8 @@ function useMenuLateral() {
 
 export function Layout() {
   const { usuario } = useSesion();
+  // Lo guardado en el dispositivo es de la cuenta que lo creó: antes de leerlo o enviarlo se fija cuál es.
+  fijarCuenta(usuario?.id ?? null);
   const { hasAccess } = useAccess();
   // Un solo menú: cada opción se muestra según su permiso.
   const nav = menuPrincipal.filter((o) => hasAccess(o.access));
