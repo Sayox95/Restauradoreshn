@@ -14,42 +14,115 @@ describe('catálogos de la hoja de visita', () => {
     const c = admin.cookie;
     const r = await t.pedir('POST', '/api/v1/catalogos/restauradores', {
       cookie: c,
-      cuerpo: { energis: '302496', circuito: 'BER-L207', ubicacion: 'Barandillas', latitud: 15.5, longitud: -88 },
+      cuerpo: {
+        energis: '302496',
+        circuito: 'BER-L207',
+        ubicacion: 'Barandillas',
+        latitud: 15.5,
+        longitud: -88,
+      },
     });
     expect(r.status).toBe(201);
     expect(r.datos.activo).toBe(true);
     // Mismo Energis activo: no se permite.
-    expect((await t.pedir('POST', '/api/v1/catalogos/restauradores', { cookie: c, cuerpo: { energis: '302496' } })).status).toBe(409);
+    expect(
+      (
+        await t.pedir('POST', '/api/v1/catalogos/restauradores', {
+          cookie: c,
+          cuerpo: { energis: '302496' },
+        })
+      ).status,
+    ).toBe(409);
     // Desactivar guarda «INACTIVO» (formato de la tabla original) y lo saca del formulario.
-    await t.pedir('PATCH', `/api/v1/catalogos/restauradores/${r.datos.id}`, { cookie: c, cuerpo: { energis: '302496', activo: false } });
-    expect((await t.DB.prepare('SELECT estado FROM restauradores').first<{ estado: string }>())!.estado).toBe('INACTIVO');
-    const form = await t.pedir('GET', '/api/v1/catalogos/visita', { cookie: c });
+    await t.pedir('PATCH', `/api/v1/catalogos/restauradores/${r.datos.id}`, {
+      cookie: c,
+      cuerpo: { energis: '302496', activo: false },
+    });
+    expect(
+      (await t.DB.prepare('SELECT estado FROM restauradores').first<{
+        estado: string;
+      }>())!.estado,
+    ).toBe('INACTIVO');
+    const form = await t.pedir('GET', '/api/v1/catalogos/visita', {
+      cookie: c,
+    });
     expect(form.datos.restauradores).toEqual([]);
-    expect((await t.pedir('GET', '/api/v1/catalogos/restauradores', { cookie: c })).datos.data).toHaveLength(1);
-    expect((await t.DB.prepare("SELECT COUNT(*) AS n FROM auditoria WHERE entidad = 'restauradores'").first<{ n: number }>())!.n).toBe(2);
+    expect(
+      (await t.pedir('GET', '/api/v1/catalogos/restauradores', { cookie: c }))
+        .datos.data,
+    ).toHaveLength(1);
+    expect(
+      (await t.DB.prepare(
+        "SELECT COUNT(*) AS n FROM auditoria WHERE entidad = 'restauradores'",
+      ).first<{ n: number }>())!.n,
+    ).toBe(2);
   });
 
   it('los cargos se administran en Catálogos: renombrar se ve en las cuentas y desactivar no se las quita', async () => {
     const admin = await t.crearUsuario('ana', 'admin');
     const tec = await t.crearUsuario('tito', 'tecnico');
-    const nuevo = await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: admin.cookie, cuerpo: { nombre: 'Electricista' } });
+    const nuevo = await t.pedir('POST', '/api/v1/catalogos/cargos', {
+      cookie: admin.cookie,
+      cuerpo: { nombre: 'Electricista' },
+    });
     expect(nuevo.status).toBe(201);
     const id = nuevo.datos.id as number;
     // No se repite un cargo activo.
-    expect((await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: admin.cookie, cuerpo: { nombre: 'electricista' } })).status).toBe(409);
-    await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: id } });
-    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Electricista de línea' } });
-    const yo = async () => (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: tec.cookie })).datos.usuario;
+    expect(
+      (
+        await t.pedir('POST', '/api/v1/catalogos/cargos', {
+          cookie: admin.cookie,
+          cuerpo: { nombre: 'electricista' },
+        })
+      ).status,
+    ).toBe(409);
+    await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, {
+      cookie: admin.cookie,
+      cuerpo: { cargo_id: id },
+    });
+    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, {
+      cookie: admin.cookie,
+      cuerpo: { nombre: 'Electricista de línea' },
+    });
+    const yo = async () =>
+      (await t.pedir('GET', '/api/v1/sesion/yo', { cookie: tec.cookie })).datos
+        .usuario;
     expect((await yo()).cargo).toBe('Electricista de línea');
     // Desactivado: la cuenta lo conserva, pero ya no se ofrece ni se puede asignar a otra.
-    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Electricista de línea', activo: false } });
+    await t.pedir('PATCH', `/api/v1/catalogos/cargos/${id}`, {
+      cookie: admin.cookie,
+      cuerpo: { nombre: 'Electricista de línea', activo: false },
+    });
     expect((await yo()).cargo).toBe('Electricista de línea');
-    const activos = (await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })).datos.data as { id: number }[];
-    expect(activos.some((c) => c.id === id)).toBe(false);
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { nombre: 'Tito', cargo_id: id } })).status).toBe(200);
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${admin.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: id } })).status).toBe(400);
+    const activos = (
+      await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })
+    ).datos.data as { id: number }[];
+    expect(activos.some(c => c.id === id)).toBe(false);
+    expect(
+      (
+        await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, {
+          cookie: admin.cookie,
+          cuerpo: { nombre: 'Tito', cargo_id: id },
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await t.pedir('PATCH', `/api/v1/usuarios/${admin.id}`, {
+          cookie: admin.cookie,
+          cuerpo: { cargo_id: id },
+        })
+      ).status,
+    ).toBe(400);
     // Solo quien gestiona catálogos los administra.
-    expect((await t.pedir('POST', '/api/v1/catalogos/cargos', { cookie: tec.cookie, cuerpo: { nombre: 'X' } })).status).toBe(403);
+    expect(
+      (
+        await t.pedir('POST', '/api/v1/catalogos/cargos', {
+          cookie: tec.cookie,
+          cuerpo: { nombre: 'X' },
+        })
+      ).status,
+    ).toBe(403);
   });
 
   it('el personal de la inspección sale de las cuentas activas del mismo nivel o menor', async () => {
@@ -57,47 +130,120 @@ describe('catálogos de la hoja de visita', () => {
     const sup = await t.crearUsuario('sara', 'supervisor');
     const tec = await t.crearUsuario('tito', 'tecnico');
     await t.crearUsuario('teo', 'tecnico');
-    await t.DB.prepare("UPDATE usuarios SET estado = 'inactiva' WHERE usuario = 'teo'").run();
+    await t.DB.prepare(
+      "UPDATE usuarios SET estado = 'inactiva' WHERE usuario = 'teo'",
+    ).run();
     // El cargo se asigna en la cuenta, del catálogo de cargos.
-    const cargos = (await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })).datos.data as { id: number; nombre: string }[];
-    const scada = cargos.find((c) => c.nombre === 'Técnico SCADA')!;
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: scada.id } })).status).toBe(200);
-    expect((await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, { cookie: admin.cookie, cuerpo: { cargo_id: 9999 } })).status).toBe(400);
+    const cargos = (
+      await t.pedir('GET', '/api/v1/usuarios/cargos', { cookie: admin.cookie })
+    ).datos.data as { id: number; nombre: string }[];
+    const scada = cargos.find(c => c.nombre === 'Técnico SCADA')!;
+    expect(
+      (
+        await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, {
+          cookie: admin.cookie,
+          cuerpo: { cargo_id: scada.id },
+        })
+      ).status,
+    ).toBe(200);
+    expect(
+      (
+        await t.pedir('PATCH', `/api/v1/usuarios/${tec.id}`, {
+          cookie: admin.cookie,
+          cuerpo: { cargo_id: 9999 },
+        })
+      ).status,
+    ).toBe(400);
     const nombres = async (cookie: string) =>
-      ((await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos.personal as { nombre: string; cargo: string | null }[]).map(
-        (p) => `${p.nombre}${p.cargo ? ` (${p.cargo})` : ''}`,
-      );
+      (
+        (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie })).datos
+          .personal as { nombre: string; cargo: string | null }[]
+      ).map(p => `${p.nombre}${p.cargo ? ` (${p.cargo})` : ''}`);
     expect(await nombres(tec.cookie)).toEqual(['Nombre tito (Técnico SCADA)']);
     // Niveles por perfil: técnico 1, supervisor 2, administrador 3.
-    expect(await nombres(sup.cookie)).toEqual(['Nombre sara', 'Nombre tito (Técnico SCADA)']);
-    expect(await nombres(admin.cookie)).toEqual(['Nombre ana', 'Nombre sara', 'Nombre tito (Técnico SCADA)']);
+    expect(await nombres(sup.cookie)).toEqual([
+      'Nombre sara',
+      'Nombre tito (Técnico SCADA)',
+    ]);
+    expect(await nombres(admin.cookie)).toEqual([
+      'Nombre ana',
+      'Nombre sara',
+      'Nombre tito (Técnico SCADA)',
+    ]);
     // El catálogo «Personal» ya no existe.
-    expect((await t.pedir('GET', '/api/v1/catalogos/personal', { cookie: admin.cookie })).status).toBe(404);
+    expect(
+      (
+        await t.pedir('GET', '/api/v1/catalogos/personal', {
+          cookie: admin.cookie,
+        })
+      ).status,
+    ).toBe(404);
   });
 
   it('arma marcas, módems y tableros para el formulario', async () => {
     const c = (await t.crearUsuario('ana', 'admin')).cookie;
-    const marca = (cuerpo: object) => t.pedir('POST', '/api/v1/catalogos/marcas', { cookie: c, cuerpo });
-    await marca({ elemento: 'RESTAURADOR', marca: 'COOPER', modelo: 'VSA', tipo_control: 'Form 6' });
-    await marca({ elemento: 'RESTAURADOR', marca: 'COOPER', modelo: 'NOVA', tipo_control: 'Form 6' });
+    const marca = (cuerpo: object) =>
+      t.pedir('POST', '/api/v1/catalogos/marcas', { cookie: c, cuerpo });
+    await marca({
+      elemento: 'RESTAURADOR',
+      marca: 'COOPER',
+      modelo: 'VSA',
+      tipo_control: 'Form 6',
+    });
+    await marca({
+      elemento: 'RESTAURADOR',
+      marca: 'COOPER',
+      modelo: 'NOVA',
+      tipo_control: 'Form 6',
+    });
     await marca({ elemento: 'MODEM DATOS', marca: 'INHAND', modelo: 'IR915' });
-    await t.pedir('PUT', '/api/v1/catalogos/tableros', { cookie: c, cuerpo: { marca: 'COOPER', campos: ['Protection Enabled', 'Ground Enabled'] } });
-    const f = (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie: c })).datos;
-    expect(f.marcas).toEqual([{ marca: 'COOPER', modelos: ['NOVA', 'VSA'], controles: ['Form 6'] }]);
-    expect(f.modems).toEqual([{ marca: 'INHAND', elemento: 'MODEM DATOS', modelos: ['IR915'] }]);
-    expect(f.tableros).toEqual([{ marca: 'COOPER', campos: ['Protection Enabled', 'Ground Enabled'] }]);
+    await t.pedir('PUT', '/api/v1/catalogos/tableros', {
+      cookie: c,
+      cuerpo: {
+        marca: 'COOPER',
+        campos: ['Protection Enabled', 'Ground Enabled'],
+      },
+    });
+    const f = (await t.pedir('GET', '/api/v1/catalogos/visita', { cookie: c }))
+      .datos;
+    expect(f.marcas).toEqual([
+      { marca: 'COOPER', modelos: ['NOVA', 'VSA'], controles: ['Form 6'] },
+    ]);
+    expect(f.modems).toEqual([
+      { marca: 'INHAND', elemento: 'MODEM DATOS', modelos: ['IR915'] },
+    ]);
+    expect(f.tableros).toEqual([
+      { marca: 'COOPER', campos: ['Protection Enabled', 'Ground Enabled'] },
+    ]);
   });
 
   it('al guardar un tablero, los campos que ya no están se desactivan y el orden se respeta', async () => {
     const c = (await t.crearUsuario('ana', 'admin')).cookie;
-    await t.pedir('PUT', '/api/v1/catalogos/tableros', { cookie: c, cuerpo: { marca: 'NOVA', campos: ['A', 'B', 'C'] } });
-    await t.pedir('PUT', '/api/v1/catalogos/tableros', { cookie: c, cuerpo: { marca: 'NOVA', campos: ['C', 'A'] } });
-    const filas = (await t.DB.prepare('SELECT campo, orden, activo FROM tableros ORDER BY campo').all<any>()).results;
+    await t.pedir('PUT', '/api/v1/catalogos/tableros', {
+      cookie: c,
+      cuerpo: { marca: 'NOVA', campos: ['A', 'B', 'C'] },
+    });
+    await t.pedir('PUT', '/api/v1/catalogos/tableros', {
+      cookie: c,
+      cuerpo: { marca: 'NOVA', campos: ['C', 'A'] },
+    });
+    const filas = (
+      await t.DB.prepare(
+        'SELECT campo, orden, activo FROM tableros ORDER BY campo',
+      ).all<any>()
+    ).results;
     expect(filas).toEqual([
       { campo: 'A', orden: 2, activo: 1 },
       { campo: 'B', orden: 2, activo: 0 },
       { campo: 'C', orden: 1, activo: 1 },
     ]);
-    expect((await t.pedir('PUT', '/api/v1/catalogos/tableros', { cookie: c, cuerpo: { marca: 'NOVA', campos: ['X', 'x'] } })).status).toBe(400);
+    expect(
+      (
+        await t.pedir('PUT', '/api/v1/catalogos/tableros', {
+          cookie: c,
+          cuerpo: { marca: 'NOVA', campos: ['X', 'x'] },
+        })
+      ).status,
+    ).toBe(400);
   });
 });

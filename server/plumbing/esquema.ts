@@ -1,5 +1,10 @@
 import type { Rol } from '../../shared/constantes';
-import { MODULOS, ROLES_SISTEMA, TODOS_LOS_PERMISOS, rolDePerfil } from '../../shared/permisos';
+import {
+  MODULOS,
+  ROLES_SISTEMA,
+  TODOS_LOS_PERMISOS,
+  rolDePerfil,
+} from '../../shared/permisos';
 import { type Env } from './contexto';
 
 /**
@@ -119,42 +124,107 @@ export const EQUIPO_INSPECCION = [
   `CREATE INDEX IF NOT EXISTS ix_visitas_registro_equipo ON visitas_registro(equipo)`,
 ];
 
-export const COPIA_FOTO = [`ALTER TABLE registros_fotos ADD COLUMN copia_r2_key TEXT`];
+export const COPIA_FOTO = [
+  `ALTER TABLE registros_fotos ADD COLUMN copia_r2_key TEXT`,
+];
 
-export const EVENTO_AUDITORIA = [`ALTER TABLE auditoria ADD COLUMN evento TEXT`];
+export const EVENTO_AUDITORIA = [
+  `ALTER TABLE auditoria ADD COLUMN evento TEXT`,
+];
 
 const existeTabla = (tabla: string) => async (env: Env) =>
-  !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").bind(tabla).first());
+  !!(await env.DB.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+  )
+    .bind(tabla)
+    .first());
 const existeIndice = (indice: string) => async (env: Env) =>
-  !!(await env.DB.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?").bind(indice).first());
-const existeRol = (codigo: string) => async (env: Env) => !!(await env.DB.prepare('SELECT 1 FROM roles WHERE codigo = ?').bind(codigo).first());
+  !!(await env.DB.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?",
+  )
+    .bind(indice)
+    .first());
+const existeRol = (codigo: string) => async (env: Env) =>
+  !!(await env.DB.prepare('SELECT 1 FROM roles WHERE codigo = ?')
+    .bind(codigo)
+    .first());
 const existeColumna = (tabla: string, columna: string) => async (env: Env) =>
-  (await env.DB.prepare(`PRAGMA table_info(${tabla})`).all<{ name: string }>()).results.some((c) => c.name === columna);
+  (
+    await env.DB.prepare(`PRAGMA table_info(${tabla})`).all<{ name: string }>()
+  ).results.some(c => c.name === columna);
 
 export const CAMBIOS: Cambio[] = [
-  { migracion: '0000_base.sql', sentencias: BASE, yaAplicado: existeTabla('registros') },
-  { migracion: '0001_registros_visita_num_unique.sql', sentencias: VISITA_UNICA, yaAplicado: existeIndice('idx_registros_visita_num') },
-  { migracion: '0002_campos_formulario_v2.sql', sentencias: CAMPOS_V2, yaAplicado: existeColumna('registros', 'num_fotos') },
-  { migracion: '0003_cuentas.sql', sentencias: CUENTAS, yaAplicado: existeTabla('usuarios') },
-  { migracion: '0004_visitas_registro.sql', sentencias: VISITAS_REGISTRO, yaAplicado: existeTabla('visitas_registro') },
+  {
+    migracion: '0000_base.sql',
+    sentencias: BASE,
+    yaAplicado: existeTabla('registros'),
+  },
+  {
+    migracion: '0001_registros_visita_num_unique.sql',
+    sentencias: VISITA_UNICA,
+    yaAplicado: existeIndice('idx_registros_visita_num'),
+  },
+  {
+    migracion: '0002_campos_formulario_v2.sql',
+    sentencias: CAMPOS_V2,
+    yaAplicado: existeColumna('registros', 'num_fotos'),
+  },
+  {
+    migracion: '0003_cuentas.sql',
+    sentencias: CUENTAS,
+    yaAplicado: existeTabla('usuarios'),
+  },
+  {
+    migracion: '0004_visitas_registro.sql',
+    sentencias: VISITAS_REGISTRO,
+    yaAplicado: existeTabla('visitas_registro'),
+  },
   {
     migracion: '0005_cargo_usuario.sql',
     sentencias: CARGO_USUARIO,
     // 0008 pasa el cargo al catálogo y quita la columna: si ya se aplicó, 0005 no debe volver a correr.
-    yaAplicado: async (env) => (await existeColumna('usuarios', 'cargo')(env)) || (await existeTabla('cargos')(env)),
+    yaAplicado: async env =>
+      (await existeColumna('usuarios', 'cargo')(env)) ||
+      (await existeTabla('cargos')(env)),
   },
   {
     migracion: '0006_roles_por_modulo.sql',
     sentencias: ROLES_POR_MODULO,
     // 0007 quita los roles por módulo: si ya se aplicó, 0006 no debe volver a correr.
-    yaAplicado: async (env) => (await existeRol('utcd_restauradores_admin_usuarios')(env)) || (await existeColumna('usuarios', 'permisos_personalizados')(env)),
+    yaAplicado: async env =>
+      (await existeRol('utcd_restauradores_admin_usuarios')(env)) ||
+      (await existeColumna('usuarios', 'permisos_personalizados')(env)),
   },
-  { migracion: '0007_permisos_usuario.sql', sentencias: PERMISOS_USUARIO, yaAplicado: existeColumna('usuarios', 'permisos_personalizados') },
-  { migracion: '0008_catalogo_cargos.sql', sentencias: CATALOGO_CARGOS, yaAplicado: existeTabla('cargos') },
-  { migracion: '0009_eliminar_inspecciones.sql', sentencias: ELIMINAR_INSPECCIONES, yaAplicado: existeColumna('visitas_registro', 'motivo_eliminacion') },
-  { migracion: '0010_equipo_inspeccion.sql', sentencias: EQUIPO_INSPECCION, yaAplicado: existeColumna('visitas_registro', 'equipo') },
-  { migracion: '0011_copia_foto.sql', sentencias: COPIA_FOTO, yaAplicado: existeColumna('registros_fotos', 'copia_r2_key') },
-  { migracion: '0012_evento_auditoria.sql', sentencias: EVENTO_AUDITORIA, yaAplicado: existeColumna('auditoria', 'evento') },
+  {
+    migracion: '0007_permisos_usuario.sql',
+    sentencias: PERMISOS_USUARIO,
+    yaAplicado: existeColumna('usuarios', 'permisos_personalizados'),
+  },
+  {
+    migracion: '0008_catalogo_cargos.sql',
+    sentencias: CATALOGO_CARGOS,
+    yaAplicado: existeTabla('cargos'),
+  },
+  {
+    migracion: '0009_eliminar_inspecciones.sql',
+    sentencias: ELIMINAR_INSPECCIONES,
+    yaAplicado: existeColumna('visitas_registro', 'motivo_eliminacion'),
+  },
+  {
+    migracion: '0010_equipo_inspeccion.sql',
+    sentencias: EQUIPO_INSPECCION,
+    yaAplicado: existeColumna('visitas_registro', 'equipo'),
+  },
+  {
+    migracion: '0011_copia_foto.sql',
+    sentencias: COPIA_FOTO,
+    yaAplicado: existeColumna('registros_fotos', 'copia_r2_key'),
+  },
+  {
+    migracion: '0012_evento_auditoria.sql',
+    sentencias: EVENTO_AUDITORIA,
+    yaAplicado: existeColumna('auditoria', 'evento'),
+  },
 ];
 
 export let listo = false;
@@ -188,7 +258,8 @@ export async function asegurarEsquema(env: Env): Promise<void> {
 const HUELLA_PERMISOS = (() => {
   const texto = JSON.stringify({ MODULOS, ROLES_SISTEMA });
   let h = 5381;
-  for (let i = 0; i < texto.length; i++) h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
+  for (let i = 0; i < texto.length; i++)
+    h = ((h * 33) ^ texto.charCodeAt(i)) >>> 0;
   return `${h.toString(36)}-${texto.length}`;
 })();
 
@@ -199,13 +270,25 @@ const HUELLA_PERMISOS = (() => {
  */
 async function alDia(env: Env): Promise<boolean> {
   try {
-    const [migraciones, huella, sinRoles] = await env.DB.batch<{ name?: string; valor?: string; n?: number }>([
+    const [migraciones, huella, sinRoles] = await env.DB.batch<{
+      name?: string;
+      valor?: string;
+      n?: number;
+    }>([
       env.DB.prepare('SELECT name FROM d1_migrations'),
-      env.DB.prepare("SELECT valor FROM configuracion WHERE clave = 'permisos_sembrados'"),
-      env.DB.prepare('SELECT COUNT(*) AS n FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)'),
+      env.DB.prepare(
+        "SELECT valor FROM configuracion WHERE clave = 'permisos_sembrados'",
+      ),
+      env.DB.prepare(
+        'SELECT COUNT(*) AS n FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)',
+      ),
     ]);
-    const anotadas = new Set(migraciones!.results.map((m) => m.name));
-    return CAMBIOS.every((c) => anotadas.has(c.migracion)) && huella!.results[0]?.valor === HUELLA_PERMISOS && sinRoles!.results[0]?.n === 0;
+    const anotadas = new Set(migraciones!.results.map(m => m.name));
+    return (
+      CAMBIOS.every(c => anotadas.has(c.migracion)) &&
+      huella!.results[0]?.valor === HUELLA_PERMISOS &&
+      sinRoles!.results[0]?.n === 0
+    );
   } catch {
     return false; // p. ej. base nueva sin tablas
   }
@@ -221,14 +304,16 @@ export async function sembrarPermisos(env: Env) {
   // Cuentas sin rol (p. ej. creadas desde la consola de D1): reciben el de su perfil.
   const sinRoles = (
     await db
-      .prepare('SELECT id, rol FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)')
+      .prepare(
+        'SELECT id, rol FROM usuarios u WHERE NOT EXISTS (SELECT 1 FROM usuario_roles ur WHERE ur.usuario_id = u.id)',
+      )
       .all<{ id: number; rol: Rol }>()
   ).results;
   const codigos = TODOS_LOS_PERMISOS;
-  const roles = ROLES_SISTEMA.map((r) => r.codigo);
+  const roles = ROLES_SISTEMA.map(r => r.codigo);
   await db.batch([
-    ...MODULOS.flatMap((m) =>
-      m.permisos.map((p) =>
+    ...MODULOS.flatMap(m =>
+      m.permisos.map(p =>
         db
           .prepare(
             'INSERT INTO permisos (codigo, modulo, nombre) VALUES (?,?,?) ON CONFLICT(codigo) DO UPDATE SET modulo = excluded.modulo, nombre = excluded.nombre',
@@ -236,15 +321,43 @@ export async function sembrarPermisos(env: Env) {
           .bind(p.codigo, m.codigo, p.nombre),
       ),
     ),
-    db.prepare(`DELETE FROM permisos WHERE codigo NOT IN (${codigos.map(() => '?').join(',')})`).bind(...codigos),
-    ...ROLES_SISTEMA.map((r) =>
-      db.prepare('INSERT INTO roles (codigo, nombre) VALUES (?,?) ON CONFLICT(codigo) DO UPDATE SET nombre = excluded.nombre').bind(r.codigo, r.nombre),
-    ),
-    db.prepare(`DELETE FROM rol_permisos WHERE rol_codigo IN (${roles.map(() => '?').join(',')})`).bind(...roles),
-    ...ROLES_SISTEMA.flatMap((r) => r.permisos.map((p) => db.prepare('INSERT INTO rol_permisos (rol_codigo, permiso_codigo) VALUES (?,?)').bind(r.codigo, p))),
-    ...sinRoles.map((u) => db.prepare('INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)').bind(u.id, rolDePerfil(u.rol))),
     db
-      .prepare("INSERT INTO configuracion (clave, valor) VALUES ('permisos_sembrados', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor")
+      .prepare(
+        `DELETE FROM permisos WHERE codigo NOT IN (${codigos.map(() => '?').join(',')})`,
+      )
+      .bind(...codigos),
+    ...ROLES_SISTEMA.map(r =>
+      db
+        .prepare(
+          'INSERT INTO roles (codigo, nombre) VALUES (?,?) ON CONFLICT(codigo) DO UPDATE SET nombre = excluded.nombre',
+        )
+        .bind(r.codigo, r.nombre),
+    ),
+    db
+      .prepare(
+        `DELETE FROM rol_permisos WHERE rol_codigo IN (${roles.map(() => '?').join(',')})`,
+      )
+      .bind(...roles),
+    ...ROLES_SISTEMA.flatMap(r =>
+      r.permisos.map(p =>
+        db
+          .prepare(
+            'INSERT INTO rol_permisos (rol_codigo, permiso_codigo) VALUES (?,?)',
+          )
+          .bind(r.codigo, p),
+      ),
+    ),
+    ...sinRoles.map(u =>
+      db
+        .prepare(
+          'INSERT OR IGNORE INTO usuario_roles (usuario_id, rol_codigo) VALUES (?,?)',
+        )
+        .bind(u.id, rolDePerfil(u.rol)),
+    ),
+    db
+      .prepare(
+        "INSERT INTO configuracion (clave, valor) VALUES ('permisos_sembrados', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor",
+      )
       .bind(HUELLA_PERMISOS),
   ]);
 }
@@ -270,7 +383,8 @@ export async function aplicar(env: Env) {
     if (!(await c.yaAplicado(env)))
       try {
         const sentencias = await pendientes(env, c.sentencias);
-        if (sentencias.length) await env.DB.batch(sentencias.map((sql) => env.DB.prepare(sql)));
+        if (sentencias.length)
+          await env.DB.batch(sentencias.map(sql => env.DB.prepare(sql)));
       } catch (e) {
         // Otra instancia pudo aplicarla al mismo tiempo: si ya quedó aplicada, se sigue.
         if (!(await c.yaAplicado(env))) throw e;
@@ -279,7 +393,9 @@ export async function aplicar(env: Env) {
       env.DB.prepare(
         'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)',
       ),
-      env.DB.prepare('INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)').bind(c.migracion),
+      env.DB.prepare(
+        'INSERT OR IGNORE INTO d1_migrations (name) VALUES (?)',
+      ).bind(c.migracion),
     ]);
   }
 }

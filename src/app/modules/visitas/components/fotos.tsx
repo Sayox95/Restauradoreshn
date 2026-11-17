@@ -32,7 +32,15 @@ function Miniatura({ foto }: { foto: FotoLocal }) {
  * Cada una lleva una observación opcional. Se toman con la cámara o se eligen de la galería (una o
  * varias a la vez, hasta completar las disponibles).
  */
-export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio: (f: FotoLocal[]) => void; falta?: boolean }) {
+export function Fotos({
+  fotos,
+  onCambio,
+  falta,
+}: {
+  fotos: FotoLocal[];
+  onCambio: (f: FotoLocal[]) => void;
+  falta?: boolean;
+}) {
   const camara = useRef<HTMLInputElement>(null);
   const galeria = useRef<HTMLInputElement>(null);
   const [procesando, setProcesando] = useState(false);
@@ -47,16 +55,32 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
   const elegidas = async (lista: FileList | null) => {
     const archivos = [...(lista ?? [])];
     if (!archivos.length) return;
-    if (archivos.length > disponibles) avisar(`Solo quedan ${disponibles} espacio(s): se agregan las primeras ${disponibles}.`, { tipo: 'error' });
+    if (archivos.length > disponibles)
+      avisar(
+        `Solo quedan ${disponibles} espacio(s): se agregan las primeras ${disponibles}.`,
+        { tipo: 'error' },
+      );
     const validas: File[] = [];
     for (const a of archivos.slice(0, disponibles)) {
-      if (!a.type.startsWith('image/') && !/\.(heic|heif)$/i.test(a.name)) avisar(`«${a.name}» no es una imagen.`, { tipo: 'error' });
-      else if (a.size > MAX_FOTO_BYTES) avisar(`La foto pesa ${MB(a.size)}; el máximo es ${MB(MAX_FOTO_BYTES)}.`, { tipo: 'error' });
+      if (!a.type.startsWith('image/') && !/\.(heic|heif)$/i.test(a.name))
+        avisar(`«${a.name}» no es una imagen.`, { tipo: 'error' });
+      else if (a.size > MAX_FOTO_BYTES)
+        avisar(
+          `La foto pesa ${MB(a.size)}; el máximo es ${MB(MAX_FOTO_BYTES)}.`,
+          { tipo: 'error' },
+        );
       else validas.push(a);
     }
     if (!validas.length) return;
     setProcesando(true);
-    const nuevas = await Promise.all(validas.map(async (a) => ({ original: a, nombre: a.name, copia: await copiaReducida(a), observacion: null })));
+    const nuevas = await Promise.all(
+      validas.map(async a => ({
+        original: a,
+        nombre: a.name,
+        copia: await copiaReducida(a),
+        observacion: null,
+      })),
+    );
     setProcesando(false);
     const todas = [...fotos, ...nuevas];
     onCambio(todas);
@@ -68,20 +92,37 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
   };
 
   const quitar = async (i: number) => {
-    if (await confirmar({ titulo: `¿Quitar la foto ${i + 1}?`, confirmar: 'Quitar', peligro: true })) onCambio(fotos.filter((_, j) => j !== i));
+    if (
+      await confirmar({
+        titulo: `¿Quitar la foto ${i + 1}?`,
+        confirmar: 'Quitar',
+        peligro: true,
+      })
+    )
+      onCambio(fotos.filter((_, j) => j !== i));
   };
 
   return (
-    <div data-campo="fotos" className={falta ? 'rounded-xl bg-rose-50 p-2 ring-1 ring-rose-300' : ''}>
-      <p className="mb-3 text-sm text-slate-600">1 fotografía obligatoria y hasta {MAX_FOTOS - 1} adicionales. Se guardan en su resolución original.</p>
+    <div
+      data-campo="fotos"
+      className={falta ? 'rounded-xl bg-rose-50 p-2 ring-1 ring-rose-300' : ''}
+    >
+      <p className="mb-3 text-sm text-slate-600">
+        1 fotografía obligatoria y hasta {MAX_FOTOS - 1} adicionales. Se guardan
+        en su resolución original.
+      </p>
       <div className="grid grid-cols-2 gap-3">
         {fotos.map((f, i) => (
           <div key={i} className="tarjeta overflow-hidden">
             <Miniatura foto={f} />
             <div className="flex items-start gap-1 p-2">
               <p className="min-w-0 flex-1 text-xs text-slate-600">
-                <span className="font-semibold text-slate-800">Foto {i + 1}</span>
-                {f.observacion ? ` · ${f.observacion}` : ` · ${MB(f.original.size)}`}
+                <span className="font-semibold text-slate-800">
+                  Foto {i + 1}
+                </span>
+                {f.observacion
+                  ? ` · ${f.observacion}`
+                  : ` · ${MB(f.original.size)}`}
               </p>
               <button
                 type="button"
@@ -108,17 +149,32 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
         {disponibles > 0 && (
           <div className="flex min-h-[180px] flex-col items-stretch justify-center gap-2 rounded-2xl border-2 border-dashed border-slate-300 bg-white p-3 text-slate-500">
             {procesando ? (
-              <Loader2 className="mx-auto h-7 w-7 animate-spin" aria-label="Preparando las fotos" />
+              <Loader2
+                className="mx-auto h-7 w-7 animate-spin"
+                aria-label="Preparando las fotos"
+              />
             ) : (
               <>
-                <p className="text-center text-sm font-semibold text-slate-700">{fotos.length ? 'Agregar foto' : 'Foto 1 (obligatoria)'}</p>
-                <button type="button" className="btn-secundario min-h-[44px] px-2 text-sm" onClick={() => camara.current?.click()}>
+                <p className="text-center text-sm font-semibold text-slate-700">
+                  {fotos.length ? 'Agregar foto' : 'Foto 1 (obligatoria)'}
+                </p>
+                <button
+                  type="button"
+                  className="btn-secundario min-h-[44px] px-2 text-sm"
+                  onClick={() => camara.current?.click()}
+                >
                   <Camera className="h-5 w-5" aria-hidden /> Tomar foto
                 </button>
-                <button type="button" className="btn-secundario min-h-[44px] px-2 text-sm" onClick={() => galeria.current?.click()}>
+                <button
+                  type="button"
+                  className="btn-secundario min-h-[44px] px-2 text-sm"
+                  onClick={() => galeria.current?.click()}
+                >
                   <Images className="h-5 w-5" aria-hidden /> Galería
                 </button>
-                <p className="text-center text-xs">{disponibles} disponible(s)</p>
+                <p className="text-center text-xs">
+                  {disponibles} disponible(s)
+                </p>
               </>
             )}
           </div>
@@ -132,7 +188,7 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
         capture="environment"
         className="hidden"
         aria-label="Tomar foto"
-        onChange={(e) => {
+        onChange={e => {
           void elegidas(e.target.files);
           e.target.value = '';
         }}
@@ -144,7 +200,7 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
         multiple
         className="hidden"
         aria-label="Elegir de la galería"
-        onChange={(e) => {
+        onChange={e => {
           void elegidas(e.target.files);
           e.target.value = '';
         }}
@@ -157,7 +213,13 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
           <button
             className="btn-primario w-full"
             onClick={() => {
-              onCambio(fotos.map((f, j) => (j === editando ? { ...f, observacion: obs.trim() || null } : f)));
+              onCambio(
+                fotos.map((f, j) =>
+                  j === editando
+                    ? { ...f, observacion: obs.trim() || null }
+                    : f,
+                ),
+              );
               setEditando(null);
             }}
           >
@@ -170,7 +232,7 @@ export function Fotos({ fotos, onCambio, falta }: { fotos: FotoLocal[]; onCambio
           maxLength={200}
           placeholder="Qué muestra la foto (opcional)"
           value={obs}
-          onChange={(e) => setObs(e.target.value)}
+          onChange={e => setObs(e.target.value)}
           aria-label="Observación"
         />
       </Hoja>

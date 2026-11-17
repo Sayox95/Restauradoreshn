@@ -13,9 +13,17 @@ import { Cargando } from '@components/ui';
 import { AuthRoute, useAccess } from '@common/seguridad/acceso';
 import { useSesion } from '@common/seguridad/sesion';
 
-const MiCuenta = lazy(() => import('@/app/cuenta/mi-cuenta/pagina').then((m) => ({ default: m.MiCuenta })));
-const Nueva = lazy(() => import('@/app/nueva/pagina').then((m) => ({ default: m.Nueva })));
-const Administracion = lazy(() => import('@/app/administracion/pagina').then((m) => ({ default: m.Administracion })));
+const MiCuenta = lazy(() =>
+  import('@/app/cuenta/mi-cuenta/pagina').then(m => ({ default: m.MiCuenta })),
+);
+const Nueva = lazy(() =>
+  import('@/app/nueva/pagina').then(m => ({ default: m.Nueva })),
+);
+const Administracion = lazy(() =>
+  import('@/app/administracion/pagina').then(m => ({
+    default: m.Administracion,
+  })),
+);
 
 export function App() {
   const { usuario, cargando } = useSesion();
@@ -25,7 +33,7 @@ export function App() {
   if (usuario.debe_cambiar_password) return <CambiarPasswordObligatorio />;
   // Todas las rutas existen para todos (cada una protegida por su permiso). El inicio («/») es la primera
   // opción del menú a la que tiene acceso (Inspecciones y registros).
-  const inicio = menuPrincipal.find((o) => hasAccess(o.access))?.a ?? urlMiCuenta;
+  const inicio = menuPrincipal.find(o => hasAccess(o.access))?.a ?? urlMiCuenta;
   return (
     <Suspense fallback={<Cargando />}>
       <Routes>

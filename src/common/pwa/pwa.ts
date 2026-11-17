@@ -19,7 +19,8 @@ let ultimaRevision = 0;
 
 /** Pide al navegador revisar si cambió /sw.js (un pedido liviano; responde 304 si no hay cambios). */
 export function revisarActualizacion() {
-  if (!registro || Date.now() - ultimaRevision < ESPERA_ENTRE_REVISIONES_MS) return;
+  if (!registro || Date.now() - ultimaRevision < ESPERA_ENTRE_REVISIONES_MS)
+    return;
   ultimaRevision = Date.now();
   registro.update().catch(() => {});
 }
@@ -41,15 +42,19 @@ export function iniciarActualizaciones(alHaberVersionNueva: () => void) {
   let habiaControlador = !!navigator.serviceWorker.controller;
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (habiaControlador) alHaberVersionNueva();
-    else void versionPublicadaEsOtra().then((otra) => otra && alHaberVersionNueva());
+    else
+      void versionPublicadaEsOtra().then(otra => otra && alHaberVersionNueva());
     habiaControlador = true;
   });
 
   navigator.serviceWorker
     .register('/sw.js', { scope: '/' })
-    .then((r) => {
+    .then(r => {
       registro = r;
-      document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && revisarActualizacion());
+      document.addEventListener(
+        'visibilitychange',
+        () => document.visibilityState === 'visible' && revisarActualizacion(),
+      );
       addEventListener('focus', revisarActualizacion);
       addEventListener('online', revisarActualizacion);
     })

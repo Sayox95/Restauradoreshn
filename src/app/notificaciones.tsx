@@ -11,16 +11,24 @@ import { urlVisita } from '@modules/visitas/urls';
 import { urlUsuarios } from '@modules/usuarios/urls';
 
 /** A qué pantalla lleva cada notificación. */
-const destino = (n: Notificacion) => (n.modulo === 'visitas' && n.id ? urlVisita(n.id) : n.modulo === 'usuarios' ? urlUsuarios : null);
+const destino = (n: Notificacion) =>
+  n.modulo === 'visitas' && n.id
+    ? urlVisita(n.id)
+    : n.modulo === 'usuarios'
+      ? urlUsuarios
+      : null;
 
 export function Notificaciones() {
   const avisar = useAvisos();
   const navegar = useNavigate();
   useEffect(
     () =>
-      escucharNotificaciones((n) => {
+      escucharNotificaciones(n => {
         const url = destino(n);
-        avisar(n.mensaje, { tipo: 'info', accion: url ? { texto: 'Ver', fn: () => navegar(url) } : undefined });
+        avisar(n.mensaje, {
+          tipo: 'info',
+          accion: url ? { texto: 'Ver', fn: () => navegar(url) } : undefined,
+        });
         // Una vibración corta en el teléfono (quien está en campo puede no estar mirando la pantalla).
         navigator.vibrate?.(120);
       }),

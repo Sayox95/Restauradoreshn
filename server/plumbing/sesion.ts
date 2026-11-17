@@ -17,12 +17,26 @@ export function b64(bytes: ArrayBuffer | Uint8Array): string {
   return btoa(s);
 }
 export function desdeB64(s: string): Uint8Array {
-  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+  return Uint8Array.from(atob(s), c => c.charCodeAt(0));
 }
 
-export async function derivar(password: string, sal: Uint8Array, iteraciones: number): Promise<ArrayBuffer> {
-  const clave = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
-  return crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: iteraciones }, clave, 256);
+export async function derivar(
+  password: string,
+  sal: Uint8Array,
+  iteraciones: number,
+): Promise<ArrayBuffer> {
+  const clave = await crypto.subtle.importKey(
+    'raw',
+    enc.encode(password),
+    'PBKDF2',
+    false,
+    ['deriveBits'],
+  );
+  return crypto.subtle.deriveBits(
+    { name: 'PBKDF2', hash: 'SHA-256', salt: sal, iterations: iteraciones },
+    clave,
+    256,
+  );
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -31,34 +45,51 @@ export async function hashPassword(password: string): Promise<string> {
   return `pbkdf2$${ITERACIONES}$${b64(sal)}$${b64(hash)}`;
 }
 
-export async function verificarPassword(password: string, guardado: string): Promise<boolean> {
+export async function verificarPassword(
+  password: string,
+  guardado: string,
+): Promise<boolean> {
   const [alg, it, salB64, hashB64] = guardado.split('$');
   if (alg !== 'pbkdf2' || !it || !salB64 || !hashB64) return false;
-  const calculado = new Uint8Array(await derivar(password, desdeB64(salB64), Number(it)));
+  const calculado = new Uint8Array(
+    await derivar(password, desdeB64(salB64), Number(it)),
+  );
   const esperado = desdeB64(hashB64);
   if (calculado.length !== esperado.length) return false;
   let dif = 0;
-  for (let i = 0; i < calculado.length; i++) dif |= calculado[i]! ^ esperado[i]!;
+  for (let i = 0; i < calculado.length; i++)
+    dif |= calculado[i]! ^ esperado[i]!;
   return dif === 0;
 }
 
 export async function sha256(texto: string): Promise<string> {
   const h = await crypto.subtle.digest('SHA-256', enc.encode(texto));
-  return [...new Uint8Array(h)].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return [...new Uint8Array(h)]
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export function cookieSesion(token: string, maxAgeSeg: number): string {
   return `${COOKIE}=${token}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${maxAgeSeg}`;
 }
 
-export async function crearSesion(env: Env, usuarioId: number, ahora: string): Promise<string> {
+export async function crearSesion(
+  env: Env,
+  usuarioId: number,
+  ahora: string,
+): Promise<string> {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const token = b64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const token = b64(bytes)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
   const expira = new Date(Date.parse(ahora) + DURACION_SESION_MS).toISOString();
   await env.DB.batch([
     // Limpieza de sesiones vencidas de todos los usuarios (las abandonadas sin cerrar sesión).
     env.DB.prepare('DELETE FROM sesiones WHERE expira_en < ?').bind(ahora),
-    env.DB.prepare('INSERT INTO sesiones (token_hash, usuario_id, expira_en, creado_en) VALUES (?,?,?,?)').bind(await sha256(token), usuarioId, expira, ahora),
+    env.DB.prepare(
+      'INSERT INTO sesiones (token_hash, usuario_id, expira_en, creado_en) VALUES (?,?,?,?)',
+    ).bind(await sha256(token), usuarioId, expira, ahora),
   ]);
   return cookieSesion(token, DURACION_SESION_MS / 1000);
 }
@@ -81,8 +112,16 @@ export async function cerrarSesion(env: Env, req: Request, todas = false) {
   const token = leerToken(req);
   if (!token) return;
   const hash = await sha256(token);
-  if (todas) await env.DB.prepare('DELETE FROM sesiones WHERE usuario_id = (SELECT usuario_id FROM sesiones WHERE token_hash = ?)').bind(hash).run();
-  else await env.DB.prepare('DELETE FROM sesiones WHERE token_hash = ?').bind(hash).run();
+  if (todas)
+    await env.DB.prepare(
+      'DELETE FROM sesiones WHERE usuario_id = (SELECT usuario_id FROM sesiones WHERE token_hash = ?)',
+    )
+      .bind(hash)
+      .run();
+  else
+    await env.DB.prepare('DELETE FROM sesiones WHERE token_hash = ?')
+      .bind(hash)
+      .run();
 }
 
 /** Hash del token de la sesión actual (para conservarla al cerrar las demás). */
@@ -101,10 +140,11 @@ export function passwordTemporal(): string {
   while (salida.length < 12) {
     for (const b of crypto.getRandomValues(new Uint8Array(16))) {
       // Se descartan los valores que sesgarían la distribución.
-      if (b < 256 - (256 % alfabeto.length) && salida.length < 12) salida.push(alfabeto[b % alfabeto.length]!);
+      if (b < 256 - (256 % alfabeto.length) && salida.length < 12)
+        salida.push(alfabeto[b % alfabeto.length]!);
     }
   }
-  return [0, 4, 8].map((i) => salida.slice(i, i + 4).join('')).join('-');
+  return [0, 4, 8].map(i => salida.slice(i, i + 4).join('')).join('-');
 }
 
 /**
@@ -112,21 +152,31 @@ export function passwordTemporal(): string {
  * de su rol. Es la única regla de «tiene permiso» en SQL (personal de la inspección, protecciones, etc.).
  */
 export function sqlTienePermiso(permiso: Permiso, alias = 'u') {
-  if (!/^[a-z_]+$/.test(permiso)) throw new Error('Código de permiso no válido');
+  if (!/^[a-z_]+$/.test(permiso))
+    throw new Error('Código de permiso no válido');
   return `((${alias}.permisos_personalizados = 1 AND EXISTS (SELECT 1 FROM usuario_permisos up WHERE up.usuario_id = ${alias}.id AND up.permiso_codigo = '${permiso}'))
     OR (${alias}.permisos_personalizados = 0 AND EXISTS (SELECT 1 FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo
                                                        WHERE ur.usuario_id = ${alias}.id AND rp.permiso_codigo = '${permiso}')))`;
 }
 
 /** Permisos efectivos de una cuenta: los suyos a la medida o, si no tiene, los de su rol. */
-export const sentenciaPermisosDe = (env: Env, id: number, personalizados: boolean) =>
+export const sentenciaPermisosDe = (
+  env: Env,
+  id: number,
+  personalizados: boolean,
+) =>
   personalizados
-    ? env.DB.prepare('SELECT permiso_codigo FROM usuario_permisos WHERE usuario_id = ?').bind(id)
+    ? env.DB.prepare(
+        'SELECT permiso_codigo FROM usuario_permisos WHERE usuario_id = ?',
+      ).bind(id)
     : env.DB.prepare(
         'SELECT DISTINCT rp.permiso_codigo FROM usuario_roles ur JOIN rol_permisos rp ON rp.rol_codigo = ur.rol_codigo WHERE ur.usuario_id = ?',
       ).bind(id);
 
-export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioSesion | null> {
+export async function cargarUsuarioPorId(
+  env: Env,
+  id: number,
+): Promise<UsuarioSesion | null> {
   const u = await env.DB.prepare(
     "SELECT id, usuario, nombre, correo, telefono, debe_cambiar_password, rol, (SELECT c.nombre FROM cargos c WHERE c.id = usuarios.cargo_id) AS cargo, permisos_personalizados FROM usuarios WHERE id = ? AND estado = 'activa'",
   )
@@ -144,24 +194,44 @@ export async function cargarUsuarioPorId(env: Env, id: number): Promise<UsuarioS
     }>();
   if (!u) return null;
   const { permisos_personalizados, ...datos } = u;
-  const { results } = await sentenciaPermisosDe(env, id, !!permisos_personalizados).all<{ permiso_codigo: string }>();
-  return { ...datos, debe_cambiar_password: !!u.debe_cambiar_password, permisos: results.map((r) => r.permiso_codigo) };
+  const { results } = await sentenciaPermisosDe(
+    env,
+    id,
+    !!permisos_personalizados,
+  ).all<{ permiso_codigo: string }>();
+  return {
+    ...datos,
+    debe_cambiar_password: !!u.debe_cambiar_password,
+    permisos: results.map(r => r.permiso_codigo),
+  };
 }
 
 /** Devuelve el usuario de la sesión y, si corresponde, una cookie renovada. */
-export async function resolverSesion(env: Env, req: Request, ahora: string): Promise<{ usuario: UsuarioSesion; cookie?: string } | null> {
+export async function resolverSesion(
+  env: Env,
+  req: Request,
+  ahora: string,
+): Promise<{ usuario: UsuarioSesion; cookie?: string } | null> {
   const token = leerToken(req);
   if (!token) return null;
   const tokenHash = await sha256(token);
-  const s = await env.DB.prepare('SELECT usuario_id, expira_en FROM sesiones WHERE token_hash = ? AND expira_en > ?')
+  const s = await env.DB.prepare(
+    'SELECT usuario_id, expira_en FROM sesiones WHERE token_hash = ? AND expira_en > ?',
+  )
     .bind(tokenHash, ahora)
     .first<{ usuario_id: number; expira_en: string }>();
   if (!s) return null;
   const usuario = await cargarUsuarioPorId(env, s.usuario_id);
   if (!usuario) return null;
   if (Date.parse(s.expira_en) - Date.parse(ahora) < RENOVAR_SI_RESTA_MS) {
-    const expira = new Date(Date.parse(ahora) + DURACION_SESION_MS).toISOString();
-    await env.DB.prepare('UPDATE sesiones SET expira_en = ? WHERE token_hash = ?').bind(expira, tokenHash).run();
+    const expira = new Date(
+      Date.parse(ahora) + DURACION_SESION_MS,
+    ).toISOString();
+    await env.DB.prepare(
+      'UPDATE sesiones SET expira_en = ? WHERE token_hash = ?',
+    )
+      .bind(expira, tokenHash)
+      .run();
     return { usuario, cookie: cookieSesion(token, DURACION_SESION_MS / 1000) };
   }
   return { usuario };

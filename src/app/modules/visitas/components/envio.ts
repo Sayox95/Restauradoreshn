@@ -8,8 +8,19 @@ import { visitaEsquema } from '@shared/visitas';
 import { useEffect, useState } from 'react';
 import { ErrorApi, mensajeError } from '@common/http/api';
 import { blobDeDataUrl } from '@common/utils/imagen';
-import { registrarVisita, subirCopiaFoto, subirFoto, subirPdf } from '@modules/visitas/api';
-import { type Pendiente, alCambiarCola, guardarEnCola, listarCola, quitarDeCola } from './almacen';
+import {
+  registrarVisita,
+  subirCopiaFoto,
+  subirFoto,
+  subirPdf,
+} from '@modules/visitas/api';
+import {
+  type Pendiente,
+  alCambiarCola,
+  guardarEnCola,
+  listarCola,
+  quitarDeCola,
+} from './almacen';
 import { generarFicha } from './ficha-pdf';
 
 export interface ResultadoEnvio {
@@ -22,7 +33,7 @@ export interface ResultadoEnvio {
 
 /** Paso del envío en curso, para mostrarlo en la pantalla que espera (p. ej. «Subiendo foto 1 de 2»). */
 const oyentesPaso = new Set<(paso: string) => void>();
-const avisarPaso = (paso: string) => oyentesPaso.forEach((f) => f(paso));
+const avisarPaso = (paso: string) => oyentesPaso.forEach(f => f(paso));
 export function alCambiarPaso(fn: (paso: string) => void) {
   oyentesPaso.add(fn);
   return () => void oyentesPaso.delete(fn);
@@ -54,7 +65,8 @@ async function enviarUna(p: Pendiente, signal: AbortSignal): Promise<number> {
     try {
       await subirCopiaFoto(p.id, orden, blobDeDataUrl(copia), signal);
     } catch (e) {
-      if (e instanceof ErrorApi && (e.status === 0 || e.status === 401)) throw e;
+      if (e instanceof ErrorApi && (e.status === 0 || e.status === 401))
+        throw e;
     }
     p.copias_subidas = [...(p.copias_subidas ?? []), orden];
     await guardarEnCola(p);
@@ -64,7 +76,9 @@ async function enviarUna(p: Pendiente, signal: AbortSignal): Promise<number> {
     if (signal.aborted) throw new ErrorApi(0, 'Envío cancelado');
     const pdf = await generarFicha(
       visitaEsquema.parse(p.visita),
-      p.fotos.filter((f) => f.copia).map((f) => ({ base64: f.copia!, observacion: f.observacion })),
+      p.fotos
+        .filter(f => f.copia)
+        .map(f => ({ base64: f.copia!, observacion: f.observacion })),
     );
     await subirPdf(p.id, pdf, signal);
     p.pdf_subido = true;
@@ -79,7 +93,9 @@ async function procesar(signal: AbortSignal): Promise<ResultadoEnvio> {
   // Se vuelve a leer la cola al terminar una tanda: lo que se guardó mientras tanto también se envía.
   const intentadas = new Set<string>();
   for (;;) {
-    const lista = (await listarCola()).filter((p) => !intentadas.has(p.visita_num));
+    const lista = (await listarCola()).filter(
+      p => !intentadas.has(p.visita_num),
+    );
     if (!lista.length || res.detenido) break;
     for (const p of lista) {
       intentadas.add(p.visita_num);
@@ -90,9 +106,16 @@ async function procesar(signal: AbortSignal): Promise<ResultadoEnvio> {
 }
 
 /** Envía una visita y anota el resultado; devuelve true si hay que detener todo (sin señal o sesión). */
-async function enviarConControl(p: Pendiente, signal: AbortSignal, res: ResultadoEnvio): Promise<boolean> {
+async function enviarConControl(
+  p: Pendiente,
+  signal: AbortSignal,
+  res: ResultadoEnvio,
+): Promise<boolean> {
   try {
-    res.enviadas.push({ visita_num: p.visita_num, id: await enviarUna(p, signal) });
+    res.enviadas.push({
+      visita_num: p.visita_num,
+      id: await enviarUna(p, signal),
+    });
   } catch (e) {
     if (e instanceof ErrorApi && e.status === 0) {
       res.detenido = 'sin_conexion';
@@ -113,7 +136,8 @@ async function enviarConControl(p: Pendiente, signal: AbortSignal, res: Resultad
 let enCurso: Promise<ResultadoEnvio> | null = null;
 /** Pantallas que muestran si hay un envío en curso (p. ej. «Enviando…» en el encabezado). */
 const oyentesEnvio = new Set<(enviando: boolean) => void>();
-const avisarEnvio = (enviando: boolean) => oyentesEnvio.forEach((f) => f(enviando));
+const avisarEnvio = (enviando: boolean) =>
+  oyentesEnvio.forEach(f => f(enviando));
 /** Pantallas que muestran lo registrado: se avisa una vez por tanda, al terminar, si se envió algo. */
 const oyentesEnviadas = new Set<() => void>();
 export function alEnviarInspecciones(fn: () => void) {
@@ -136,10 +160,12 @@ export function enviarPendientes(): Promise<ResultadoEnvio> {
   controlador = control;
   const tarea = () => procesar(control.signal);
   avisarEnvio(true);
-  const envio = (navigator.locks ? navigator.locks.request('cola-visitas', tarea) : tarea()) as Promise<ResultadoEnvio>;
+  const envio = (
+    navigator.locks ? navigator.locks.request('cola-visitas', tarea) : tarea()
+  ) as Promise<ResultadoEnvio>;
   enCurso = envio
-    .then((r) => {
-      if (r.enviadas.length) oyentesEnviadas.forEach((f) => f());
+    .then(r => {
+      if (r.enviadas.length) oyentesEnviadas.forEach(f => f());
       return r;
     })
     .finally(() => {
@@ -162,7 +188,7 @@ export function useCola() {
     let vivo = true;
     const leer = () =>
       listarCola()
-        .then((l) => vivo && setPendientes(l))
+        .then(l => vivo && setPendientes(l))
         .catch(() => {});
     leer();
     const quitar = alCambiarCola(leer);

@@ -1,4 +1,9 @@
-import { igualAlPerfil, MODULOS, PermisosVisitas, resumenAcceso } from '@shared/permisos';
+import {
+  igualAlPerfil,
+  MODULOS,
+  PermisosVisitas,
+  resumenAcceso,
+} from '@shared/permisos';
 import { Check, KeyRound, LogOut, MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
 import { Avatar } from '@components/avatar';
@@ -25,8 +30,13 @@ export function MiCuenta() {
   const [cambiandoClave, setCambiandoClave] = useState(false);
   const { pendientes } = useCola();
   if (!usuario) return null;
-  const perfil = resumenAcceso(usuario.rol, !igualAlPerfil(usuario.rol, usuario.permisos));
-  const permisos = MODULOS.flatMap((m) => m.permisos).filter((p) => usuario.permisos.includes(p.codigo));
+  const perfil = resumenAcceso(
+    usuario.rol,
+    !igualAlPerfil(usuario.rol, usuario.permisos),
+  );
+  const permisos = MODULOS.flatMap(m => m.permisos).filter(p =>
+    usuario.permisos.includes(p.codigo),
+  );
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -35,7 +45,9 @@ export function MiCuenta() {
       <div className="tarjeta mb-5 flex items-center gap-4 p-4">
         <Avatar nombre={usuario.nombre} tamano="grande" />
         <div className="min-w-0">
-          <h1 className="truncate text-xl font-bold text-slate-900">{usuario.nombre}</h1>
+          <h1 className="truncate text-xl font-bold text-slate-900">
+            {usuario.nombre}
+          </h1>
           <p className="truncate text-sm text-slate-500">
             <span className="font-mono">{usuario.usuario}</span> · {perfil}
           </p>
@@ -54,33 +66,54 @@ export function MiCuenta() {
               ['Cargo', usuario.cargo ?? '—'],
             ] as const
           ).map(([titulo, valor]) => (
-            <div key={titulo} className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm">
+            <div
+              key={titulo}
+              className="flex items-baseline justify-between gap-4 px-4 py-3 text-sm"
+            >
               <dt className="shrink-0 text-slate-500">{titulo}</dt>
-              <dd className={`min-w-0 truncate text-right font-medium text-slate-900 ${titulo === 'Usuario' ? 'font-mono' : ''}`}>{valor}</dd>
+              <dd
+                className={`min-w-0 truncate text-right font-medium text-slate-900 ${titulo === 'Usuario' ? 'font-mono' : ''}`}
+              >
+                {valor}
+              </dd>
             </div>
           ))}
         </dl>
-        <p className="mt-2 px-1 text-xs text-slate-500">Para corregir estos datos, pídalo a un administrador.</p>
+        <p className="mt-2 px-1 text-xs text-slate-500">
+          Para corregir estos datos, pídalo a un administrador.
+        </p>
       </Seccion>
 
       <Seccion titulo="Lo que puede hacer">
         <ul className="tarjeta space-y-1.5 p-4 text-sm text-slate-700">
-          {permisos.map((p) => (
+          {permisos.map(p => (
             <li key={p.codigo} className="flex gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden /> {p.nombre}
+              <Check
+                className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
+                aria-hidden
+              />{' '}
+              {p.nombre}
             </li>
           ))}
-          {hasAccess([PermisosVisitas.Registrar]) && !hasAccess([PermisosVisitas.Consultar]) && (
-            <li className="flex gap-2">
-              <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" aria-hidden /> Ver las inspecciones que registró
-            </li>
-          )}
+          {hasAccess([PermisosVisitas.Registrar]) &&
+            !hasAccess([PermisosVisitas.Consultar]) && (
+              <li className="flex gap-2">
+                <Check
+                  className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
+                  aria-hidden
+                />{' '}
+                Ver las inspecciones que registró
+              </li>
+            )}
         </ul>
       </Seccion>
 
       <Seccion titulo="Seguridad">
         <div className="tarjeta divide-y divide-slate-100 overflow-hidden">
-          <button className="flex min-h-[56px] w-full items-center gap-3 px-4 text-left hover:bg-slate-50" onClick={() => setCambiandoClave(true)}>
+          <button
+            className="flex min-h-[56px] w-full items-center gap-3 px-4 text-left hover:bg-slate-50"
+            onClick={() => setCambiandoClave(true)}
+          >
             <KeyRound className="h-5 w-5 text-slate-500" aria-hidden />
             <span className="flex-1 font-medium">Cambiar contraseña</span>
           </button>
@@ -98,7 +131,9 @@ export function MiCuenta() {
             }}
           >
             <MonitorSmartphone className="h-5 w-5 text-slate-500" aria-hidden />
-            <span className="flex-1 font-medium">Cerrar sesión en todos los dispositivos</span>
+            <span className="flex-1 font-medium">
+              Cerrar sesión en todos los dispositivos
+            </span>
           </button>
         </div>
       </Seccion>
@@ -112,12 +147,16 @@ export function MiCuenta() {
             pendientes.length
               ? `${pendientes.length === 1 ? 'Hay 1 inspección' : `Hay ${pendientes.length} inspecciones`} sin enviar en este dispositivo: se conserva${pendientes.length === 1 ? '' : 'n'} y se enviará${pendientes.length === 1 ? '' : 'n'} al volver a ingresar.`
               : null,
-            borrador ? 'La inspección en curso se conserva en este dispositivo.' : null,
+            borrador
+              ? 'La inspección en curso se conserva en este dispositivo.'
+              : null,
           ].filter(Boolean);
           if (
             await confirmar({
               titulo: '¿Cerrar sesión?',
-              mensaje: notas.length ? notas.join(' ') : 'Tendrá que ingresar de nuevo con su usuario y contraseña.',
+              mensaje: notas.length
+                ? notas.join(' ')
+                : 'Tendrá que ingresar de nuevo con su usuario y contraseña.',
               confirmar: 'Cerrar sesión',
             })
           )
@@ -126,10 +165,16 @@ export function MiCuenta() {
       >
         <LogOut className="h-5 w-5" /> Cerrar sesión
       </button>
-      <p className="px-1 text-center text-xs text-slate-500">Las fechas se muestran en la zona horaria {zonaActual()}.</p>
+      <p className="px-1 text-center text-xs text-slate-500">
+        Las fechas se muestran en la zona horaria {zonaActual()}.
+      </p>
 
       {cambiandoClave && (
-        <Hoja abierta titulo="Cambiar contraseña" onCerrar={() => setCambiandoClave(false)}>
+        <Hoja
+          abierta
+          titulo="Cambiar contraseña"
+          onCerrar={() => setCambiandoClave(false)}
+        >
           <FormCambiarPassword
             onListo={() => {
               setCambiandoClave(false);

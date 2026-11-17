@@ -3,8 +3,16 @@ import { Route } from 'react-router-dom';
 import { AuthRoute } from '@common/seguridad/acceso';
 import { PermisosCatalogos } from './permisos';
 
-const ListarCatalogos = lazy(() => import('./features/listar-catalogos/pagina').then((m) => ({ default: m.ListarCatalogos })));
-const GestionarCatalogo = lazy(() => import('./features/gestionar-catalogos/pagina').then((m) => ({ default: m.GestionarCatalogo })));
+const ListarCatalogos = lazy(() =>
+  import('./features/listar-catalogos/pagina').then(m => ({
+    default: m.ListarCatalogos,
+  })),
+);
+const GestionarCatalogo = lazy(() =>
+  import('./features/gestionar-catalogos/pagina').then(m => ({
+    default: m.GestionarCatalogo,
+  })),
+);
 
 /** Sin opción propia en el menú principal: se entra desde Administración. */
 export const rutasCatalogos = [

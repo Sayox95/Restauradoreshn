@@ -8,20 +8,31 @@ import { useSesion } from '@common/seguridad/sesion';
  */
 export function useAccess() {
   const { usuario } = useSesion();
-  return { hasAccess: (permisos: readonly Permiso[]) => !!usuario && tieneAcceso(usuario.permisos, permisos) };
+  return {
+    hasAccess: (permisos: readonly Permiso[]) =>
+      !!usuario && tieneAcceso(usuario.permisos, permisos),
+  };
 }
 
 /**
  * Ruta protegida: sin alguno de los permisos no se abre, aunque se escriba la dirección.
  * Muestra «Sin acceso» en lugar de redirigir (redirigir a otra ruta protegida podría dar vueltas).
  */
-export function AuthRoute({ access, children }: { access: readonly Permiso[]; children: ReactNode }) {
+export function AuthRoute({
+  access,
+  children,
+}: {
+  access: readonly Permiso[];
+  children: ReactNode;
+}) {
   const { hasAccess } = useAccess();
   if (hasAccess(access)) return <>{children}</>;
   return (
     <div className="tarjeta mx-auto mt-6 max-w-md p-6 text-center">
       <p className="font-semibold text-slate-900">Sin acceso</p>
-      <p className="mt-1 text-sm text-slate-600">Su cuenta no tiene permiso para esta sección.</p>
+      <p className="mt-1 text-sm text-slate-600">
+        Su cuenta no tiene permiso para esta sección.
+      </p>
     </div>
   );
 }

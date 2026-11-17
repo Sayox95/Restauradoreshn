@@ -14,7 +14,9 @@ export const ROL_ETIQUETA: Record<Rol, string> = {
  */
 export const ESTADOS_VISITA = ['registrada'] as const;
 export type EstadoVisita = (typeof ESTADOS_VISITA)[number];
-export const ESTADO_VISITA_ETIQUETA: Record<EstadoVisita, string> = { registrada: 'Registrada' };
+export const ESTADO_VISITA_ETIQUETA: Record<EstadoVisita, string> = {
+  registrada: 'Registrada',
+};
 
 /** Solo se pueden crear cuentas con correo de este dominio. */
 export const DOMINIO_CORREO = 'eneeutcd.hn';
@@ -22,7 +24,12 @@ export const DOMINIO_CORREO = 'eneeutcd.hn';
 export const ZONA_HORARIA_DEFECTO = 'America/Tegucigalpa';
 
 /** Estados de una cuenta de usuario. */
-export const ESTADOS_CUENTA = ['pendiente', 'activa', 'inactiva', 'rechazada'] as const;
+export const ESTADOS_CUENTA = [
+  'pendiente',
+  'activa',
+  'inactiva',
+  'rechazada',
+] as const;
 export type EstadoCuenta = (typeof ESTADOS_CUENTA)[number];
 export const ESTADO_CUENTA_ETIQUETA: Record<EstadoCuenta, string> = {
   pendiente: 'Pendiente',
@@ -49,7 +56,13 @@ export function usuarioDeCorreo(correo: string): string {
 export const MAX_COPIA_BYTES = 5 * 1024 * 1024;
 export const MAX_FOTOS = 4;
 export const MAX_FOTO_BYTES = 25 * 1024 * 1024;
-export const MIMES_FOTO = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'] as const;
+export const MIMES_FOTO = [
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+] as const;
 export type MimeFoto = (typeof MIMES_FOTO)[number];
 export const EXTENSION_FOTO: Record<MimeFoto, string> = {
   'image/jpeg': 'jpg',
@@ -71,19 +84,45 @@ export const TIPOS_VISITA = ['Visita 1', 'Visita 2', 'Visita 3'] as const;
  */
 export const EQUIPOS = ['restaurador'] as const;
 export type Equipo = (typeof EQUIPOS)[number];
-export const EQUIPO_ETIQUETA: Record<Equipo, string> = { restaurador: 'Restaurador' };
+export const EQUIPO_ETIQUETA: Record<Equipo, string> = {
+  restaurador: 'Restaurador',
+};
 export const MEDIOS_EXTINCION = ['Vacío', 'Aceite (VWE)', 'SF6'] as const;
-export const TIPOS_MODEM = ['Modem Datos', 'Modem Telemetria', 'Radio Modem'] as const;
+export const TIPOS_MODEM = [
+  'Modem Datos',
+  'Modem Telemetria',
+  'Radio Modem',
+] as const;
 export const ANTENAS = ['INTERNA', 'EXTERNA'] as const;
 export const TIPOS_ANTENA = ['Cónica', 'Imantada', 'Yagi'] as const;
 export const TECNOLOGIAS_MODEM = ['2G', '3G', 'LTE'] as const;
 export const TIPOS_BATERIA = ['12V/ 12AH', '12V/ 17AH', '12V/ 26AH'] as const;
-export const TIPOS_CUCHILLA = ['Cortacircuito Rompearco', 'Cortacircuito Sencillo', 'Cuchilla Monopolar', 'Cuchilla Tripolar'] as const;
-export const FASES_CONEXION = ['Fase A', 'Fase B', 'Fase C', 'Trifásica'] as const;
-export const MOTIVOS_MATERIAL = ['Reemplazo preventivo', 'Falla / Daño', 'Instalación nueva', 'Actualización', 'Otro'] as const;
+export const TIPOS_CUCHILLA = [
+  'Cortacircuito Rompearco',
+  'Cortacircuito Sencillo',
+  'Cuchilla Monopolar',
+  'Cuchilla Tripolar',
+] as const;
+export const FASES_CONEXION = [
+  'Fase A',
+  'Fase B',
+  'Fase C',
+  'Trifásica',
+] as const;
+export const MOTIVOS_MATERIAL = [
+  'Reemplazo preventivo',
+  'Falla / Daño',
+  'Instalación nueva',
+  'Actualización',
+  'Otro',
+] as const;
 
 /** Elementos de la tabla «marcas» que son módems (los demás son restauradores). */
-export const ELEMENTOS_MODEM = ['MODEM DATOS', 'MODEM TELEMETRIA', 'RADIO MODEM'] as const;
+export const ELEMENTOS_MODEM = [
+  'MODEM DATOS',
+  'MODEM TELEMETRIA',
+  'RADIO MODEM',
+] as const;
 export const ELEMENTOS_MARCA = ['RESTAURADOR', ...ELEMENTOS_MODEM] as const;
 
 /** Respuestas de los botones de dos opciones. */

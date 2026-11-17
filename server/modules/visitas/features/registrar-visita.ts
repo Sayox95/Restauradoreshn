@@ -1,13 +1,25 @@
-import { type Visita, faltantes, requisitosVisita, resumenMateriales, resumenPersonal } from '../../../../shared/visitas';
+import {
+  type Visita,
+  faltantes,
+  requisitosVisita,
+  resumenMateriales,
+  resumenPersonal,
+} from '../../../../shared/visitas';
 import type { Ctx } from '../../../plumbing/contexto';
 import { ApiError, esErrorUnico } from '../../../plumbing/http';
 import { catalogosVisita } from '../../catalogos/features/gestionar-catalogos';
-import { COLUMNAS_DATOS, DESDE_VISITAS, SELECT_RESUMEN, resumen } from '../comun';
+import {
+  COLUMNAS_DATOS,
+  DESDE_VISITAS,
+  SELECT_RESUMEN,
+  resumen,
+} from '../comun';
 import { eventoDe } from '../../../plumbing/eventos';
 
 /** Datos de la visita → valores de cada columna de `registros`. */
 function valores(v: Visita): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
-  const unoCero = (x: string | null) => (x === null ? null : x === 'SI' ? 1 : 0);
+  const unoCero = (x: string | null) =>
+    x === null ? null : x === 'SI' ? 1 : 0;
   return {
     ...(v as unknown as Record<string, unknown>),
     has_modem1: unoCero(v.has_modem1),
@@ -32,7 +44,12 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
   const cat = await catalogosVisita(ctx);
   const requisitos = requisitosVisita(v, {
     camposTablero: Object.keys(v.tablero_campos),
-    hayOpciones: (campo) => (campo === 'tipo_recon' ? cat.tipos.length > 0 : campo === 'marca_reconectador' ? cat.marcas.length > 0 : false),
+    hayOpciones: campo =>
+      campo === 'tipo_recon'
+        ? cat.tipos.length > 0
+        : campo === 'marca_reconectador'
+          ? cat.marcas.length > 0
+          : false,
     fotos: v.num_fotos ?? 0,
   });
   const falta = faltantes(requisitos, true);
@@ -41,21 +58,27 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
       422,
       `La inspección está incompleta: ${falta
         .slice(0, 4)
-        .map((x) => x.etiqueta)
+        .map(x => x.etiqueta)
         .join(', ')}${falta.length > 4 ? '…' : ''}.`,
       {
-        faltantes: falta.map((x) => x.campo),
+        faltantes: falta.map(x => x.campo),
       },
     );
 
   const db = ctx.env.DB;
   const existente = async () => {
     const f = await db
-      .prepare(`SELECT ${SELECT_RESUMEN}, v.registrado_por AS registrado_por_id FROM ${DESDE_VISITAS} WHERE r.visita_num = ?`)
+      .prepare(
+        `SELECT ${SELECT_RESUMEN}, v.registrado_por AS registrado_por_id FROM ${DESDE_VISITAS} WHERE r.visita_num = ?`,
+      )
       .bind(v.visita_num)
       .first<Record<string, unknown>>();
     if (!f) return null;
-    if (f.registrado_por_id !== ctx.usuario.id) throw new ApiError(409, `Ya existe otra inspección con el folio ${v.visita_num}.`);
+    if (f.registrado_por_id !== ctx.usuario.id)
+      throw new ApiError(
+        409,
+        `Ya existe otra inspección con el folio ${v.visita_num}.`,
+      );
     return { visita: resumen(f), creada: false };
   };
   const previa = await existente();
@@ -63,25 +86,41 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
 
   const datos = valores(v);
   const columnas = [...COLUMNAS_DATOS];
-  const binds = COLUMNAS_DATOS.map((c) => datos[c] ?? null);
+  const binds = COLUMNAS_DATOS.map(c => datos[c] ?? null);
   // En la auditoría no va la imagen de la firma (solo si la hubo).
   const { firma_img, ...paraAuditoria } = v;
   try {
     await db.batch([
-      db.prepare(`INSERT INTO registros (${columnas.join(', ')}) VALUES (${columnas.map(() => '?').join(',')})`).bind(...binds),
+      db
+        .prepare(
+          `INSERT INTO registros (${columnas.join(', ')}) VALUES (${columnas.map(() => '?').join(',')})`,
+        )
+        .bind(...binds),
       // Estado, quién, cuándo y la firma van aparte: `registros` está en el límite de columnas de D1.
       db
         .prepare(
           `INSERT INTO visitas_registro (registro_id, estado, equipo, registrado_por, registrado_en, capturado_en, firma_img)
            VALUES ((SELECT id FROM registros WHERE visita_num = ?), 'registrada', 'restaurador', ?, ?, ?, ?)`,
         )
-        .bind(v.visita_num, ctx.usuario.id, ctx.ahora, v.capturado_en, firma_img),
+        .bind(
+          v.visita_num,
+          ctx.usuario.id,
+          ctx.ahora,
+          v.capturado_en,
+          firma_img,
+        ),
       db
         .prepare(
           `INSERT INTO auditoria (usuario_id, accion, evento, entidad, entidad_id, antes, despues, creado_en)
            VALUES (?, 'registrar', ?, 'visita', (SELECT id FROM registros WHERE visita_num = ?), NULL, ?, ?)`,
         )
-        .bind(ctx.usuario.id, eventoDe('registrar', 'visita'), v.visita_num, JSON.stringify({ ...paraAuditoria, firma: !!firma_img }), ctx.ahora),
+        .bind(
+          ctx.usuario.id,
+          eventoDe('registrar', 'visita'),
+          v.visita_num,
+          JSON.stringify({ ...paraAuditoria, firma: !!firma_img }),
+          ctx.ahora,
+        ),
     ]);
   } catch (e) {
     // Dos envíos simultáneos de la misma visita: el índice único deja pasar solo uno.

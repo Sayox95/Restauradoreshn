@@ -17,7 +17,16 @@ export async function eliminarVisita(ctx: Ctx, id: number, motivo: string) {
            motivo_eliminacion = excluded.motivo_eliminacion`,
       )
       .bind(id, ctx.ahora, ctx.usuario.id, motivo),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'eliminar', 'visita', id, { visita_num: v.visita_num }, { motivo }, ctx.ahora),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'eliminar',
+      'visita',
+      id,
+      { visita_num: v.visita_num },
+      { motivo },
+      ctx.ahora,
+    ),
   ]);
   return { id, visita_num: String(v.visita_num) };
 }

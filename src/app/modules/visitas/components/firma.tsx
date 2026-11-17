@@ -6,7 +6,15 @@ import { useEffect, useRef } from 'react';
  * (ResizeObserver) y conserva el trazo al cambiar de tamaño: si se mide oculto queda de 0 px y la
  * firma se pierde (trampa conocida).
  */
-export function Firma({ valor, onCambio, falta }: { valor: string | null; onCambio: (v: string | null) => void; falta?: boolean }) {
+export function Firma({
+  valor,
+  onCambio,
+  falta,
+}: {
+  valor: string | null;
+  onCambio: (v: string | null) => void;
+  falta?: boolean;
+}) {
   const lienzo = useRef<HTMLCanvasElement>(null);
   const caja = useRef<HTMLDivElement>(null);
   const actual = useRef(valor);
@@ -89,9 +97,21 @@ export function Firma({ valor, onCambio, falta }: { valor: string | null; onCamb
       data-campo="firma_img"
       className={`relative overflow-hidden rounded-xl border-2 border-dashed bg-white ${falta ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
     >
-      <canvas ref={lienzo} className="block touch-none" aria-label="Firma del responsable" />
-      {!valor && <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">Firme aquí con el dedo</p>}
-      <button type="button" onClick={limpiar} className="btn-secundario absolute right-2 top-2 min-h-[36px] px-3 text-sm">
+      <canvas
+        ref={lienzo}
+        className="block touch-none"
+        aria-label="Firma del responsable"
+      />
+      {!valor && (
+        <p className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-slate-400">
+          Firme aquí con el dedo
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={limpiar}
+        className="btn-secundario absolute right-2 top-2 min-h-[36px] px-3 text-sm"
+      >
         <Eraser className="h-4 w-4" /> Limpiar
       </button>
     </div>

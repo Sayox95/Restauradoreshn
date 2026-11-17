@@ -33,13 +33,13 @@ const texto = (max = 200) =>
     .max(max)
     .optional()
     .nullable()
-    .transform((v) => (v ? v : null));
+    .transform(v => (v ? v : null));
 /** Opción de una lista cerrada; vacío = sin responder. */
 const opcion = <T extends readonly [string, ...string[]]>(lista: T) =>
   z
     .union([z.enum(lista), z.literal(''), z.null()])
     .optional()
-    .transform((v) => (v ? v : null));
+    .transform(v => (v ? v : null));
 const numero = (min = -1e9, max = 1e9) =>
   z
     .union([z.number(), z.string(), z.null()])
@@ -53,7 +53,11 @@ const numero = (min = -1e9, max = 1e9) =>
       }
       return n;
     });
-const entero = (max = 1000) => numero(0, max).refine((v) => v === null || Number.isInteger(v), 'Debe ser un número entero');
+const entero = (max = 1000) =>
+  numero(0, max).refine(
+    v => v === null || Number.isInteger(v),
+    'Debe ser un número entero',
+  );
 
 /**
  * Folio de la inspección de restaurador: lo genera el dispositivo (excepción E1) y permite reenviar sin
@@ -65,7 +69,10 @@ export const PATRON_FOLIO = /^[A-Za-z0-9_-]{3,40}$/;
 const ALFABETO_FOLIO = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // sin 0/O ni 1/I: se leen sin confusión
 export function folioNuevo(fecha = new Date()): string {
   const d = (n: number) => String(n).padStart(2, '0');
-  const azar = Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => ALFABETO_FOLIO[b % ALFABETO_FOLIO.length]).join('');
+  const azar = Array.from(
+    crypto.getRandomValues(new Uint8Array(4)),
+    b => ALFABETO_FOLIO[b % ALFABETO_FOLIO.length],
+  ).join('');
   return `IR-${fecha.getFullYear()}${d(fecha.getMonth() + 1)}${d(fecha.getDate())}-${d(fecha.getHours())}${d(fecha.getMinutes())}${d(fecha.getSeconds())}-${azar}`;
 }
 
@@ -84,7 +91,7 @@ export const personaEsquema = z.object({
     .positive()
     .nullable()
     .optional()
-    .transform((v) => v ?? null),
+    .transform(v => v ?? null),
   nombre: z.string().trim().max(100).default(''),
   cargo: texto(60),
 });
@@ -98,7 +105,7 @@ export const visitaEsquema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}$/, 'Fecha no válida')
     .optional()
     .nullable()
-    .transform((v) => v || null),
+    .transform(v => v || null),
   hora_llegada: texto(5),
   hora_salida: texto(5),
   tipo_visita: opcion(TIPOS_VISITA),
@@ -191,18 +198,21 @@ export const visitaEsquema = z.object({
   firma_img: z
     .string()
     .max(400_000, 'La firma es demasiado grande')
-    .refine((v) => !v || v.startsWith('data:image/png;base64,'), 'Firma no válida')
+    .refine(
+      v => !v || v.startsWith('data:image/png;base64,'),
+      'Firma no válida',
+    )
     .optional()
     .nullable()
-    .transform((v) => v || null),
+    .transform(v => v || null),
   /** Hora en que se guardó en el dispositivo (excepción E1: puede ser anterior al envío). */
   capturado_en: z
     .string()
-    .refine((v) => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
-    .transform((v) => new Date(v).toISOString())
+    .refine(v => !Number.isNaN(Date.parse(v)), 'Fecha inválida')
+    .transform(v => new Date(v).toISOString())
     .optional()
     .nullable()
-    .transform((v) => v || null),
+    .transform(v => v || null),
   /** Cantidad de fotos que acompañan la visita (se suben aparte, excepción E2). */
   num_fotos: entero(4),
 });
@@ -210,9 +220,11 @@ export type VisitaEntrada = z.input<typeof visitaEsquema>;
 export type Visita = z.output<typeof visitaEsquema>;
 
 // ── Reglas puras ────────────────────────────────────────────────────────────────────────────
-export const esCooper = (v: Pick<Visita, 'marca_reconectador'>) => (v.marca_reconectador ?? '').toUpperCase().includes('COOPER');
+export const esCooper = (v: Pick<Visita, 'marca_reconectador'>) =>
+  (v.marca_reconectador ?? '').toUpperCase().includes('COOPER');
 /** IB e IC no aplican a reconectadores monofásicos (tipo que empieza con «1», p. ej. 1F). */
-export const esMonofasico = (v: Pick<Visita, 'tipo_recon'>) => /^1/.test(v.tipo_recon ?? '');
+export const esMonofasico = (v: Pick<Visita, 'tipo_recon'>) =>
+  /^1/.test(v.tipo_recon ?? '');
 
 /** Secciones del formulario (el orden de pasos de la hoja de visita). */
 export const SECCIONES = [
@@ -246,13 +258,22 @@ export interface ContextoReglas {
   camposTablero: string[];
   /** ¿El catálogo ofrece opciones para este campo? Si está vacío, el campo no se exige. */
   hayOpciones: (
-    campo: 'tipo_recon' | 'marca_reconectador' | 'modelo_recon' | 'tipo_control' | 'marca_modem1' | 'modelo_modem1' | 'marca_modem2' | 'modelo_modem2',
+    campo:
+      | 'tipo_recon'
+      | 'marca_reconectador'
+      | 'modelo_recon'
+      | 'tipo_control'
+      | 'marca_modem1'
+      | 'modelo_modem1'
+      | 'marca_modem2'
+      | 'modelo_modem2',
   ) => boolean;
   /** Fotos cargadas (en pantalla) o anunciadas (en el servidor). */
   fotos: number;
 }
 
-const lleno = (v: unknown) => v !== null && v !== undefined && String(v).trim() !== '';
+const lleno = (v: unknown) =>
+  v !== null && v !== undefined && String(v).trim() !== '';
 
 /**
  * Lista de requisitos de la visita según lo que aplica (módems, COOPER, batería, potencial…).
@@ -261,11 +282,35 @@ const lleno = (v: unknown) => v !== null && v !== undefined && String(v).trim() 
  */
 export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
   const R: Requisito[] = [];
-  const S = Object.fromEntries(SECCIONES.map((n) => [n, seccion(n)])) as Record<NombreSeccion, number>;
-  const req = (seccion: number, campo: string, etiqueta: string, ok: unknown, alGuardar = false) =>
-    R.push({ seccion, campo, etiqueta, ok: !!ok, ...(alGuardar ? { alGuardar } : {}) });
-  const campo = (seccion: number, k: keyof Visita, etiqueta: string, alGuardar = false) => req(seccion, k, etiqueta, lleno(v[k]), alGuardar);
-  const catalogo = (seccion: number, k: Parameters<ContextoReglas['hayOpciones']>[0], etiqueta: string) => {
+  const S = Object.fromEntries(SECCIONES.map(n => [n, seccion(n)])) as Record<
+    NombreSeccion,
+    number
+  >;
+  const req = (
+    seccion: number,
+    campo: string,
+    etiqueta: string,
+    ok: unknown,
+    alGuardar = false,
+  ) =>
+    R.push({
+      seccion,
+      campo,
+      etiqueta,
+      ok: !!ok,
+      ...(alGuardar ? { alGuardar } : {}),
+    });
+  const campo = (
+    seccion: number,
+    k: keyof Visita,
+    etiqueta: string,
+    alGuardar = false,
+  ) => req(seccion, k, etiqueta, lleno(v[k]), alGuardar);
+  const catalogo = (
+    seccion: number,
+    k: Parameters<ContextoReglas['hayOpciones']>[0],
+    etiqueta: string,
+  ) => {
     if (c.hayOpciones(k)) campo(seccion, k, etiqueta);
   };
 
@@ -276,10 +321,26 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
   campo(S['Datos generales'], 'hora_salida', 'Hora de salida', true);
   campo(S['Datos generales'], 'codigo_energis', 'Código Energis');
   campo(S['Datos generales'], 'gen_distribuida', 'Generación distribuida');
-  if (v.latitud !== null && (v.latitud < RANGO_LATITUD[0] || v.latitud > RANGO_LATITUD[1]))
-    req(S['Datos generales'], 'latitud', `Latitud fuera de Honduras (${RANGO_LATITUD[0]} a ${RANGO_LATITUD[1]}); ¿está invertida con la longitud?`, false);
-  if (v.longitud !== null && (v.longitud < RANGO_LONGITUD[0] || v.longitud > RANGO_LONGITUD[1]))
-    req(S['Datos generales'], 'longitud', `Longitud fuera de Honduras (${RANGO_LONGITUD[0]} a ${RANGO_LONGITUD[1]})`, false);
+  if (
+    v.latitud !== null &&
+    (v.latitud < RANGO_LATITUD[0] || v.latitud > RANGO_LATITUD[1])
+  )
+    req(
+      S['Datos generales'],
+      'latitud',
+      `Latitud fuera de Honduras (${RANGO_LATITUD[0]} a ${RANGO_LATITUD[1]}); ¿está invertida con la longitud?`,
+      false,
+    );
+  if (
+    v.longitud !== null &&
+    (v.longitud < RANGO_LONGITUD[0] || v.longitud > RANGO_LONGITUD[1])
+  )
+    req(
+      S['Datos generales'],
+      'longitud',
+      `Longitud fuera de Honduras (${RANGO_LONGITUD[0]} a ${RANGO_LONGITUD[1]})`,
+      false,
+    );
 
   // 2 · Reconectador
   catalogo(S['Reconectador'], 'tipo_recon', 'Tipo de reconectador');
@@ -306,21 +367,35 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
     catalogo(S['Módems'], `modelo_modem${n}`, `Modelo módem ${n}`);
     campo(S['Módems'], `serie_modem${n}`, `Serie módem ${n}`);
     campo(S['Módems'], `antena_modem${n}`, `Antena módem ${n}`);
-    if (v[`antena_modem${n}`] === 'EXTERNA') campo(S['Módems'], `tipo_antena${n}`, `Tipo de antena ${n}`);
+    if (v[`antena_modem${n}`] === 'EXTERNA')
+      campo(S['Módems'], `tipo_antena${n}`, `Tipo de antena ${n}`);
     campo(S['Módems'], `tec_modem${n}`, `Tecnología módem ${n}`);
   }
 
   // 4 · Tablero, alarma y batería
-  for (const t of c.camposTablero) req(S['Tablero y mediciones'], `tablero.${t}`, t, lleno(v.tablero_campos[t]));
-  if (c.camposTablero.length) campo(S['Tablero y mediciones'], 'ajuste_activo', 'Grupo activo');
+  for (const t of c.camposTablero)
+    req(
+      S['Tablero y mediciones'],
+      `tablero.${t}`,
+      t,
+      lleno(v.tablero_campos[t]),
+    );
+  if (c.camposTablero.length)
+    campo(S['Tablero y mediciones'], 'ajuste_activo', 'Grupo activo');
   campo(S['Tablero y mediciones'], 'alarma_presente', 'Alarma presente');
-  if (v.alarma_presente === 'SI') campo(S['Tablero y mediciones'], 'desc_alarma', 'Descripción de la alarma');
+  if (v.alarma_presente === 'SI')
+    campo(S['Tablero y mediciones'], 'desc_alarma', 'Descripción de la alarma');
   campo(S['Tablero y mediciones'], 'medicion_ac', 'Medición AC');
   campo(S['Tablero y mediciones'], 'medicion_bat', 'Medición baterías');
   campo(S['Tablero y mediciones'], 'medicion_cargador', 'Medición cargador');
   campo(S['Tablero y mediciones'], 'battery_test', 'Battery test');
   campo(S['Tablero y mediciones'], 'cambio_baterias', 'Cambio de baterías');
-  if (v.cambio_baterias === 'SI') campo(S['Tablero y mediciones'], 'tipo_bateria', 'Tipo de batería instalada');
+  if (v.cambio_baterias === 'SI')
+    campo(
+      S['Tablero y mediciones'],
+      'tipo_bateria',
+      'Tipo de batería instalada',
+    );
 
   // 4 · Tablero y mediciones: corrientes
   campo(S['Tablero y mediciones'], 'corr_ia', 'Corriente IA');
@@ -333,13 +408,26 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
   // 5 · Estado físico
   campo(S['Estado físico'], 'gabinete', 'Gabinete');
   campo(S['Estado físico'], 'borneras', 'Borneras');
-  if (v.gabinete === 'NOK' || v.borneras === 'NOK') campo(S['Estado físico'], 'obs_estado_fisico', 'Observación del estado físico (hay un NOK)');
+  if (v.gabinete === 'NOK' || v.borneras === 'NOK')
+    campo(
+      S['Estado físico'],
+      'obs_estado_fisico',
+      'Observación del estado físico (hay un NOK)',
+    );
   campo(S['Estado físico'], 'ater_rest_state', 'Aterrizaje restaurador');
   campo(S['Estado físico'], 'ater_ctrl_state', 'Aterrizaje control');
   campo(S['Estado físico'], 'cable_tierra', 'Cable de tierra');
   campo(S['Estado físico'], 'num_varillas', '# Varillas');
-  campo(S['Estado físico'], 'ater_control', 'Resistencia de aterrizaje del control');
-  campo(S['Estado físico'], 'ater_restaurador', 'Resistencia de aterrizaje del restaurador');
+  campo(
+    S['Estado físico'],
+    'ater_control',
+    'Resistencia de aterrizaje del control',
+  );
+  campo(
+    S['Estado físico'],
+    'ater_restaurador',
+    'Resistencia de aterrizaje del restaurador',
+  );
   campo(S['Estado físico'], 'tipo_cuchilla', 'Tipo de cuchilla');
   campo(S['Estado físico'], 'estado_cuchillas', 'Estado de cuchillas');
   campo(S['Estado físico'], 'num_cuchillas', '# Cuchillas');
@@ -353,21 +441,43 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
     campo(S['Estado físico'], 'pot_cuchilla', 'Cuchilla del potencial');
     campo(S['Estado físico'], 'ater_pot_state', 'Aterrizaje del potencial');
   } else if (v.tiene_potencial === 'NO') {
-    campo(S['Estado físico'], 'alimentado_acometida', 'Alimentado por acometida');
+    campo(
+      S['Estado físico'],
+      'alimentado_acometida',
+      'Alimentado por acometida',
+    );
   }
 
   // 6 · Materiales (opcionales; si se agrega uno, debe estar completo)
   v.materiales.forEach((m, i) => {
-    req(S['Materiales'], `material.${i}.desc`, `Descripción del material #${i + 1}`, lleno(m.desc));
-    req(S['Materiales'], `material.${i}.cant`, `Cantidad del material #${i + 1}`, (m.cant ?? 0) > 0);
+    req(
+      S['Materiales'],
+      `material.${i}.desc`,
+      `Descripción del material #${i + 1}`,
+      lleno(m.desc),
+    );
+    req(
+      S['Materiales'],
+      `material.${i}.cant`,
+      `Cantidad del material #${i + 1}`,
+      (m.cant ?? 0) > 0,
+    );
   });
 
   // 7 · Fotografías (excepción E2: 1 obligatoria)
   req(S['Fotografías'], 'fotos', 'Al menos 1 fotografía', c.fotos > 0);
 
   // 9 · Personal y firma (8 · Observaciones no tiene campos obligatorios)
-  if (!v.personal.length) req(S['Personal'], 'personal.0.nombre', 'Al menos un técnico', false);
-  v.personal.forEach((p, i) => req(S['Personal'], `personal.${i}.nombre`, `Nombre del técnico #${i + 1}`, lleno(p.nombre)));
+  if (!v.personal.length)
+    req(S['Personal'], 'personal.0.nombre', 'Al menos un técnico', false);
+  v.personal.forEach((p, i) =>
+    req(
+      S['Personal'],
+      `personal.${i}.nombre`,
+      `Nombre del técnico #${i + 1}`,
+      lleno(p.nombre),
+    ),
+  );
   campo(S['Personal'], 'firma_responsable', 'Nombre del responsable');
   campo(S['Personal'], 'firma_img', 'Firma del responsable');
 
@@ -375,19 +485,23 @@ export function requisitosVisita(v: Visita, c: ContextoReglas): Requisito[] {
 }
 
 /** Requisitos sin cumplir (al guardar se incluyen los de `alGuardar`). */
-export const faltantes = (r: Requisito[], alGuardar: boolean) => r.filter((x) => !x.ok && (alGuardar || !x.alGuardar));
+export const faltantes = (r: Requisito[], alGuardar: boolean) =>
+  r.filter(x => !x.ok && (alGuardar || !x.alGuardar));
 
 /** Porcentaje de avance: requisitos cumplidos sobre los que aplican. */
-export const avance = (r: Requisito[]) => (r.length ? Math.floor((r.filter((x) => x.ok).length / r.length) * 100) : 0);
+export const avance = (r: Requisito[]) =>
+  r.length ? Math.floor((r.filter(x => x.ok).length / r.length) * 100) : 0;
 
 /** Resúmenes legibles que se guardan junto al JSON (para consultas y CSV). */
 export const resumenMateriales = (m: Visita['materiales']) =>
   m
-    .filter((x) => x.desc)
-    .map((x) => `${x.codigo ? `[${x.codigo}] ` : ''}${x.desc} x${x.cant ?? ''} ${x.unidad ?? ''}`.trim())
+    .filter(x => x.desc)
+    .map(x =>
+      `${x.codigo ? `[${x.codigo}] ` : ''}${x.desc} x${x.cant ?? ''} ${x.unidad ?? ''}`.trim(),
+    )
     .join(' | ');
 export const resumenPersonal = (p: Visita['personal']) =>
   p
-    .filter((x) => x.nombre)
-    .map((x) => `${x.nombre}${x.cargo ? ` (${x.cargo})` : ''}`)
+    .filter(x => x.nombre)
+    .map(x => `${x.nombre}${x.cargo ? ` (${x.cargo})` : ''}`)
     .join(', ');

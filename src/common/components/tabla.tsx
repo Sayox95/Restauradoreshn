@@ -31,7 +31,17 @@ interface Props<T> {
   etiqueta: string;
 }
 
-export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, apagada, resaltada, etiqueta }: Props<T>) {
+export function Tabla<T>({
+  filas,
+  clave,
+  columnas,
+  tarjeta,
+  enlace,
+  alElegir,
+  apagada,
+  resaltada,
+  etiqueta,
+}: Props<T>) {
   const navegar = useNavigate();
   const elegir = (f: T) => (enlace ? navegar(enlace(f)) : alElegir?.(f));
   const interactiva = !!(enlace || alElegir);
@@ -42,8 +52,12 @@ export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, ap
         <table className="w-full text-left text-sm" aria-label={etiqueta}>
           <thead className="border-b border-slate-200 bg-slate-50 text-xs font-semibold uppercase tracking-wide text-slate-500">
             <tr>
-              {columnas.map((c) => (
-                <th key={c.titulo} scope="col" className={`px-4 py-3 ${c.clase ?? ''}`}>
+              {columnas.map(c => (
+                <th
+                  key={c.titulo}
+                  scope="col"
+                  className={`px-4 py-3 ${c.clase ?? ''}`}
+                >
                   {c.titulo}
                 </th>
               ))}
@@ -51,16 +65,21 @@ export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, ap
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filas.map((f) => (
+            {filas.map(f => (
               <tr
                 key={clave(f)}
                 onClick={interactiva ? () => elegir(f) : undefined}
-                onKeyDown={interactiva ? (e) => e.key === 'Enter' && elegir(f) : undefined}
+                onKeyDown={
+                  interactiva ? e => e.key === 'Enter' && elegir(f) : undefined
+                }
                 tabIndex={interactiva ? 0 : undefined}
                 className={`${interactiva ? 'cursor-pointer hover:bg-marca-50/50 focus:bg-marca-50 focus:outline-none' : ''} ${apagada?.(f) ? 'text-slate-400' : 'text-slate-800'} ${resaltada?.(f) ? 'anim-resaltar' : ''}`}
               >
-                {columnas.map((c) => (
-                  <td key={c.titulo} className={`px-4 py-3 align-middle ${c.clase ?? ''}`}>
+                {columnas.map(c => (
+                  <td
+                    key={c.titulo}
+                    className={`px-4 py-3 align-middle ${c.clase ?? ''}`}
+                  >
                     {c.celda(f)}
                   </td>
                 ))}
@@ -76,23 +95,43 @@ export function Tabla<T>({ filas, clave, columnas, tarjeta, enlace, alElegir, ap
       </div>
 
       {/* Teléfono y tableta: tarjetas */}
-      <ul className="tarjeta divide-y divide-slate-100 overflow-hidden lg:hidden" aria-label={etiqueta}>
-        {filas.map((f) => {
+      <ul
+        className="tarjeta divide-y divide-slate-100 overflow-hidden lg:hidden"
+        aria-label={etiqueta}
+      >
+        {filas.map(f => {
           const contenido = (
             <>
-              <div className={`min-w-0 flex-1 ${apagada?.(f) ? 'opacity-60' : ''}`}>{tarjeta(f)}</div>
-              {interactiva && <ChevronRight className="h-5 w-5 shrink-0 text-slate-300" aria-hidden />}
+              <div
+                className={`min-w-0 flex-1 ${apagada?.(f) ? 'opacity-60' : ''}`}
+              >
+                {tarjeta(f)}
+              </div>
+              {interactiva && (
+                <ChevronRight
+                  className="h-5 w-5 shrink-0 text-slate-300"
+                  aria-hidden
+                />
+              )}
             </>
           );
-          const clase = 'flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50';
+          const clase =
+            'flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50';
           return (
-            <li key={clave(f)} className={resaltada?.(f) ? 'anim-resaltar' : undefined}>
+            <li
+              key={clave(f)}
+              className={resaltada?.(f) ? 'anim-resaltar' : undefined}
+            >
               {enlace ? (
                 <Link to={enlace(f)} className={clase}>
                   {contenido}
                 </Link>
               ) : alElegir ? (
-                <button type="button" className={clase} onClick={() => alElegir(f)}>
+                <button
+                  type="button"
+                  className={clase}
+                  onClick={() => alElegir(f)}
+                >
                   {contenido}
                 </button>
               ) : (

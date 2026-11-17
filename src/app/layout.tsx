@@ -57,7 +57,7 @@ export function Layout() {
   fijarCuenta(usuario?.id ?? null);
   const { hasAccess } = useAccess();
   // Un solo menú: cada opción se muestra según su permiso.
-  const nav = menuPrincipal.filter((o) => hasAccess(o.access));
+  const nav = menuPrincipal.filter(o => hasAccess(o.access));
   const enLinea = useEnLinea();
   const ruta = useLocation().pathname;
   // Excepción E1: lo guardado en el teléfono se envía solo (al abrir, al volver la señal o a la app).
@@ -77,8 +77,9 @@ export function Layout() {
   // el menú y los permisos se actualizan solos (y si la desactivaron, sale).
   const recargarSesion = useRecargarSesion();
   const idUsuario = usuario?.id;
-  useTiempoReal(['usuarios', 'catalogos'], (e) => {
-    if (e === 'reconectado' || e.modulo === 'catalogos' || e.id === idUsuario) void recargarSesion();
+  useTiempoReal(['usuarios', 'catalogos'], e => {
+    if (e === 'reconectado' || e.modulo === 'catalogos' || e.id === idUsuario)
+      void recargarSesion();
   });
 
   return (
@@ -94,9 +95,15 @@ export function Layout() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <NavLink to="/" className="flex min-w-0 flex-1 items-center gap-3" aria-label="Ir al inicio">
+          <NavLink
+            to="/"
+            className="flex min-w-0 flex-1 items-center gap-3"
+            aria-label="Ir al inicio"
+          >
             <img src="/icons/icon-192.png" alt="" className="h-8 w-8" />
-            <span className="truncate text-base font-bold">Inspección de Restauradores</span>
+            <span className="truncate text-base font-bold">
+              Inspección de Restauradores
+            </span>
           </NavLink>
           {/* Mientras se envía no se muestra: no es «sin señal» (al guardar, la pantalla muestra el avance). */}
           {pendientes.length > 0 && !enviando && (
@@ -105,7 +112,8 @@ export function Layout() {
               className="flex h-9 items-center gap-1.5 rounded-full bg-amber-300 px-3 text-xs font-bold text-slate-900"
               title="Inspecciones guardadas en el teléfono que faltan por enviar"
             >
-              <CloudOff className="h-4 w-4" aria-hidden /> {pendientes.length} sin enviar
+              <CloudOff className="h-4 w-4" aria-hidden /> {pendientes.length}{' '}
+              sin enviar
             </NavLink>
           )}
           <NavLink
@@ -116,12 +124,21 @@ export function Layout() {
             aria-label={`Mi cuenta (${usuario?.nombre})`}
             title="Mi cuenta"
           >
-            <Avatar nombre={usuario?.nombre ?? ''} tamano="chico" className="bg-white/90 text-marca-900 lg:bg-marca-100 lg:text-marca-700" />
+            <Avatar
+              nombre={usuario?.nombre ?? ''}
+              tamano="chico"
+              className="bg-white/90 text-marca-900 lg:bg-marca-100 lg:text-marca-700"
+            />
           </NavLink>
         </div>
         {!enLinea && (
-          <div className="flex items-center justify-center gap-2 bg-amber-300 px-4 py-1.5 text-center text-sm font-semibold text-slate-900" role="status">
-            <WifiOff className="h-4 w-4" aria-hidden /> Sin conexión. Las inspecciones se guardan en el teléfono y se envían al volver la señal.
+          <div
+            className="flex items-center justify-center gap-2 bg-amber-300 px-4 py-1.5 text-center text-sm font-semibold text-slate-900"
+            role="status"
+          >
+            <WifiOff className="h-4 w-4" aria-hidden /> Sin conexión. Las
+            inspecciones se guardan en el teléfono y se envían al volver la
+            señal.
           </div>
         )}
       </header>
@@ -131,7 +148,9 @@ export function Layout() {
         id="menu-lateral"
         className={`fixed bottom-0 left-0 top-14 z-20 hidden w-64 overflow-y-auto border-r border-slate-200 bg-white px-3 py-4 transition-[transform,visibility] duration-200 ease-out lg:block ${menuAbierto ? '' : 'lg:invisible lg:-translate-x-full'}`}
       >
-        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Menú</p>
+        <p className="px-3 pb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Menú
+        </p>
         <nav aria-label="Principal" className="space-y-1">
           {nav.map(({ a, texto, icono: Icono }) => (
             <NavLink
@@ -150,7 +169,9 @@ export function Layout() {
       </aside>
 
       <Notificaciones />
-      <div className={`transition-[padding] duration-200 ease-out ${menuAbierto ? 'lg:pl-64' : ''}`}>
+      <div
+        className={`transition-[padding] duration-200 ease-out ${menuAbierto ? 'lg:pl-64' : ''}`}
+      >
         <main className="mx-auto max-w-6xl px-4 pt-4 lg:px-6 lg:pt-6">
           <ErrorPantalla key={ruta}>
             {/* Al cambiar de pantalla, la nueva entra con un desvanecido corto. */}
@@ -164,8 +185,16 @@ export function Layout() {
       </div>
 
       {barraInferior && (
-        <nav className="pb-seguro fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white lg:hidden" aria-label="Principal (móvil)">
-          <div className="mx-auto grid max-w-md" style={{ gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))` }}>
+        <nav
+          className="pb-seguro fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white lg:hidden"
+          aria-label="Principal (móvil)"
+        >
+          <div
+            className="mx-auto grid max-w-md"
+            style={{
+              gridTemplateColumns: `repeat(${nav.length}, minmax(0, 1fr))`,
+            }}
+          >
             {nav.map(({ a, texto, corto, icono: Icono }) => (
               <NavLink
                 key={a}

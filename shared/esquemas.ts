@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { DOMINIO_CORREO, ELEMENTOS_MARCA, PATRON_USUARIO, ROLES, usuarioDeCorreo } from './constantes';
+import {
+  DOMINIO_CORREO,
+  ELEMENTOS_MARCA,
+  PATRON_USUARIO,
+  ROLES,
+  usuarioDeCorreo,
+} from './constantes';
 import { type Permiso, TODOS_LOS_PERMISOS } from './permisos';
 
 const textoOpcional = (max: number) =>
@@ -9,7 +15,7 @@ const textoOpcional = (max: number) =>
     .max(max)
     .optional()
     .nullable()
-    .transform((v) => (v ? v : null));
+    .transform(v => (v ? v : null));
 
 const numeroOpcional = (min: number, max: number) =>
   z
@@ -37,21 +43,31 @@ const correoInstitucional = z
   .trim()
   .toLowerCase()
   .max(100)
-  .regex(new RegExp(`^[a-z0-9._%+-]+@${DOMINIO_CORREO.replace('.', '\\.')}$`), `Use su correo institucional @${DOMINIO_CORREO}`)
+  .regex(
+    new RegExp(`^[a-z0-9._%+-]+@${DOMINIO_CORREO.replace('.', '\\.')}$`),
+    `Use su correo institucional @${DOMINIO_CORREO}`,
+  )
   .refine(
-    (c) => PATRON_USUARIO.test(usuarioDeCorreo(c)),
+    c => PATRON_USUARIO.test(usuarioDeCorreo(c)),
     'El usuario (lo que va antes de la @, o después del «+») debe tener al menos 3 letras o números, sin otros símbolos que punto o guion.',
   );
 
-const nombrePersona = z.string().trim().min(3, 'Escriba el nombre completo').max(100);
+const nombrePersona = z
+  .string()
+  .trim()
+  .min(3, 'Escriba el nombre completo')
+  .max(100);
 const telefono = z
   .string()
   .trim()
   .max(20)
-  .refine((v) => !v || /^[0-9+()\-\s]{7,20}$/.test(v), 'Número de celular no válido')
+  .refine(
+    v => !v || /^[0-9+()\-\s]{7,20}$/.test(v),
+    'Número de celular no válido',
+  )
   .optional()
   .nullable()
-  .transform((v) => (v ? v : null));
+  .transform(v => (v ? v : null));
 /** Celular obligatorio: se pide al solicitar la cuenta y al crearla (después solo lo corrige un administrador). */
 const telefonoObligatorio = z
   .string({ required_error: 'Ingrese su número de celular' })
@@ -62,10 +78,20 @@ const telefonoObligatorio = z
 const cargo_id = z.number().int().positive().nullable().optional();
 /** Permisos a la medida de una cuenta (marcados uno por uno); sin enviar, valen los del perfil. */
 const permisos = z
-  .array(z.string().refine((p) => (TODOS_LOS_PERMISOS as string[]).includes(p), 'Permiso no válido.'))
+  .array(
+    z
+      .string()
+      .refine(
+        p => (TODOS_LOS_PERMISOS as string[]).includes(p),
+        'Permiso no válido.',
+      ),
+  )
   .max(100)
-  .transform((l) => [...new Set(l)] as Permiso[]);
-const password = z.string().min(8, 'La contraseña debe tener al menos 8 caracteres').max(200);
+  .transform(l => [...new Set(l)] as Permiso[]);
+const password = z
+  .string()
+  .min(8, 'La contraseña debe tener al menos 8 caracteres')
+  .max(200);
 
 /** Alta desde Administración: la contraseña la genera el sistema (temporal, se cambia al ingresar). */
 export const usuarioCrearEsquema = z.object({
@@ -74,7 +100,7 @@ export const usuarioCrearEsquema = z.object({
   telefono: telefonoObligatorio,
   rol: z.enum(ROLES),
   permisos: permisos.optional(),
-  cargo_id: cargo_id.transform((v) => v ?? null),
+  cargo_id: cargo_id.transform(v => v ?? null),
 });
 
 /** Datos de la cuenta que corrige un administrador (el estado y la contraseña tienen sus propias acciones). */
@@ -89,15 +115,23 @@ export const usuarioEditarEsquema = z.object({
 
 /** Formulario de edición de una cuenta: las cuentas antiguas pueden no tener correo (vacío = no se envía). */
 export const usuarioEditarFormEsquema = usuarioEditarEsquema.extend({
-  correo: z.preprocess((v) => (v === '' ? undefined : v), correoInstitucional.optional()),
+  correo: z.preprocess(
+    v => (v === '' ? undefined : v),
+    correoInstitucional.optional(),
+  ),
 });
 
-export const aprobarCuentaEsquema = z.object({ rol: z.enum(ROLES), permisos: permisos.optional() });
+export const aprobarCuentaEsquema = z.object({
+  rol: z.enum(ROLES),
+  permisos: permisos.optional(),
+});
 
 export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
 
 /** Eliminar una inspección: el motivo es obligatorio (queda en el registro). */
-export const eliminarVisitaEsquema = z.object({ motivo: z.string().trim().min(1, 'Escriba el motivo').max(300) });
+export const eliminarVisitaEsquema = z.object({
+  motivo: z.string().trim().min(1, 'Escriba el motivo').max(300),
+});
 
 /** Solicitud de cuenta desde la pantalla de ingreso: solo correos del dominio institucional. */
 export const registroEsquema = z.object({
@@ -112,7 +146,10 @@ export const cambiarPasswordEsquema = z
     actual: z.string().min(1, 'Escriba su contraseña actual').max(200),
     nueva: password,
   })
-  .refine((d) => d.actual !== d.nueva, { message: 'La nueva contraseña debe ser distinta de la actual.', path: ['nueva'] });
+  .refine(d => d.actual !== d.nueva, {
+    message: 'La nueva contraseña debe ser distinta de la actual.',
+    path: ['nueva'],
+  });
 
 /** Formulario de cambio de contraseña: el del servidor más «repita la nueva» (solo en la pantalla). */
 export const cambiarPasswordFormEsquema = z
@@ -121,16 +158,25 @@ export const cambiarPasswordFormEsquema = z
     nueva: password,
     confirmar: z.string(),
   })
-  .refine((d) => d.nueva === d.confirmar, { message: 'Las contraseñas no coinciden.', path: ['confirmar'] })
-  .refine((d) => d.actual !== d.nueva, { message: 'La nueva contraseña debe ser distinta de la actual.', path: ['nueva'] });
+  .refine(d => d.nueva === d.confirmar, {
+    message: 'Las contraseñas no coinciden.',
+    path: ['confirmar'],
+  })
+  .refine(d => d.actual !== d.nueva, {
+    message: 'La nueva contraseña debe ser distinta de la actual.',
+    path: ['nueva'],
+  });
 
 /** Formulario de solicitud de cuenta: el del servidor más «repita la contraseña». */
 export const registroFormEsquema = registroEsquema
   .extend({ confirmar: z.string() })
-  .refine((d) => d.password === d.confirmar, { message: 'Las contraseñas no coinciden.', path: ['confirmar'] });
+  .refine(d => d.password === d.confirmar, {
+    message: 'Las contraseñas no coinciden.',
+    path: ['confirmar'],
+  });
 
 export const configuracionEsquema = z.object({
-  zona_horaria: z.string().refine((tz) => {
+  zona_horaria: z.string().refine(tz => {
     try {
       new Intl.DateTimeFormat('es', { timeZone: tz });
       return true;
@@ -142,7 +188,8 @@ export const configuracionEsquema = z.object({
 
 // ── Catálogos de la hoja de visita (se desactivan, no se borran) ────────────────────────────
 const activo = z.boolean().optional();
-const obligatorio = (nombre: string, max = 120) => z.string().trim().min(1, `Ingrese ${nombre}`).max(max);
+const obligatorio = (nombre: string, max = 120) =>
+  z.string().trim().min(1, `Ingrese ${nombre}`).max(max);
 
 export const restauradorEsquema = z.object({
   energis: obligatorio('el código Energis', 40),
@@ -176,7 +223,9 @@ export const cargoCatalogoEsquema = z.object({
 });
 
 export const marcaCatalogoEsquema = z.object({
-  elemento: z.enum(ELEMENTOS_MARCA, { errorMap: () => ({ message: 'Elija el elemento' }) }),
+  elemento: z.enum(ELEMENTOS_MARCA, {
+    errorMap: () => ({ message: 'Elija el elemento' }),
+  }),
   marca: obligatorio('la marca', 60),
   modelo: textoOpcional(60),
   tipo_control: textoOpcional(60),
@@ -196,7 +245,14 @@ export const tableroEsquema = z.object({
 export const tableroFormEsquema = z
   .object({
     marca: obligatorio('la marca', 60),
-    campos: z.array(z.object({ nombre: z.string().trim().max(80, 'Máximo 80 caracteres') })).max(40),
+    campos: z
+      .array(
+        z.object({ nombre: z.string().trim().max(80, 'Máximo 80 caracteres') }),
+      )
+      .max(40),
   })
-  .transform((d) => ({ marca: d.marca, campos: d.campos.map((c) => c.nombre).filter(Boolean) }))
+  .transform(d => ({
+    marca: d.marca,
+    campos: d.campos.map(c => c.nombre).filter(Boolean),
+  }))
   .pipe(tableroEsquema);

@@ -53,7 +53,10 @@ export async function exportarVisitas(ctx: Ctx) {
   const f = filtrosVisitas(ctx, false);
   const tz = await zonaHoraria(ctx.env);
   const { results } = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS.filter(([c]) => !['equipo', 'estado', 'registrado_por', 'registrado_en'].includes(c))
+    `SELECT ${COLUMNAS.filter(
+      ([c]) =>
+        !['equipo', 'estado', 'registrado_por', 'registrado_en'].includes(c),
+    )
       .map(([c]) => `r.${c}`)
       .join(
         ', ',
@@ -64,9 +67,15 @@ export async function exportarVisitas(ctx: Ctx) {
     .all<Record<string, unknown>>();
   const lineas = [
     COLUMNAS.map(([, t]) => celda(t)).join(','),
-    ...results.map((r) =>
+    ...results.map(r =>
       COLUMNAS.map(([c]) =>
-        celda(c === 'registrado_en' ? fechaLocal((r[c] as string) ?? null, tz) : c === 'equipo' ? (EQUIPO_ETIQUETA[r[c] as Equipo] ?? r[c]) : r[c]),
+        celda(
+          c === 'registrado_en'
+            ? fechaLocal((r[c] as string) ?? null, tz)
+            : c === 'equipo'
+              ? (EQUIPO_ETIQUETA[r[c] as Equipo] ?? r[c])
+              : r[c],
+        ),
       ).join(','),
     ),
   ];

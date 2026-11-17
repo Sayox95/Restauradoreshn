@@ -5,51 +5,107 @@ import { idParam, leerJson, paginacion } from '../../plumbing/http';
 import { SOLO_SESION, r, ruta } from '../../plumbing/router';
 import { PermisosVisitas } from './permisos';
 import { detalleVisita } from './comun';
-import { descargarCopiaFoto, descargarFoto, descargarPdf, subirCopiaFoto, subirFoto, subirPdf } from './features/archivos-visita';
+import {
+  descargarCopiaFoto,
+  descargarFoto,
+  descargarPdf,
+  subirCopiaFoto,
+  subirFoto,
+  subirPdf,
+} from './features/archivos-visita';
 import { eliminarVisita } from './features/eliminar-visita';
 import { exportarVisitas } from './features/exportar';
 import { listarVisitas } from './features/listar-visitas';
 import { registrarVisita } from './features/registrar-visita';
 
 // Lo propio del usuario (sin permiso: cada quien ve lo que registró). Van antes de /:id.
-ruta('GET', '/api/v1/visitas/mios', SOLO_SESION /* las propias: las que registró el usuario o en las que figura en el personal */, async (ctx) => {
-  const { pagina, porPagina, offset } = paginacion(ctx.url);
-  return r(ctx, await listarVisitas(ctx, pagina, porPagina, offset, true));
-});
-ruta('GET', '/api/v1/visitas/exportar', [PermisosVisitas.Exportar], async (ctx) => exportarVisitas(ctx));
+ruta(
+  'GET',
+  '/api/v1/visitas/mios',
+  SOLO_SESION /* las propias: las que registró el usuario o en las que figura en el personal */,
+  async ctx => {
+    const { pagina, porPagina, offset } = paginacion(ctx.url);
+    return r(ctx, await listarVisitas(ctx, pagina, porPagina, offset, true));
+  },
+);
+ruta('GET', '/api/v1/visitas/exportar', [PermisosVisitas.Exportar], async ctx =>
+  exportarVisitas(ctx),
+);
 
 // --- Visitas ---
-ruta('GET', '/api/v1/visitas', [PermisosVisitas.Consultar], async (ctx) => {
+ruta('GET', '/api/v1/visitas', [PermisosVisitas.Consultar], async ctx => {
   const { pagina, porPagina, offset } = paginacion(ctx.url);
   return r(ctx, await listarVisitas(ctx, pagina, porPagina, offset));
 });
-ruta('POST', '/api/v1/visitas', [PermisosVisitas.Registrar], async (ctx) => {
-  const { visita, creada } = await registrarVisita(ctx, await leerJson(ctx.req, visitaEsquema));
+ruta('POST', '/api/v1/visitas', [PermisosVisitas.Registrar], async ctx => {
+  const { visita, creada } = await registrarVisita(
+    ctx,
+    await leerJson(ctx.req, visitaEsquema),
+  );
   return r(ctx, { visita, creada }, creada ? 201 : 200);
 });
-ruta('GET', '/api/v1/visitas/:id', SOLO_SESION /* sin visitas_consultar, solo las que registró (filtroVisitas) */, async (ctx) =>
-  r(ctx, await detalleVisita(ctx, idParam(ctx.params.id))),
+ruta(
+  'GET',
+  '/api/v1/visitas/:id',
+  SOLO_SESION /* sin visitas_consultar, solo las que registró (filtroVisitas) */,
+  async ctx => r(ctx, await detalleVisita(ctx, idParam(ctx.params.id))),
 );
-ruta('POST', '/api/v1/visitas/:id/eliminar', [PermisosVisitas.Eliminar], async (ctx) =>
-  r(ctx, await eliminarVisita(ctx, idParam(ctx.params.id), (await leerJson(ctx.req, eliminarVisitaEsquema)).motivo)),
+ruta(
+  'POST',
+  '/api/v1/visitas/:id/eliminar',
+  [PermisosVisitas.Eliminar],
+  async ctx =>
+    r(
+      ctx,
+      await eliminarVisita(
+        ctx,
+        idParam(ctx.params.id),
+        (await leerJson(ctx.req, eliminarVisitaEsquema)).motivo,
+      ),
+    ),
 );
 
 // --- Fotos originales (E2) y PDF de la ficha (E3) ---
-ruta('PUT', '/api/v1/visitas/:id/fotos/:orden', [PermisosVisitas.Registrar] /* solo en sus visitas */, async (ctx) =>
-  r(ctx, await subirFoto(ctx, idParam(ctx.params.id), ctx.params.orden), 201),
+ruta(
+  'PUT',
+  '/api/v1/visitas/:id/fotos/:orden',
+  [PermisosVisitas.Registrar] /* solo en sus visitas */,
+  async ctx =>
+    r(ctx, await subirFoto(ctx, idParam(ctx.params.id), ctx.params.orden), 201),
 );
-ruta('GET', '/api/v1/visitas/:id/fotos/:orden', SOLO_SESION /* fotos de las visitas que puede ver (filtroVisitas) */, async (ctx) =>
-  descargarFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
+ruta(
+  'GET',
+  '/api/v1/visitas/:id/fotos/:orden',
+  SOLO_SESION /* fotos de las visitas que puede ver (filtroVisitas) */,
+  async ctx => descargarFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
 );
-ruta('PUT', '/api/v1/visitas/:id/fotos/:orden/copia', [PermisosVisitas.Registrar] /* solo en sus visitas */, async (ctx) =>
-  r(ctx, await subirCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden), 201),
+ruta(
+  'PUT',
+  '/api/v1/visitas/:id/fotos/:orden/copia',
+  [PermisosVisitas.Registrar] /* solo en sus visitas */,
+  async ctx =>
+    r(
+      ctx,
+      await subirCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
+      201,
+    ),
 );
-ruta('GET', '/api/v1/visitas/:id/fotos/:orden/copia', SOLO_SESION /* copias de las visitas que puede ver (filtroVisitas) */, async (ctx) =>
-  descargarCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
+ruta(
+  'GET',
+  '/api/v1/visitas/:id/fotos/:orden/copia',
+  SOLO_SESION /* copias de las visitas que puede ver (filtroVisitas) */,
+  async ctx =>
+    descargarCopiaFoto(ctx, idParam(ctx.params.id), ctx.params.orden),
 );
-ruta('PUT', '/api/v1/visitas/:id/pdf', [PermisosVisitas.Registrar] /* solo en sus visitas */, async (ctx) =>
-  r(ctx, await subirPdf(ctx, idParam(ctx.params.id)), 201),
+ruta(
+  'PUT',
+  '/api/v1/visitas/:id/pdf',
+  [PermisosVisitas.Registrar] /* solo en sus visitas */,
+  async ctx => r(ctx, await subirPdf(ctx, idParam(ctx.params.id)), 201),
 );
-ruta('GET', '/api/v1/visitas/:id/pdf', SOLO_SESION /* PDF de las visitas que puede ver (filtroVisitas) */, async (ctx) =>
-  descargarPdf(ctx, idParam(ctx.params.id)),
+ruta(
+  'GET',
+  '/api/v1/visitas/:id/pdf',
+  SOLO_SESION /* PDF de las visitas que puede ver (filtroVisitas) */,
+  async ctx => descargarPdf(ctx, idParam(ctx.params.id)),
 );

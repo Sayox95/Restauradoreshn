@@ -1,10 +1,14 @@
 import type { z } from 'zod';
 import { ELEMENTOS_MODEM } from '../../../../shared/constantes';
-import { PermisosVisitas, ROLES_SISTEMA, nivelDePerfil } from '../../../../shared/permisos';
+import {
+  PermisosVisitas,
+  ROLES_SISTEMA,
+  nivelDePerfil,
+} from '../../../../shared/permisos';
 import { sqlTienePermiso } from '../../../plumbing/sesion';
 
 /** Nivel de cada perfil en SQL (técnico 1, supervisor 2, administrador 3). */
-const NIVEL_SQL = `CASE u.rol ${ROLES_SISTEMA.map((r) => `WHEN '${r.perfil}' THEN ${r.nivel}`).join(' ')} ELSE 0 END`;
+const NIVEL_SQL = `CASE u.rol ${ROLES_SISTEMA.map(r => `WHEN '${r.perfil}' THEN ${r.nivel}`).join(' ')} ELSE 0 END`;
 import type {
   cargoCatalogoEsquema,
   marcaCatalogoEsquema,
@@ -40,10 +44,20 @@ interface Definicion {
 export const CATALOGOS = {
   restauradores: {
     tabla: 'restauradores',
-    columnas: ['energis', 'zona', 'sector', 'subestacion', 'ubicacion', 'circuito', 'latitud', 'longitud'],
-    activoSql: "CASE WHEN upper(COALESCE(estado, 'ACTIVO')) = 'ACTIVO' THEN 1 ELSE 0 END",
+    columnas: [
+      'energis',
+      'zona',
+      'sector',
+      'subestacion',
+      'ubicacion',
+      'circuito',
+      'latitud',
+      'longitud',
+    ],
+    activoSql:
+      "CASE WHEN upper(COALESCE(estado, 'ACTIVO')) = 'ACTIVO' THEN 1 ELSE 0 END",
     activoColumna: 'estado',
-    activoValor: (a) => (a ? 'ACTIVO' : 'INACTIVO'),
+    activoValor: a => (a ? 'ACTIVO' : 'INACTIVO'),
     actualizado: 'updated_at',
     orden: 'circuito, energis',
     unico: ['energis'],
@@ -53,7 +67,7 @@ export const CATALOGOS = {
     columnas: ['codigo', 'nombre', 'unidad', 'stock'],
     activoSql: 'COALESCE(activo, 1)',
     activoColumna: 'activo',
-    activoValor: (a) => (a ? 1 : 0),
+    activoValor: a => (a ? 1 : 0),
     actualizado: 'updated_at',
     orden: 'nombre',
     unico: ['codigo'],
@@ -63,7 +77,7 @@ export const CATALOGOS = {
     columnas: ['elemento', 'tipo'],
     activoSql: 'COALESCE(activo, 1)',
     activoColumna: 'activo',
-    activoValor: (a) => (a ? 1 : 0),
+    activoValor: a => (a ? 1 : 0),
     orden: 'tipo',
     unico: ['tipo'],
   },
@@ -72,7 +86,7 @@ export const CATALOGOS = {
     columnas: ['elemento', 'marca', 'modelo', 'tipo_control'],
     activoSql: 'COALESCE(activo, 1)',
     activoColumna: 'activo',
-    activoValor: (a) => (a ? 1 : 0),
+    activoValor: a => (a ? 1 : 0),
     orden: 'elemento, marca, modelo',
   },
   cargos: {
@@ -80,7 +94,7 @@ export const CATALOGOS = {
     columnas: ['nombre'],
     activoSql: 'activo',
     activoColumna: 'activo',
-    activoValor: (a) => (a ? 1 : 0),
+    activoValor: a => (a ? 1 : 0),
     actualizado: 'actualizado_en',
     orden: 'nombre',
     unico: ['nombre'],
@@ -100,14 +114,16 @@ const fila = (r: Record<string, unknown>) => ({ ...r, activo: !!r.activo });
 /** Todos los registros del catálogo (activos e inactivos) para la pantalla de administración. */
 export async function listarCatalogo(ctx: Ctx, cat: Catalogo) {
   const d: Definicion = CATALOGOS[cat];
-  const { results } = await ctx.env.DB.prepare(`SELECT id, ${d.columnas.join(', ')}, ${d.activoSql} AS activo FROM ${d.tabla} ORDER BY ${d.orden}`).all<
-    Record<string, unknown>
-  >();
+  const { results } = await ctx.env.DB.prepare(
+    `SELECT id, ${d.columnas.join(', ')}, ${d.activoSql} AS activo FROM ${d.tabla} ORDER BY ${d.orden}`,
+  ).all<Record<string, unknown>>();
   return results.map(fila);
 }
 
 async function cargar(ctx: Ctx, d: Definicion, id: number) {
-  const r = await ctx.env.DB.prepare(`SELECT id, ${d.columnas.join(', ')}, ${d.activoSql} AS activo FROM ${d.tabla} WHERE id = ?`)
+  const r = await ctx.env.DB.prepare(
+    `SELECT id, ${d.columnas.join(', ')}, ${d.activoSql} AS activo FROM ${d.tabla} WHERE id = ?`,
+  )
     .bind(id)
     .first<Record<string, unknown>>();
   if (!r) throw noEncontrado('El registro');
@@ -115,7 +131,12 @@ async function cargar(ctx: Ctx, d: Definicion, id: number) {
 }
 
 /** Crea (id = null) o actualiza un registro; desactivar es actualizar con activo = false. */
-export async function guardarCatalogo(ctx: Ctx, cat: Catalogo, id: number | null, datos: Entrada) {
+export async function guardarCatalogo(
+  ctx: Ctx,
+  cat: Catalogo,
+  id: number | null,
+  datos: Entrada,
+) {
   const d: Definicion = CATALOGOS[cat];
   const valores = datos as Record<string, unknown>;
   const activo = (valores.activo as boolean | undefined) ?? true;
@@ -123,28 +144,66 @@ export async function guardarCatalogo(ctx: Ctx, cat: Catalogo, id: number | null
 
   for (const col of d.unico ?? []) {
     const otro = await db
-      .prepare(`SELECT id FROM ${d.tabla} WHERE lower(${col}) = lower(?) AND id <> ? AND ${d.activoSql} = 1`)
+      .prepare(
+        `SELECT id FROM ${d.tabla} WHERE lower(${col}) = lower(?) AND id <> ? AND ${d.activoSql} = 1`,
+      )
       .bind(valores[col] ?? null, id ?? 0)
       .first();
-    if (otro && activo) throw new ApiError(409, `Ya existe un registro activo con ese ${col === 'energis' ? 'código Energis' : col}.`);
+    if (otro && activo)
+      throw new ApiError(
+        409,
+        `Ya existe un registro activo con ese ${col === 'energis' ? 'código Energis' : col}.`,
+      );
   }
 
-  const cols = [...d.columnas, d.activoColumna, ...(d.actualizado ? [d.actualizado] : [])];
-  const binds = [...d.columnas.map((c) => valores[c] ?? null), d.activoValor(activo), ...(d.actualizado ? [ctx.ahora] : [])];
+  const cols = [
+    ...d.columnas,
+    d.activoColumna,
+    ...(d.actualizado ? [d.actualizado] : []),
+  ];
+  const binds = [
+    ...d.columnas.map(c => valores[c] ?? null),
+    d.activoValor(activo),
+    ...(d.actualizado ? [ctx.ahora] : []),
+  ];
 
   if (id === null) {
     const r = await db
-      .prepare(`INSERT INTO ${d.tabla} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(',')}) RETURNING id`)
+      .prepare(
+        `INSERT INTO ${d.tabla} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(',')}) RETURNING id`,
+      )
       .bind(...binds)
       .first<{ id: number }>();
     const nuevo = r!.id;
-    await sentenciaAuditoria(ctx.env, ctx.usuario.id, 'crear', cat, nuevo, null, valores, ctx.ahora).run();
+    await sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'crear',
+      cat,
+      nuevo,
+      null,
+      valores,
+      ctx.ahora,
+    ).run();
     return cargar(ctx, d, nuevo);
   }
   const antes = await cargar(ctx, d, id);
   await db.batch([
-    db.prepare(`UPDATE ${d.tabla} SET ${cols.map((c) => `${c} = ?`).join(', ')} WHERE id = ?`).bind(...binds, id),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'editar', cat, id, antes, valores, ctx.ahora),
+    db
+      .prepare(
+        `UPDATE ${d.tabla} SET ${cols.map(c => `${c} = ?`).join(', ')} WHERE id = ?`,
+      )
+      .bind(...binds, id),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'editar',
+      cat,
+      id,
+      antes,
+      valores,
+      ctx.ahora,
+    ),
   ]);
   return cargar(ctx, d, id);
 }
@@ -161,30 +220,67 @@ export async function listarTableros(ctx: Ctx) {
  * Guarda el tablero de una marca con la lista de campos en orden: los que siguen se reactivan y
  * reordenan, los nuevos se agregan y los que ya no están se desactivan (no se borran).
  */
-export async function guardarTablero(ctx: Ctx, d: z.output<typeof tableroEsquema>) {
+export async function guardarTablero(
+  ctx: Ctx,
+  d: z.output<typeof tableroEsquema>,
+) {
   const db = ctx.env.DB;
   const existentes = (
-    await db.prepare('SELECT id, campo, COALESCE(activo, 1) AS activo, orden FROM tableros WHERE lower(marca) = lower(?)').bind(d.marca).all<{
-      id: number;
-      campo: string;
-      activo: number;
-      orden: number;
-    }>()
+    await db
+      .prepare(
+        'SELECT id, campo, COALESCE(activo, 1) AS activo, orden FROM tableros WHERE lower(marca) = lower(?)',
+      )
+      .bind(d.marca)
+      .all<{
+        id: number;
+        campo: string;
+        activo: number;
+        orden: number;
+      }>()
   ).results;
-  const porCampo = new Map(existentes.map((e) => [e.campo.toLowerCase(), e]));
+  const porCampo = new Map(existentes.map(e => [e.campo.toLowerCase(), e]));
   const vistos = new Set<string>();
   const sentencias: D1PreparedStatement[] = [];
   d.campos.forEach((campo, i) => {
     const clave = campo.toLowerCase();
-    if (vistos.has(clave)) throw new ApiError(422, `El campo «${campo}» está repetido.`);
+    if (vistos.has(clave))
+      throw new ApiError(422, `El campo «${campo}» está repetido.`);
     vistos.add(clave);
     const e = porCampo.get(clave);
-    if (e) sentencias.push(db.prepare('UPDATE tableros SET campo = ?, orden = ?, activo = 1 WHERE id = ?').bind(campo, i + 1, e.id));
-    else sentencias.push(db.prepare('INSERT INTO tableros (marca, campo, orden, activo) VALUES (?,?,?,1)').bind(d.marca, campo, i + 1));
+    if (e)
+      sentencias.push(
+        db
+          .prepare(
+            'UPDATE tableros SET campo = ?, orden = ?, activo = 1 WHERE id = ?',
+          )
+          .bind(campo, i + 1, e.id),
+      );
+    else
+      sentencias.push(
+        db
+          .prepare(
+            'INSERT INTO tableros (marca, campo, orden, activo) VALUES (?,?,?,1)',
+          )
+          .bind(d.marca, campo, i + 1),
+      );
   });
   for (const e of existentes)
-    if (!vistos.has(e.campo.toLowerCase()) && e.activo) sentencias.push(db.prepare('UPDATE tableros SET activo = 0 WHERE id = ?').bind(e.id));
-  sentencias.push(sentenciaAuditoria(ctx.env, ctx.usuario.id, 'editar', 'tableros', null, existentes, d, ctx.ahora));
+    if (!vistos.has(e.campo.toLowerCase()) && e.activo)
+      sentencias.push(
+        db.prepare('UPDATE tableros SET activo = 0 WHERE id = ?').bind(e.id),
+      );
+  sentencias.push(
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'editar',
+      'tableros',
+      null,
+      existentes,
+      d,
+      ctx.ahora,
+    ),
+  );
   await db.batch(sentencias);
   return { marca: d.marca, campos: d.campos };
 }
@@ -195,12 +291,16 @@ export async function guardarTablero(ctx: Ctx, d: z.output<typeof tableroEsquema
  */
 export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
   const db = ctx.env.DB;
-  const [rest, mats, pers, tipos, marcas, tableros] = await db.batch<Record<string, unknown>>([
+  const [rest, mats, pers, tipos, marcas, tableros] = await db.batch<
+    Record<string, unknown>
+  >([
     db.prepare(
       `SELECT id, energis, zona, sector, subestacion, ubicacion, circuito, latitud, longitud, 1 AS activo FROM restauradores
        WHERE ${CATALOGOS.restauradores.activoSql} = 1 ORDER BY circuito, energis`,
     ),
-    db.prepare('SELECT id, codigo, nombre, unidad, stock, 1 AS activo FROM materiales WHERE COALESCE(activo, 1) = 1 ORDER BY nombre'),
+    db.prepare(
+      'SELECT id, codigo, nombre, unidad, stock, 1 AS activo FROM materiales WHERE COALESCE(activo, 1) = 1 ORDER BY nombre',
+    ),
     // Personal de la inspección: cuentas activas que registran inspecciones, de perfil del mismo nivel o menor.
     db
       .prepare(
@@ -209,13 +309,25 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
          ORDER BY u.nombre`,
       )
       .bind(nivelDePerfil(ctx.usuario.rol)),
-    db.prepare('SELECT DISTINCT tipo FROM tipos WHERE COALESCE(activo, 1) = 1 AND tipo IS NOT NULL ORDER BY tipo'),
-    db.prepare('SELECT elemento, marca, modelo, tipo_control FROM marcas WHERE COALESCE(activo, 1) = 1 ORDER BY marca, modelo'),
-    db.prepare('SELECT marca, campo FROM tableros WHERE COALESCE(activo, 1) = 1 ORDER BY marca, COALESCE(orden, 99), id'),
+    db.prepare(
+      'SELECT DISTINCT tipo FROM tipos WHERE COALESCE(activo, 1) = 1 AND tipo IS NOT NULL ORDER BY tipo',
+    ),
+    db.prepare(
+      'SELECT elemento, marca, modelo, tipo_control FROM marcas WHERE COALESCE(activo, 1) = 1 ORDER BY marca, modelo',
+    ),
+    db.prepare(
+      'SELECT marca, campo FROM tableros WHERE COALESCE(activo, 1) = 1 ORDER BY marca, COALESCE(orden, 99), id',
+    ),
   ]);
 
-  const restMap = new Map<string, { marca: string; modelos: string[]; controles: string[] }>();
-  const modemMap = new Map<string, { marca: string; elemento: string; modelos: string[] }>();
+  const restMap = new Map<
+    string,
+    { marca: string; modelos: string[]; controles: string[] }
+  >();
+  const modemMap = new Map<
+    string,
+    { marca: string; elemento: string; modelos: string[] }
+  >();
   const agregar = (lista: string[], v: unknown) => {
     if (v && !lista.includes(String(v))) lista.push(String(v));
   };
@@ -242,13 +354,20 @@ export async function catalogosVisita(ctx: Ctx): Promise<CatalogosVisita> {
   }
 
   return {
-    restauradores: rest!.results.map(fila) as unknown as CatalogosVisita['restauradores'],
-    materiales: mats!.results.map(fila) as unknown as CatalogosVisita['materiales'],
+    restauradores: rest!.results.map(
+      fila,
+    ) as unknown as CatalogosVisita['restauradores'],
+    materiales: mats!.results.map(
+      fila,
+    ) as unknown as CatalogosVisita['materiales'],
     personal: pers!.results as unknown as CatalogosVisita['personal'],
-    tipos: tipos!.results.map((t) => String(t.tipo)),
+    tipos: tipos!.results.map(t => String(t.tipo)),
     marcas: [...restMap.values()],
     modems: [...modemMap.values()],
-    tableros: [...tabMap.entries()].map(([marca, campos]) => ({ marca, campos })),
+    tableros: [...tabMap.entries()].map(([marca, campos]) => ({
+      marca,
+      campos,
+    })),
     actualizado_en: ctx.ahora,
   };
 }

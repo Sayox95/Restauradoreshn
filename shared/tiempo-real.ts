@@ -63,7 +63,10 @@ export const CABECERA_CONEXION = 'X-Conexion-Tiempo-Real';
 
 /** ¿Esta conexión recibe el aviso? */
 export const debeRecibir = (c: DatosConexion, a: AvisoCanal) =>
-  c.conexion !== a.origen && (!a.permiso || c.permisos.includes(a.permiso) || (!!a.destinatario && c.usuario === a.destinatario));
+  c.conexion !== a.origen &&
+  (!a.permiso ||
+    c.permisos.includes(a.permiso) ||
+    (!!a.destinatario && c.usuario === a.destinatario));
 
 /** ¿Esta conexión recibe la notificación? */
 export function debeNotificar(c: DatosConexion, n: NotificacionCanal) {

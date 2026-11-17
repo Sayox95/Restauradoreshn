@@ -8,11 +8,19 @@ import { usuarioEnUso } from '../../sesion/features/solicitar-cuenta';
 import { accesoInicial, sentenciasAcceso, validarCargo } from '../comun';
 
 /** ¿El correo, o el usuario que sale de él, ya los tiene otra cuenta? */
-export async function verificarDisponible(ctx: Ctx, correo: string, usuario: string | null, excepto = 0) {
-  const otro = await ctx.env.DB.prepare('SELECT correo FROM usuarios WHERE (correo = ?1 OR usuario = ?2) AND id <> ?3 ORDER BY correo = ?1 DESC')
+export async function verificarDisponible(
+  ctx: Ctx,
+  correo: string,
+  usuario: string | null,
+  excepto = 0,
+) {
+  const otro = await ctx.env.DB.prepare(
+    'SELECT correo FROM usuarios WHERE (correo = ?1 OR usuario = ?2) AND id <> ?3 ORDER BY correo = ?1 DESC',
+  )
     .bind(correo, usuario ?? '', excepto)
     .first<{ correo: string | null }>();
-  if (otro?.correo?.toLowerCase() === correo) throw new ApiError(409, 'Ya existe una cuenta con ese correo.');
+  if (otro?.correo?.toLowerCase() === correo)
+    throw new ApiError(409, 'Ya existe una cuenta con ese correo.');
   if (otro && usuario) throw usuarioEnUso(usuario);
 }
 
@@ -20,7 +28,10 @@ export async function verificarDisponible(ctx: Ctx, correo: string, usuario: str
  * Alta desde Administración. El usuario sale del correo y el sistema genera una contraseña temporal
  * que se muestra una sola vez; la persona la cambia en su primer ingreso.
  */
-export async function crearUsuario(ctx: Ctx, d: z.output<typeof usuarioCrearEsquema>) {
+export async function crearUsuario(
+  ctx: Ctx,
+  d: z.output<typeof usuarioCrearEsquema>,
+) {
   const usuario = usuarioDeCorreo(d.correo);
   await verificarDisponible(ctx, d.correo, usuario);
   await validarCargo(ctx, d.cargo_id);
@@ -30,16 +41,36 @@ export async function crearUsuario(ctx: Ctx, d: z.output<typeof usuarioCrearEsqu
       `INSERT INTO usuarios (usuario, correo, nombre, telefono, hash_password, rol, cargo_id, estado, activo, solicitud_pendiente, debe_cambiar_password, creado_en, actualizado_en)
        VALUES (?,?,?,?,?,?,?,'activa',1,0,1,?,?) RETURNING id`,
     )
-      .bind(usuario, d.correo, d.nombre, d.telefono, await hashPassword(password), d.rol, d.cargo_id, ctx.ahora, ctx.ahora)
+      .bind(
+        usuario,
+        d.correo,
+        d.nombre,
+        d.telefono,
+        await hashPassword(password),
+        d.rol,
+        d.cargo_id,
+        ctx.ahora,
+        ctx.ahora,
+      )
       .first<{ id: number }>();
     const id = r!.id;
     await ctx.env.DB.batch([
       ...sentenciasAcceso(ctx, id, accesoInicial(d.rol, d.permisos)),
-      sentenciaAuditoria(ctx.env, ctx.usuario.id, 'crear', 'usuario', id, null, { usuario, ...d }, ctx.ahora),
+      sentenciaAuditoria(
+        ctx.env,
+        ctx.usuario.id,
+        'crear',
+        'usuario',
+        id,
+        null,
+        { usuario, ...d },
+        ctx.ahora,
+      ),
     ]);
     return { id, usuario, password_temporal: password };
   } catch (e) {
-    if (esErrorUnico(e)) throw new ApiError(409, 'Ya existe una cuenta con ese correo o usuario.');
+    if (esErrorUnico(e))
+      throw new ApiError(409, 'Ya existe una cuenta con ese correo o usuario.');
     throw e;
   }
 }

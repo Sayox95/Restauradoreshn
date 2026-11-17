@@ -9,7 +9,7 @@ export function marcarTrabajo(fuente: string, activo: boolean) {
   const antes = fuentes.size;
   if (activo) fuentes.add(fuente);
   else fuentes.delete(fuente);
-  if (fuentes.size !== antes) oyentes.forEach((f) => f());
+  if (fuentes.size !== antes) oyentes.forEach(f => f());
 }
 
 export const hayTrabajoEnCurso = () => fuentes.size > 0;

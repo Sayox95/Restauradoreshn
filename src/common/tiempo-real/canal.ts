@@ -48,9 +48,15 @@ function abrir() {
     return programar();
   }
   ws = socket;
-  socket.onmessage = (m) => {
+  socket.onmessage = m => {
     if (m.data === 'pong') return;
-    let datos: { tipo?: string; conexion?: string; modulo?: Aviso['modulo']; id?: number | null; mensaje?: string };
+    let datos: {
+      tipo?: string;
+      conexion?: string;
+      modulo?: Aviso['modulo'];
+      id?: number | null;
+      mensaje?: string;
+    };
     try {
       datos = JSON.parse(String(m.data));
     } catch {
@@ -61,16 +67,24 @@ function abrir() {
       conexion = datos.conexion ?? null;
       if (yaConecto) emitir('reconectado');
       yaConecto = true;
-    } else if (datos.tipo === 'aviso' && datos.modulo) emitir({ modulo: datos.modulo, id: datos.id ?? null });
+    } else if (datos.tipo === 'aviso' && datos.modulo)
+      emitir({ modulo: datos.modulo, id: datos.id ?? null });
     else if (datos.tipo === 'notificacion' && datos.modulo && datos.mensaje) {
-      const n: Notificacion = { mensaje: datos.mensaje, modulo: datos.modulo, id: datos.id ?? null };
+      const n: Notificacion = {
+        mensaje: datos.mensaje,
+        modulo: datos.modulo,
+        id: datos.id ?? null,
+      };
       for (const fn of notificados) fn(n);
     }
   };
   // Latido para que la conexión no se cierre por inactividad (lo responde la plataforma sin costo).
   socket.onopen = () => {
     clearInterval(latido);
-    latido = setInterval(() => socket.readyState === WebSocket.OPEN && socket.send('ping'), 45_000);
+    latido = setInterval(
+      () => socket.readyState === WebSocket.OPEN && socket.send('ping'),
+      45_000,
+    );
   };
   socket.onclose = () => {
     if (ws === socket) ws = null;
@@ -84,7 +98,10 @@ function abrir() {
 function programar() {
   clearTimeout(reintento);
   fallos++;
-  const espera = fallos > 8 ? 5 * 60_000 : Math.min(30_000, 1000 * 2 ** (fallos - 1)) + Math.random() * 1000;
+  const espera =
+    fallos > 8
+      ? 5 * 60_000
+      : Math.min(30_000, 1000 * 2 ** (fallos - 1)) + Math.random() * 1000;
   reintento = setTimeout(abrir, espera);
 }
 
@@ -108,7 +125,7 @@ export function iniciarCanal() {
   // Si el Worker del canal no está publicado (503), no se intenta más hasta volver a abrir la app:
   // nada de reintentos periódicos contra algo que no existe.
   void fetch('/api/v1/tiempo-real', { credentials: 'same-origin' })
-    .then((r) => {
+    .then(r => {
       if (r.status === 503 || !activo) return detenerCanal();
       document.addEventListener('visibilitychange', reanudar);
       addEventListener('online', reanudar);

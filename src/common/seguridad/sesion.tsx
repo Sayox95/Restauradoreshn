@@ -1,7 +1,14 @@
 import type { UsuarioSesion } from '@shared/tipos';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
-import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ErrorApi, configurarExpiracion } from '@common/http/api';
 import { fijarZona } from '@common/utils/fechas';
@@ -14,7 +21,10 @@ interface Sesion {
 }
 
 // Avisa a las demás pestañas abiertas de la app que la sesión se cerró (o se abrió otra).
-const canal = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('sesion') : null;
+const canal =
+  typeof BroadcastChannel !== 'undefined'
+    ? new BroadcastChannel('sesion')
+    : null;
 
 const Ctx = createContext<Sesion | null>(null);
 
@@ -39,7 +49,11 @@ const VIGENCIA_SEGURA_MS = 14 * 24 * 3600 * 1000;
 
 function recordar(yo: Yo) {
   try {
-    if (yo) localStorage.setItem(CLAVE_SESION, JSON.stringify({ yo, confirmada_en: Date.now() } satisfies Recordada));
+    if (yo)
+      localStorage.setItem(
+        CLAVE_SESION,
+        JSON.stringify({ yo, confirmada_en: Date.now() } satisfies Recordada),
+      );
     else localStorage.removeItem(CLAVE_SESION);
   } catch {
     /* almacenamiento no disponible */
@@ -51,7 +65,9 @@ function leerRecordada(): Recordada | null {
     if (!v) return null;
     const r = JSON.parse(v) as Recordada | Yo;
     // Formato anterior (solo la sesión, sin fecha): sirve sin señal, pero no para abrir al instante.
-    return r && typeof r === 'object' && 'confirmada_en' in r ? r : { yo: r as Yo, confirmada_en: 0 };
+    return r && typeof r === 'object' && 'confirmada_en' in r
+      ? r
+      : { yo: r as Yo, confirmada_en: 0 };
   } catch {
     return null;
   }
@@ -61,7 +77,9 @@ const recordada = (): Yo => leerRecordada()?.yo ?? null;
 /** Para abrir al instante: solo si se confirmó hace poco (no puede haber vencido por tiempo). */
 function recordadaReciente(): Yo | undefined {
   const r = leerRecordada();
-  return r && Date.now() - r.confirmada_en < VIGENCIA_SEGURA_MS ? r.yo : undefined;
+  return r && Date.now() - r.confirmada_en < VIGENCIA_SEGURA_MS
+    ? r.yo
+    : undefined;
 }
 
 /** Aviso para la pantalla de ingreso: la sesión terminó sola, o la persona la cerró. */
@@ -73,7 +91,8 @@ function avisarIngreso(texto: string) {
     /* almacenamiento no disponible */
   }
 }
-const avisarSesionTerminada = () => avisarIngreso('Su sesión terminó. Ingrese de nuevo para continuar.');
+const avisarSesionTerminada = () =>
+  avisarIngreso('Su sesión terminó. Ingrese de nuevo para continuar.');
 
 /**
  * Cierre sin señal: la cookie es HttpOnly y solo el servidor puede invalidarla. Se marca el cierre como
@@ -99,7 +118,12 @@ function marcarCierre(todas: boolean | null) {
 /** Cierra en el servidor; `false` si no hubo respuesta (sin señal o demasiado lento). */
 async function cerrarEnServidor(todas: boolean) {
   try {
-    await Promise.race([cerrarSesion(todas), new Promise((_, no) => setTimeout(() => no(new ErrorApi(0, 'lento')), 8000))]);
+    await Promise.race([
+      cerrarSesion(todas),
+      new Promise((_, no) =>
+        setTimeout(() => no(new ErrorApi(0, 'lento')), 8000),
+      ),
+    ]);
     return true;
   } catch (e) {
     // Sin respuesta: queda pendiente. Cualquier otra respuesta (p. ej. ya no había sesión) cuenta como cerrada.
@@ -158,7 +182,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
   const limpiar = useCallback(() => {
     recordar(null);
     qc.setQueryData(['yo'], null);
-    qc.removeQueries({ predicate: (q) => q.queryKey[0] !== 'yo' });
+    qc.removeQueries({ predicate: q => q.queryKey[0] !== 'yo' });
     navegar('/', { replace: true });
   }, [qc, navegar]);
 
@@ -197,7 +221,7 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
     salir: async (todas = false) => {
       if (cerrando) return;
       setCerrando(true);
-      const minimo = new Promise((ok) => setTimeout(ok, 700)); // que se alcance a leer el aviso
+      const minimo = new Promise(ok => setTimeout(ok, 700)); // que se alcance a leer el aviso
       if (!(await cerrarEnServidor(todas))) marcarCierre(todas);
       await minimo;
       try {
@@ -205,7 +229,11 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
       } catch {
         /* almacenamiento no disponible */
       }
-      avisarIngreso(cierrePendiente() ? 'Sesión cerrada en este dispositivo. Se terminará de cerrar al volver la señal.' : 'Sesión cerrada.');
+      avisarIngreso(
+        cierrePendiente()
+          ? 'Sesión cerrada en este dispositivo. Se terminará de cerrar al volver la señal.'
+          : 'Sesión cerrada.',
+      );
       limpiar();
       canal?.postMessage('salir');
       setCerrando(false);
@@ -222,8 +250,13 @@ export function ProveedorSesion({ children }: { children: ReactNode }) {
           aria-label="Cerrando sesión"
         >
           <div className="anim-dialogo flex items-center gap-3 rounded-2xl bg-white px-5 py-4 shadow-2xl">
-            <Loader2 className="h-5 w-5 animate-spin text-marca-600" aria-hidden />
-            <span className="font-semibold text-slate-900">Cerrando sesión…</span>
+            <Loader2
+              className="h-5 w-5 animate-spin text-marca-600"
+              aria-hidden
+            />
+            <span className="font-semibold text-slate-900">
+              Cerrando sesión…
+            </span>
           </div>
         </div>
       )}

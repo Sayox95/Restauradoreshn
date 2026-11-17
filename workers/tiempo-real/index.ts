@@ -9,27 +9,40 @@
  * sin despertar al objeto).
  */
 import { DurableObject } from 'cloudflare:workers';
-import { type AvisoCanal, type DatosConexion, debeNotificar, debeRecibir, type NotificacionCanal } from '../../shared/tiempo-real';
+import {
+  type AvisoCanal,
+  type DatosConexion,
+  debeNotificar,
+  debeRecibir,
+  type NotificacionCanal,
+} from '../../shared/tiempo-real';
 
 export class CanalTiempoReal extends DurableObject<Record<string, never>> {
   constructor(ctx: DurableObjectState, env: Record<string, never>) {
     super(ctx, env);
-    this.ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair('ping', 'pong'));
+    this.ctx.setWebSocketAutoResponse(
+      new WebSocketRequestResponsePair('ping', 'pong'),
+    );
   }
 
   async fetch(req: Request): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/conectar') {
-      if (req.headers.get('Upgrade') !== 'websocket') return new Response('Se esperaba WebSocket.', { status: 426 });
+      if (req.headers.get('Upgrade') !== 'websocket')
+        return new Response('Se esperaba WebSocket.', { status: 426 });
       const { 0: cliente, 1: servidor } = new WebSocketPair();
       const datos: DatosConexion = {
         conexion: crypto.randomUUID(),
         usuario: Number(req.headers.get('X-Usuario')),
-        permisos: (req.headers.get('X-Permisos') ?? '').split(',').filter(Boolean),
+        permisos: (req.headers.get('X-Permisos') ?? '')
+          .split(',')
+          .filter(Boolean),
       };
       this.ctx.acceptWebSocket(servidor);
       servidor.serializeAttachment(datos);
-      servidor.send(JSON.stringify({ tipo: 'conectado', conexion: datos.conexion }));
+      servidor.send(
+        JSON.stringify({ tipo: 'conectado', conexion: datos.conexion }),
+      );
       return new Response(null, { status: 101, webSocket: cliente });
     }
     if (url.pathname === '/avisar' && req.method === 'POST') {
@@ -40,8 +53,17 @@ export class CanalTiempoReal extends DurableObject<Record<string, never>> {
         for (const m of mensajes) {
           const salida =
             m.tipo === 'notificacion'
-              ? debeNotificar(datos, m) && { tipo: 'notificacion', mensaje: m.mensaje, modulo: m.modulo, id: m.id }
-              : debeRecibir(datos, m) && { tipo: 'aviso', modulo: m.modulo, id: m.id };
+              ? debeNotificar(datos, m) && {
+                  tipo: 'notificacion',
+                  mensaje: m.mensaje,
+                  modulo: m.modulo,
+                  id: m.id,
+                }
+              : debeRecibir(datos, m) && {
+                  tipo: 'aviso',
+                  modulo: m.modulo,
+                  id: m.id,
+                };
           if (!salida) continue;
           try {
             ws.send(JSON.stringify(salida));
@@ -73,5 +95,8 @@ export class CanalTiempoReal extends DurableObject<Record<string, never>> {
 }
 
 export default {
-  fetch: () => new Response('Canal de tiempo real: solo accesible desde la app.', { status: 404 }),
+  fetch: () =>
+    new Response('Canal de tiempo real: solo accesible desde la app.', {
+      status: 404,
+    }),
 } satisfies ExportedHandler;

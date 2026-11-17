@@ -13,15 +13,24 @@ export function blobDeDataUrl(dataUrl: string): Blob {
  * `resizeWidth` decodifica y achica fuera del hilo principal, así la pantalla no se traba con un
  * original de varios MB. Devuelve una URL local (revocarla al dejar de usarla) o null si no se puede.
  */
-export async function vistaReducida(original: Blob, ancho = 800): Promise<string | null> {
+export async function vistaReducida(
+  original: Blob,
+  ancho = 800,
+): Promise<string | null> {
   try {
-    const bitmap = await createImageBitmap(original, { imageOrientation: 'from-image', resizeWidth: ancho, resizeQuality: 'medium' });
+    const bitmap = await createImageBitmap(original, {
+      imageOrientation: 'from-image',
+      resizeWidth: ancho,
+      resizeQuality: 'medium',
+    });
     const canvas = document.createElement('canvas');
     canvas.width = bitmap.width;
     canvas.height = bitmap.height;
     canvas.getContext('2d')?.drawImage(bitmap, 0, 0);
     bitmap.close();
-    const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/jpeg', 0.8));
+    const blob = await new Promise<Blob | null>(ok =>
+      canvas.toBlob(ok, 'image/jpeg', 0.8),
+    );
     return blob ? URL.createObjectURL(blob) : null;
   } catch {
     return null;
@@ -36,10 +45,16 @@ const CALIDAD = 0.85;
  * archivo ORIGINAL no se modifica y es el que se sube. Si el navegador no puede leer el formato
  * (p. ej. HEIC en Android), devuelve null: la foto se sube igual y el PDF indica «Imagen no disponible».
  */
-export async function copiaReducida(archivo: Blob, ladoMax = LADO_MAX, calidad = CALIDAD): Promise<string | null> {
+export async function copiaReducida(
+  archivo: Blob,
+  ladoMax = LADO_MAX,
+  calidad = CALIDAD,
+): Promise<string | null> {
   let bitmap: ImageBitmap;
   try {
-    bitmap = await createImageBitmap(archivo, { imageOrientation: 'from-image' });
+    bitmap = await createImageBitmap(archivo, {
+      imageOrientation: 'from-image',
+    });
   } catch {
     return null;
   }

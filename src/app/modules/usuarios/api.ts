@@ -48,16 +48,31 @@ export interface DatosUsuario {
   cargo_id: number | null;
 }
 
-export const listarUsuarios = () => get<Pagina<Usuario>>(BASE).then((p) => p.data);
+export const listarUsuarios = () =>
+  get<Pagina<Usuario>>(BASE).then(p => p.data);
 /** Cargos activos del catálogo para elegir en la cuenta. */
-export const listarCargos = () => get<Pagina<{ id: number; nombre: string }>>(`${BASE}/cargos`).then((p) => p.data);
+export const listarCargos = () =>
+  get<Pagina<{ id: number; nombre: string }>>(`${BASE}/cargos`).then(
+    p => p.data,
+  );
 export const verUsuario = (id: number) => get<DetalleUsuario>(`${BASE}/${id}`);
-export const crearUsuario = (datos: DatosUsuario) => post<{ id: number; usuario: string; password_temporal: string }>(BASE, datos);
+export const crearUsuario = (datos: DatosUsuario) =>
+  post<{ id: number; usuario: string; password_temporal: string }>(BASE, datos);
 /** Las cuentas antiguas pueden no tener correo: entonces no se envía. */
-export const editarUsuario = (id: number, datos: Omit<DatosUsuario, 'correo'> & { correo?: string }) => patch(`${BASE}/${id}`, datos);
-export const aprobarCuenta = (id: number, datos: { rol: Rol; permisos: string[] }) => post(`${BASE}/${id}/aprobar`, datos);
-export const rechazarCuenta = (id: number, motivo?: string) => post(`${BASE}/${id}/rechazar`, { motivo });
-export const desactivarCuenta = (id: number, motivo?: string) => post(`${BASE}/${id}/desactivar`, { motivo });
+export const editarUsuario = (
+  id: number,
+  datos: Omit<DatosUsuario, 'correo'> & { correo?: string },
+) => patch(`${BASE}/${id}`, datos);
+export const aprobarCuenta = (
+  id: number,
+  datos: { rol: Rol; permisos: string[] },
+) => post(`${BASE}/${id}/aprobar`, datos);
+export const rechazarCuenta = (id: number, motivo?: string) =>
+  post(`${BASE}/${id}/rechazar`, { motivo });
+export const desactivarCuenta = (id: number, motivo?: string) =>
+  post(`${BASE}/${id}/desactivar`, { motivo });
 export const activarCuenta = (id: number) => post(`${BASE}/${id}/activar`);
-export const restablecerPassword = (id: number) => post<{ password_temporal: string }>(`${BASE}/${id}/restablecer-password`);
-export const cerrarSesionesDe = (id: number) => post<{ cerradas: number }>(`${BASE}/${id}/cerrar-sesiones`);
+export const restablecerPassword = (id: number) =>
+  post<{ password_temporal: string }>(`${BASE}/${id}/restablecer-password`);
+export const cerrarSesionesDe = (id: number) =>
+  post<{ cerradas: number }>(`${BASE}/${id}/cerrar-sesiones`);

@@ -12,7 +12,7 @@ function Opcion({ o }: { o: OpcionNueva }) {
   const [enCurso, setEnCurso] = useState<string | null>(null);
   useEffect(() => {
     let vivo = true;
-    void o.enCurso?.().then((t) => vivo && setEnCurso(t));
+    void o.enCurso?.().then(t => vivo && setEnCurso(t));
     return () => {
       vivo = false;
     };
@@ -20,7 +20,10 @@ function Opcion({ o }: { o: OpcionNueva }) {
   const Icono = o.icono;
   return (
     <li>
-      <Link to={o.a} className="tarjeta flex min-h-[76px] items-center gap-4 p-4 hover:bg-slate-50">
+      <Link
+        to={o.a}
+        className="tarjeta flex min-h-[76px] items-center gap-4 p-4 hover:bg-slate-50"
+      >
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-marca-50 text-marca-600">
           <Icono className="h-6 w-6" aria-hidden />
         </span>
@@ -43,12 +46,12 @@ function Opcion({ o }: { o: OpcionNueva }) {
 
 export function Nueva() {
   const { hasAccess } = useAccess();
-  const opciones = opcionesNueva.filter((o) => hasAccess(o.access));
+  const opciones = opcionesNueva.filter(o => hasAccess(o.access));
   return (
     <div className="mx-auto max-w-2xl">
       <Encabezado titulo="Nueva" />
       <ul className="space-y-3">
-        {opciones.map((o) => (
+        {opciones.map(o => (
           <Opcion key={o.a} o={o} />
         ))}
       </ul>

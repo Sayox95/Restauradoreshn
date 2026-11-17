@@ -1,6 +1,16 @@
-import { MAX_COPIA_BYTES, MAX_FOTOS, MAX_PDF_BYTES } from '../../../../shared/constantes';
+import {
+  MAX_COPIA_BYTES,
+  MAX_FOTOS,
+  MAX_PDF_BYTES,
+} from '../../../../shared/constantes';
 import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
-import { EXT, detectarMime, leerFoto, noModificada, respuestaArchivo } from '../../../plumbing/fotos';
+import {
+  EXT,
+  detectarMime,
+  leerFoto,
+  noModificada,
+  respuestaArchivo,
+} from '../../../plumbing/fotos';
 import { ApiError, noEncontrado, prohibido } from '../../../plumbing/http';
 import { cargarVisita, nombreSeguro } from '../comun';
 
@@ -14,7 +24,8 @@ async function visitaPropia(ctx: Ctx, id: number) {
 
 function ordenValido(v: string | undefined) {
   const n = Number(v);
-  if (!Number.isInteger(n) || n < 1 || n > MAX_FOTOS) throw new ApiError(400, `La foto debe ser de la 1 a la ${MAX_FOTOS}.`);
+  if (!Number.isInteger(n) || n < 1 || n > MAX_FOTOS)
+    throw new ApiError(400, `La foto debe ser de la 1 a la ${MAX_FOTOS}.`);
   return n;
 }
 
@@ -22,17 +33,30 @@ function ordenValido(v: string | undefined) {
  * Guarda una foto ORIGINAL (excepción E2) en R2: fotos/<folio>/<orden>.<ext>, con su fila en
  * registros_fotos. Reenviar la misma foto la reemplaza (idempotente para la sincronización).
  */
-export async function subirFoto(ctx: Ctx, id: number, ordenTexto: string | undefined) {
+export async function subirFoto(
+  ctx: Ctx,
+  id: number,
+  ordenTexto: string | undefined,
+) {
   const orden = ordenValido(ordenTexto);
   const v = await visitaPropia(ctx, id);
-  const observacion = (ctx.url.searchParams.get('obs') ?? '').trim().slice(0, 500) || null;
+  const observacion =
+    (ctx.url.searchParams.get('obs') ?? '').trim().slice(0, 500) || null;
   const { buf, mime } = await leerFoto(ctx.req);
   const folio = String(v.visita_num);
   const clave = `fotos/${nombreSeguro(folio)}/${orden}.${EXT[mime]}`;
   const db = ctx.env.DB;
-  const anterior = await db.prepare('SELECT r2_key FROM registros_fotos WHERE visita_num = ? AND orden = ?').bind(folio, orden).first<{ r2_key: string }>();
+  const anterior = await db
+    .prepare(
+      'SELECT r2_key FROM registros_fotos WHERE visita_num = ? AND orden = ?',
+    )
+    .bind(folio, orden)
+    .first<{ r2_key: string }>();
 
-  await ctx.env.ARCHIVOS.put(clave, buf, { httpMetadata: { contentType: mime }, customMetadata: { visita: folio, orden: String(orden) } });
+  await ctx.env.ARCHIVOS.put(clave, buf, {
+    httpMetadata: { contentType: mime },
+    customMetadata: { visita: folio, orden: String(orden) },
+  });
   await db.batch([
     db
       .prepare(
@@ -42,11 +66,30 @@ export async function subirFoto(ctx: Ctx, id: number, ordenTexto: string | undef
            content_type = excluded.content_type, size = excluded.size, created_at = excluded.created_at, subido_por = excluded.subido_por,
            copia_r2_key = NULL`,
       )
-      .bind(folio, orden, clave, observacion, mime, buf.byteLength, ctx.ahora, ctx.usuario.id),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'subir_foto', 'visita', id, anterior, { orden, mime, bytes: buf.byteLength, observacion }, ctx.ahora),
+      .bind(
+        folio,
+        orden,
+        clave,
+        observacion,
+        mime,
+        buf.byteLength,
+        ctx.ahora,
+        ctx.usuario.id,
+      ),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'subir_foto',
+      'visita',
+      id,
+      anterior,
+      { orden, mime, bytes: buf.byteLength, observacion },
+      ctx.ahora,
+    ),
   ]);
   // Si la foto cambió de formato, la anterior queda con otro nombre: se retira de R2.
-  if (anterior && anterior.r2_key !== clave) await ctx.env.ARCHIVOS.delete(anterior.r2_key);
+  if (anterior && anterior.r2_key !== clave)
+    await ctx.env.ARCHIVOS.delete(anterior.r2_key);
   return { orden, bytes: buf.byteLength, mime };
 }
 
@@ -54,31 +97,67 @@ export async function subirFoto(ctx: Ctx, id: number, ordenTexto: string | undef
  * Guarda la copia reducida de una foto (E2): un JPEG de 1600 px como máximo que el teléfono generó al
  * capturar. La foto original debe estar subida; reenviar la copia la reemplaza.
  */
-export async function subirCopiaFoto(ctx: Ctx, id: number, ordenTexto: string | undefined) {
+export async function subirCopiaFoto(
+  ctx: Ctx,
+  id: number,
+  ordenTexto: string | undefined,
+) {
   const orden = ordenValido(ordenTexto);
   const v = await visitaPropia(ctx, id);
   const folio = String(v.visita_num);
-  const foto = await ctx.env.DB.prepare('SELECT copia_r2_key FROM registros_fotos WHERE visita_num = ? AND orden = ?').bind(folio, orden).first();
+  const foto = await ctx.env.DB.prepare(
+    'SELECT copia_r2_key FROM registros_fotos WHERE visita_num = ? AND orden = ?',
+  )
+    .bind(folio, orden)
+    .first();
   if (!foto) throw new ApiError(409, 'Primero se sube la foto original.');
   const buf = new Uint8Array(await ctx.req.arrayBuffer());
-  if (buf.byteLength === 0 || buf.byteLength > MAX_COPIA_BYTES) throw new ApiError(413, 'La copia de la foto está vacía o es demasiado grande.');
-  if (detectarMime(buf) !== 'image/jpeg') throw new ApiError(415, 'La copia de la foto debe ser JPEG.');
+  if (buf.byteLength === 0 || buf.byteLength > MAX_COPIA_BYTES)
+    throw new ApiError(
+      413,
+      'La copia de la foto está vacía o es demasiado grande.',
+    );
+  if (detectarMime(buf) !== 'image/jpeg')
+    throw new ApiError(415, 'La copia de la foto debe ser JPEG.');
   const clave = `fotos/${nombreSeguro(folio)}/${orden}-copia.jpg`;
-  await ctx.env.ARCHIVOS.put(clave, buf, { httpMetadata: { contentType: 'image/jpeg' } });
+  await ctx.env.ARCHIVOS.put(clave, buf, {
+    httpMetadata: { contentType: 'image/jpeg' },
+  });
   await ctx.env.DB.batch([
-    ctx.env.DB.prepare('UPDATE registros_fotos SET copia_r2_key = ? WHERE visita_num = ? AND orden = ?').bind(clave, folio, orden),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'subir_copia_foto', 'visita', id, null, { orden, bytes: buf.byteLength }, ctx.ahora),
+    ctx.env.DB.prepare(
+      'UPDATE registros_fotos SET copia_r2_key = ? WHERE visita_num = ? AND orden = ?',
+    ).bind(clave, folio, orden),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'subir_copia_foto',
+      'visita',
+      id,
+      null,
+      { orden, bytes: buf.byteLength },
+      ctx.ahora,
+    ),
   ]);
   return { orden, bytes: buf.byteLength };
 }
 
 /** Sirve la copia reducida de una foto (la que se muestra en pantalla) a quien puede ver la visita. */
-export async function descargarCopiaFoto(ctx: Ctx, id: number, ordenTexto: string | undefined) {
+export async function descargarCopiaFoto(
+  ctx: Ctx,
+  id: number,
+  ordenTexto: string | undefined,
+) {
   const orden = ordenValido(ordenTexto);
   const v = await cargarVisita(ctx, id);
-  const f = await ctx.env.DB.prepare('SELECT copia_r2_key, size, created_at FROM registros_fotos WHERE visita_num = ? AND orden = ?')
+  const f = await ctx.env.DB.prepare(
+    'SELECT copia_r2_key, size, created_at FROM registros_fotos WHERE visita_num = ? AND orden = ?',
+  )
     .bind(v.visita_num, orden)
-    .first<{ copia_r2_key: string | null; size: number | null; created_at: string | null }>();
+    .first<{
+      copia_r2_key: string | null;
+      size: number | null;
+      created_at: string | null;
+    }>();
   if (!f?.copia_r2_key) throw noEncontrado('La copia de la foto');
   const version = `${f.copia_r2_key}-${f.size ?? 0}-${f.created_at ?? ''}`;
   const igual = noModificada(ctx, version);
@@ -89,12 +168,23 @@ export async function descargarCopiaFoto(ctx: Ctx, id: number, ordenTexto: strin
 }
 
 /** Sirve la foto original a quien puede ver la visita (nunca es pública). */
-export async function descargarFoto(ctx: Ctx, id: number, ordenTexto: string | undefined) {
+export async function descargarFoto(
+  ctx: Ctx,
+  id: number,
+  ordenTexto: string | undefined,
+) {
   const orden = ordenValido(ordenTexto);
   const v = await cargarVisita(ctx, id);
-  const f = await ctx.env.DB.prepare('SELECT r2_key, content_type, size, created_at FROM registros_fotos WHERE visita_num = ? AND orden = ?')
+  const f = await ctx.env.DB.prepare(
+    'SELECT r2_key, content_type, size, created_at FROM registros_fotos WHERE visita_num = ? AND orden = ?',
+  )
     .bind(v.visita_num, orden)
-    .first<{ r2_key: string; content_type: string | null; size: number | null; created_at: string | null }>();
+    .first<{
+      r2_key: string;
+      content_type: string | null;
+      size: number | null;
+      created_at: string | null;
+    }>();
   if (!f) throw noEncontrado('La foto');
   const version = `${f.r2_key}-${f.size ?? 0}-${f.created_at ?? ''}`;
   const igual = noModificada(ctx, version);
@@ -111,15 +201,32 @@ export async function descargarFoto(ctx: Ctx, id: number, ordenTexto: string | u
 export async function subirPdf(ctx: Ctx, id: number) {
   const v = await visitaPropia(ctx, id);
   const largo = Number(ctx.req.headers.get('Content-Length') || 0);
-  if (largo > MAX_PDF_BYTES) throw new ApiError(413, 'El PDF es demasiado grande.');
+  if (largo > MAX_PDF_BYTES)
+    throw new ApiError(413, 'El PDF es demasiado grande.');
   const buf = new Uint8Array(await ctx.req.arrayBuffer());
-  if (buf.byteLength === 0 || buf.byteLength > MAX_PDF_BYTES) throw new ApiError(413, 'El PDF está vacío o es demasiado grande.');
-  if (String.fromCharCode(...buf.slice(0, 4)) !== '%PDF') throw new ApiError(415, 'El archivo no es un PDF.');
+  if (buf.byteLength === 0 || buf.byteLength > MAX_PDF_BYTES)
+    throw new ApiError(413, 'El PDF está vacío o es demasiado grande.');
+  if (String.fromCharCode(...buf.slice(0, 4)) !== '%PDF')
+    throw new ApiError(415, 'El archivo no es un PDF.');
   const clave = `pdfs/${nombreSeguro(String(v.visita_num))}.pdf`;
-  await ctx.env.ARCHIVOS.put(clave, buf, { httpMetadata: { contentType: 'application/pdf' } });
+  await ctx.env.ARCHIVOS.put(clave, buf, {
+    httpMetadata: { contentType: 'application/pdf' },
+  });
   await ctx.env.DB.batch([
-    ctx.env.DB.prepare('UPDATE registros SET pdf_r2_key = ? WHERE id = ?').bind(clave, id),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'archivar_pdf', 'visita', id, null, { bytes: buf.byteLength }, ctx.ahora),
+    ctx.env.DB.prepare('UPDATE registros SET pdf_r2_key = ? WHERE id = ?').bind(
+      clave,
+      id,
+    ),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'archivar_pdf',
+      'visita',
+      id,
+      null,
+      { bytes: buf.byteLength },
+      ctx.ahora,
+    ),
   ]);
   return { bytes: buf.byteLength };
 }
@@ -130,5 +237,10 @@ export async function descargarPdf(ctx: Ctx, id: number) {
   if (!clave) throw noEncontrado('El PDF de la inspección');
   const obj = await ctx.env.ARCHIVOS.get(clave);
   if (!obj) throw noEncontrado('El PDF de la inspección');
-  return respuestaArchivo(obj, 'application/pdf', `${clave}-${obj.size ?? ''}`, `Ficha_${nombreSeguro(String(v.visita_num))}.pdf`);
+  return respuestaArchivo(
+    obj,
+    'application/pdf',
+    `${clave}-${obj.size ?? ''}`,
+    `Ficha_${nombreSeguro(String(v.visita_num))}.pdf`,
+  );
 }

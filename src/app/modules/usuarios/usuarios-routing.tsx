@@ -3,8 +3,16 @@ import { Route } from 'react-router-dom';
 import { AuthRoute } from '@common/seguridad/acceso';
 import { PermisosUsuarios } from './permisos';
 
-const ListarUsuarios = lazy(() => import('./features/listar-usuarios/pagina').then((m) => ({ default: m.Usuarios })));
-const VerUsuario = lazy(() => import('./features/ver-usuario/pagina').then((m) => ({ default: m.VerUsuario })));
+const ListarUsuarios = lazy(() =>
+  import('./features/listar-usuarios/pagina').then(m => ({
+    default: m.Usuarios,
+  })),
+);
+const VerUsuario = lazy(() =>
+  import('./features/ver-usuario/pagina').then(m => ({
+    default: m.VerUsuario,
+  })),
+);
 
 /** Sin opción propia en el menú principal: se entra desde Administración. */
 export const rutasUsuarios = [

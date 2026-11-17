@@ -1,5 +1,9 @@
 import type { Equipo, EstadoVisita } from '../../../shared/constantes';
-import type { FotoVisita, VisitaDetalle, VisitaResumen } from '../../../shared/tipos';
+import type {
+  FotoVisita,
+  VisitaDetalle,
+  VisitaResumen,
+} from '../../../shared/tipos';
 import type { Visita } from '../../../shared/visitas';
 import { type Ctx, filtroVisitas } from '../../plumbing/contexto';
 import { noEncontrado } from '../../plumbing/http';
@@ -99,7 +103,12 @@ export const COLUMNAS_DATOS = [
   'num_fotos',
 ] as const;
 
-const siNo = (v: unknown) => (v === null || v === undefined || v === '' ? null : Number(v) === 1 || v === 'SI' ? 'SI' : 'NO');
+const siNo = (v: unknown) =>
+  v === null || v === undefined || v === ''
+    ? null
+    : Number(v) === 1 || v === 'SI'
+      ? 'SI'
+      : 'NO';
 const json = <T>(v: unknown, porDefecto: T): T => {
   if (typeof v !== 'string' || !v) return porDefecto;
   try {
@@ -121,7 +130,14 @@ export function filaAVisita(f: Record<string, unknown>): Visita {
   d.tablero_campos = json(f.tablero_campos, {});
   d.materiales = json(f.materiales_json, []);
   d.personal = json(f.personal_json, []);
-  for (const c of ['tablero_marca', 'materiales_json', 'materiales_resumen', 'personal_json', 'personal_resumen']) delete d[c];
+  for (const c of [
+    'tablero_marca',
+    'materiales_json',
+    'materiales_resumen',
+    'personal_json',
+    'personal_resumen',
+  ])
+    delete d[c];
   return d as unknown as Visita;
 }
 
@@ -143,7 +159,10 @@ export const resumen = (f: Record<string, unknown>): VisitaResumen => ({
   equipo: ((f.equipo as string) ?? 'restaurador') as Equipo,
   fecha_visita: (f.fecha_visita as string) ?? null,
   tipo_visita: (f.tipo_visita as string) ?? null,
-  codigo_energis: f.codigo_energis === null || f.codigo_energis === undefined ? null : String(f.codigo_energis),
+  codigo_energis:
+    f.codigo_energis === null || f.codigo_energis === undefined
+      ? null
+      : String(f.codigo_energis),
   circuito: (f.circuito as string) ?? null,
   ubicacion: (f.ubicacion as string) ?? null,
   zona: (f.zona as string) ?? null,
@@ -172,11 +191,14 @@ export async function cargarVisita(ctx: Ctx, id: number) {
   return f;
 }
 
-export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle> {
+export async function detalleVisita(
+  ctx: Ctx,
+  id: number,
+): Promise<VisitaDetalle> {
   const f = await cargarVisita(ctx, id);
   // Los datos van en una consulta aparte (menos de 100 columnas).
   const datos = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS_DATOS.map((c) => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
+    `SELECT ${COLUMNAS_DATOS.map(c => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
   )
     .bind(id)
     .first<Record<string, unknown>>();
@@ -185,7 +207,7 @@ export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle
   )
     .bind(f.visita_num)
     .all<Record<string, unknown>>();
-  const fotos: FotoVisita[] = results.map((x) => ({
+  const fotos: FotoVisita[] = results.map(x => ({
     orden: Number(x.orden),
     observacion: (x.observacion as string) || null,
     content_type: String(x.content_type ?? 'image/jpeg'),
@@ -197,4 +219,5 @@ export async function detalleVisita(ctx: Ctx, id: number): Promise<VisitaDetalle
 }
 
 /** Nombre seguro para las claves de R2 (mismo criterio que el sistema anterior). */
-export const nombreSeguro = (folio: string) => folio.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);
+export const nombreSeguro = (folio: string) =>
+  folio.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 80);

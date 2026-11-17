@@ -26,26 +26,36 @@ function sincronizarReloj(valor: string | null) {
  */
 function mensajeDelServidor(datos: unknown, status: number) {
   const lista = Array.isArray(datos) ? (datos as { message?: string }[]) : [];
-  const textos = lista.map((x) => x?.message).filter((m): m is string => !!m);
+  const textos = lista.map(x => x?.message).filter((m): m is string => !!m);
   if (textos.length) return textos.join(' ');
-  return status >= 500 ? 'El servidor no respondió correctamente.' : 'Solicitud rechazada.';
+  return status >= 500
+    ? 'El servidor no respondió correctamente.'
+    : 'Solicitud rechazada.';
 }
 /** Datos extra del primer error (p. ej. el campo del formulario) para quien los necesite. */
-const extraDelError = (datos: unknown) => (Array.isArray(datos) ? (datos[0] as Record<string, unknown> | undefined) : undefined);
+const extraDelError = (datos: unknown) =>
+  Array.isArray(datos)
+    ? (datos[0] as Record<string, unknown> | undefined)
+    : undefined;
 
 let alExpirarSesion: () => void = () => {};
 export const configurarExpiracion = (fn: () => void) => {
   alExpirarSesion = fn;
 };
 
-const SIN_CONEXION = 'Sin conexión. Revise su señal e intente nuevamente; no se guardó ningún cambio.';
+const SIN_CONEXION =
+  'Sin conexión. Revise su señal e intente nuevamente; no se guardó ningún cambio.';
 const SIN_RESPUESTA = 'El servidor no respondió a tiempo. Intente nuevamente.';
-const SIN_CONFIRMACION = 'El servidor no confirmó a tiempo; el cambio pudo haberse guardado. Revise antes de repetirlo.';
+const SIN_CONFIRMACION =
+  'El servidor no confirmó a tiempo; el cambio pudo haberse guardado. Revise antes de repetirlo.';
 /** Ninguna solicitud espera para siempre; las escrituras y subidas de fotos tienen más margen. */
 const LIMITE_CONSULTA_MS = 20_000;
 const LIMITE_ESCRITURA_MS = 60_000;
 
-export async function pedir<T>(camino: string, opciones: RequestInit & { json?: unknown } = {}): Promise<T> {
+export async function pedir<T>(
+  camino: string,
+  opciones: RequestInit & { json?: unknown } = {},
+): Promise<T> {
   const headers = new Headers(opciones.headers);
   let body = opciones.body;
   if (opciones.json !== undefined) {
@@ -57,30 +67,61 @@ export async function pedir<T>(camino: string, opciones: RequestInit & { json?: 
   const conexion = conexionActual();
   if (!esConsulta && conexion) headers.set(CABECERA_CONEXION, conexion);
   // El límite de tiempo aplica siempre; una señal de quien llama (p. ej. cancelar un envío) se suma a él.
-  const limite = typeof AbortSignal.timeout === 'function' ? AbortSignal.timeout(esConsulta ? LIMITE_CONSULTA_MS : LIMITE_ESCRITURA_MS) : undefined;
-  const signal = opciones.signal && limite && typeof AbortSignal.any === 'function' ? AbortSignal.any([opciones.signal, limite]) : (opciones.signal ?? limite);
+  const limite =
+    typeof AbortSignal.timeout === 'function'
+      ? AbortSignal.timeout(
+          esConsulta ? LIMITE_CONSULTA_MS : LIMITE_ESCRITURA_MS,
+        )
+      : undefined;
+  const signal =
+    opciones.signal && limite && typeof AbortSignal.any === 'function'
+      ? AbortSignal.any([opciones.signal, limite])
+      : (opciones.signal ?? limite);
   let res: Response;
   try {
-    res = await fetch(camino, { ...opciones, headers, body, signal, credentials: 'same-origin' });
+    res = await fetch(camino, {
+      ...opciones,
+      headers,
+      body,
+      signal,
+      credentials: 'same-origin',
+    });
   } catch (e) {
-    if (e instanceof DOMException && e.name === 'TimeoutError') throw new ErrorApi(0, esConsulta ? SIN_RESPUESTA : SIN_CONFIRMACION, { sin_respuesta: true });
+    if (e instanceof DOMException && e.name === 'TimeoutError')
+      throw new ErrorApi(0, esConsulta ? SIN_RESPUESTA : SIN_CONFIRMACION, {
+        sin_respuesta: true,
+      });
     throw new ErrorApi(0, SIN_CONEXION);
   }
   sincronizarReloj(res.headers.get('X-Servidor-Ahora'));
   const tipo = res.headers.get('Content-Type') ?? '';
-  const datos: unknown = tipo.includes('json') ? await res.json().catch(() => null) : null;
+  const datos: unknown = tipo.includes('json')
+    ? await res.json().catch(() => null)
+    : null;
   if (!res.ok) {
-    if (res.status === 401 && !camino.endsWith('/sesion/login')) alExpirarSesion();
-    throw new ErrorApi(res.status, mensajeDelServidor(datos, res.status), extraDelError(datos));
+    if (res.status === 401 && !camino.endsWith('/sesion/login'))
+      alExpirarSesion();
+    throw new ErrorApi(
+      res.status,
+      mensajeDelServidor(datos, res.status),
+      extraDelError(datos),
+    );
   }
   return datos as T;
 }
 
 export const get = <T>(camino: string) => pedir<T>(camino);
-export const post = <T>(camino: string, json?: unknown, headers?: HeadersInit) => pedir<T>(camino, { method: 'POST', json: json ?? {}, headers });
-export const patch = <T>(camino: string, json: unknown) => pedir<T>(camino, { method: 'PATCH', json });
-export const put = <T>(camino: string, json: unknown) => pedir<T>(camino, { method: 'PUT', json });
-export const subir = <T>(camino: string, form: FormData) => pedir<T>(camino, { method: 'POST', body: form });
+export const post = <T>(
+  camino: string,
+  json?: unknown,
+  headers?: HeadersInit,
+) => pedir<T>(camino, { method: 'POST', json: json ?? {}, headers });
+export const patch = <T>(camino: string, json: unknown) =>
+  pedir<T>(camino, { method: 'PATCH', json });
+export const put = <T>(camino: string, json: unknown) =>
+  pedir<T>(camino, { method: 'PUT', json });
+export const subir = <T>(camino: string, form: FormData) =>
+  pedir<T>(camino, { method: 'POST', body: form });
 
 /**
  * Sube un archivo grande (fotos originales, PDF). A diferencia de `pedir`, no tiene un límite de tiempo
@@ -90,9 +131,19 @@ export const subir = <T>(camino: string, form: FormData) => pedir<T>(camino, { m
 export function subirArchivo<T>(
   camino: string,
   archivo: Blob,
-  opciones: { metodo?: string; tipo?: string; signal?: AbortSignal; inactividadMs?: number } = {},
+  opciones: {
+    metodo?: string;
+    tipo?: string;
+    signal?: AbortSignal;
+    inactividadMs?: number;
+  } = {},
 ): Promise<T> {
-  const { metodo = 'PUT', tipo = archivo.type || 'application/octet-stream', signal, inactividadMs = 60_000 } = opciones;
+  const {
+    metodo = 'PUT',
+    tipo = archivo.type || 'application/octet-stream',
+    signal,
+    inactividadMs = 60_000,
+  } = opciones;
   return new Promise<T>((ok, mal) => {
     const xhr = new XMLHttpRequest();
     let vigilancia: ReturnType<typeof setTimeout> | undefined;
@@ -129,7 +180,13 @@ export function subirArchivo<T>(
       }
       if (xhr.status < 200 || xhr.status >= 300) {
         if (xhr.status === 401) alExpirarSesion();
-        return mal(new ErrorApi(xhr.status, mensajeDelServidor(datos, xhr.status), extraDelError(datos)));
+        return mal(
+          new ErrorApi(
+            xhr.status,
+            mensajeDelServidor(datos, xhr.status),
+            extraDelError(datos),
+          ),
+        );
       }
       ok(datos as T);
     };
@@ -138,11 +195,13 @@ export function subirArchivo<T>(
   });
 }
 
-export const mensajeError = (e: unknown) => (e instanceof Error ? e.message : 'Ocurrió un error inesperado.');
+export const mensajeError = (e: unknown) =>
+  e instanceof Error ? e.message : 'Ocurrió un error inesperado.';
 
 export function qs(params: Record<string, string | number | null | undefined>) {
   const p = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) if (v !== null && v !== undefined && v !== '') p.set(k, String(v));
+  for (const [k, v] of Object.entries(params))
+    if (v !== null && v !== undefined && v !== '') p.set(k, String(v));
   const s = p.toString();
   return s ? `?${s}` : '';
 }

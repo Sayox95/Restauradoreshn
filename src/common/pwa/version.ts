@@ -1,7 +1,10 @@
 /** Espera a que un service worker nuevo termine de instalarse (o se rinde a los `ms`). */
-function instalado(sw: ServiceWorker, ms = 10_000): Promise<ServiceWorker | null> {
+function instalado(
+  sw: ServiceWorker,
+  ms = 10_000,
+): Promise<ServiceWorker | null> {
   if (sw.state === 'installed') return Promise.resolve(sw);
-  return new Promise((ok) => {
+  return new Promise(ok => {
     const t = setTimeout(() => ok(null), ms);
     sw.addEventListener('statechange', () => {
       if (sw.state === 'installed') {
@@ -25,10 +28,16 @@ export async function actualizarYRecargar() {
     const reg = await navigator.serviceWorker?.getRegistration();
     if (reg) {
       await reg.update().catch(() => {});
-      const nuevo = reg.waiting ?? (reg.installing ? await instalado(reg.installing) : null);
+      const nuevo =
+        reg.waiting ??
+        (reg.installing ? await instalado(reg.installing) : null);
       if (nuevo) {
-        await new Promise<void>((ok) => {
-          navigator.serviceWorker.addEventListener('controllerchange', () => ok(), { once: true });
+        await new Promise<void>(ok => {
+          navigator.serviceWorker.addEventListener(
+            'controllerchange',
+            () => ok(),
+            { once: true },
+          );
           nuevo.postMessage({ type: 'SKIP_WAITING' });
           setTimeout(ok, 3000);
         });

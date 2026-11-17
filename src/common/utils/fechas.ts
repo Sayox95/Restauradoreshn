@@ -19,33 +19,58 @@ function fmt(opciones: Intl.DateTimeFormatOptions) {
 
 /** 14/10/2026 08:30 */
 export const fechaHora = (iso: string) =>
-  fmt({ day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+  fmt({
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso));
 /** 14/10/2026 */
-export const fecha = (iso: string) => fmt({ day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(iso));
+export const fecha = (iso: string) =>
+  fmt({ day: '2-digit', month: '2-digit', year: 'numeric' }).format(
+    new Date(iso),
+  );
 /** "octubre 2026" (mes local, para agrupar). */
 export const mesDe = (iso: string) => {
   const t = fmt({ month: 'long', year: 'numeric' }).format(new Date(iso));
   return t.charAt(0).toUpperCase() + t.slice(1);
 };
 /** 14 oct */
-export const fechaCorta = (iso: string) => fmt({ day: 'numeric', month: 'short' }).format(new Date(iso)).replace('.', '');
+export const fechaCorta = (iso: string) =>
+  fmt({ day: 'numeric', month: 'short' })
+    .format(new Date(iso))
+    .replace('.', '');
 /** 08:30 */
-export const hora = (iso: string) => fmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
+export const hora = (iso: string) =>
+  fmt({ hour: '2-digit', minute: '2-digit', hour12: false }).format(
+    new Date(iso),
+  );
 
 /** Etiqueta de mes "oct 26" a partir de "2026-10". */
 export function etiquetaMes(clave: string) {
   const [y, m] = clave.split('-').map(Number) as [number, number];
   return (
-    new Intl.DateTimeFormat('es', { month: 'short', timeZone: 'UTC' }).format(new Date(Date.UTC(y, m - 1, 15))).replace('.', '') + ` ${String(y).slice(2)}`
+    new Intl.DateTimeFormat('es', { month: 'short', timeZone: 'UTC' })
+      .format(new Date(Date.UTC(y, m - 1, 15)))
+      .replace('.', '') + ` ${String(y).slice(2)}`
   );
 }
 
 /** Valor para <input type="datetime-local"> en la zona configurada. */
 export function aInputLocal(iso: string) {
   const p = Object.fromEntries(
-    fmt({ year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false })
+    fmt({
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
       .formatToParts(new Date(iso))
-      .map((x) => [x.type, x.value]),
+      .map(x => [x.type, x.value]),
   );
   return `${p.year}-${p.month}-${p.day}T${p.hour === '24' ? '00' : p.hour}:${p.minute}`;
 }
@@ -73,7 +98,7 @@ export function claveDia(ms: number) {
   const p = Object.fromEntries(
     fmt({ year: 'numeric', month: '2-digit', day: '2-digit' })
       .formatToParts(new Date(ms))
-      .map((x) => [x.type, x.value]),
+      .map(x => [x.type, x.value]),
   );
   return `${p.year}-${p.month}-${p.day}`;
 }

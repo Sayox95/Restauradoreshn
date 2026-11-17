@@ -24,7 +24,7 @@ async function logoBlanco(): Promise<string | null> {
     const r = await fetch('/logo.png');
     if (!r.ok) return null;
     const url = URL.createObjectURL(await r.blob());
-    logoCache = await new Promise<string | null>((ok) => {
+    logoCache = await new Promise<string | null>(ok => {
       const img = new Image();
       img.onload = () => {
         const cv = document.createElement('canvas');
@@ -46,10 +46,17 @@ async function logoBlanco(): Promise<string | null> {
 }
 
 /** Genera la ficha en PDF. */
-export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<Blob> {
+export async function generarFicha(
+  v: Visita,
+  fotosFicha: FotoFicha[],
+): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const logoBase64 = await logoBlanco();
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'letter' });
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'letter',
+  });
   const PW = 215.9,
     PH = 279.4;
   const ML = 12,
@@ -76,13 +83,25 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   const CW = PW - ML - MR; // ancho útil
 
   // ── Auxiliares de dibujo ──
-  const setFont = (size: number, style = 'normal', color: Color | null = null) => {
+  const setFont = (
+    size: number,
+    style = 'normal',
+    color: Color | null = null,
+  ) => {
     doc.setFontSize(size);
     doc.setFont('helvetica', style);
     if (color) doc.setTextColor(...color);
     else doc.setTextColor(30, 41, 59);
   };
-  const rect = (x: number, yy: number, w: number, h: number, fill: Color | null, stroke: Color | null = null, r = 0) => {
+  const rect = (
+    x: number,
+    yy: number,
+    w: number,
+    h: number,
+    fill: Color | null,
+    stroke: Color | null = null,
+    r = 0,
+  ) => {
     if (fill) doc.setFillColor(...fill);
     if (stroke) {
       doc.setDrawColor(...stroke);
@@ -95,12 +114,24 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     if (r > 0) doc.roundedRect(x, yy, w, h, r, r, estilo);
     else doc.rect(x, yy, w, h, estilo);
   };
-  const line = (x1: number, yy1: number, x2: number, yy2: number, color: Color = BORDER, lw = 0.3) => {
+  const line = (
+    x1: number,
+    yy1: number,
+    x2: number,
+    yy2: number,
+    color: Color = BORDER,
+    lw = 0.3,
+  ) => {
     doc.setDrawColor(...color);
     doc.setLineWidth(lw);
     doc.line(x1, yy1, x2, yy2);
   };
-  const txt = (t: unknown, x: number, yy: number, opts: { align?: 'left' | 'center' | 'right' } = {}) => {
+  const txt = (
+    t: unknown,
+    x: number,
+    yy: number,
+    opts: { align?: 'left' | 'center' | 'right' } = {},
+  ) => {
     doc.text(String(t || '—'), x, yy, opts);
   };
   const checkPage = (needed = 10) => {
@@ -122,11 +153,17 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   const SUBBG: Color = [232, 240, 254];
   const CELL_H = 9;
   const ESTADO_H = 6;
-  const vacio = (v: unknown) => v === undefined || v === null || String(v).trim() === '';
-  const ajustar = (t: unknown, w: number): string => doc.splitTextToSize(String(t), w)[0] || '';
+  const vacio = (v: unknown) =>
+    v === undefined || v === null || String(v).trim() === '';
+  const ajustar = (t: unknown, w: number): string =>
+    doc.splitTextToSize(String(t), w)[0] || '';
   const tono = (v: unknown): Color => {
     const t = String(v || '').toUpperCase();
-    return ['SI', 'ON', 'OK'].includes(t) ? OK : ['NO', 'OFF', 'NOK'].includes(t) ? NOK : BLUE;
+    return ['SI', 'ON', 'OK'].includes(t)
+      ? OK
+      : ['NO', 'OFF', 'NOK'].includes(t)
+        ? NOK
+        : BLUE;
   };
 
   // Títulos de sección y subtítulos quedan "pendientes" y se dibujan junto
@@ -139,7 +176,8 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   const subtitulo = (t: string) => {
     _subPendiente = t;
   };
-  const altoPendiente = () => (_secPendiente ? 7 : 0) + (_subPendiente ? 4.2 : 0);
+  const altoPendiente = () =>
+    (_secPendiente ? 7 : 0) + (_subPendiente ? 4.2 : 0);
   const dibujarSubtitulo = () => {
     if (_secPendiente) {
       rect(ML, y, CW, 5.6, NAVY, null, 1);
@@ -168,7 +206,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     const filas: Celda[][] = [];
     let fila: Celda[] = [],
       usadas = 0;
-    items.forEach((it) => {
+    items.forEach(it => {
       const s = Math.min(it.s || 1, cols);
       if (usadas + s > cols) {
         filas.push(fila);
@@ -179,7 +217,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       usadas += s;
     });
     if (fila.length) filas.push(fila);
-    filas.forEach((f) => {
+    filas.forEach(f => {
       const total = f.reduce((a, it) => a + (it.s ?? 1), 0);
       f[f.length - 1]!.s = (f[f.length - 1]!.s ?? 1) + cols - total;
     });
@@ -197,7 +235,7 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     filas.forEach((f, fi) => {
       checkPage(CELL_H);
       let x = ML;
-      f.forEach((it) => {
+      f.forEach(it => {
         const w = cw * (it.s ?? 1);
         rect(x, y, w, CELL_H, fi % 2 === 0 ? BGROW : WHITE);
         if (x > ML) line(x, y + 1.2, x, y + CELL_H - 1.2, BORDER, 0.2);
@@ -229,13 +267,15 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     filas.forEach((f, fi) => {
       checkPage(ESTADO_H);
       let x = ML;
-      f.forEach((it) => {
+      f.forEach(it => {
         const w = cw * (it.s ?? 1);
         rect(x, y, w, ESTADO_H, fi % 2 === 0 ? BGROW : WHITE);
         if (x > ML) line(x, y + 1, x, y + ESTADO_H - 1, BORDER, 0.2);
         // «Etiqueta  ● VALOR»: el valor va junto a su campo. Solo SI/NO, OK/NOK y ON/OFF llevan punto de color.
         const valor = String(it.v);
-        const esEstado = ['SI', 'NO', 'OK', 'NOK', 'ON', 'OFF'].includes(valor.toUpperCase());
+        const esEstado = ['SI', 'NO', 'OK', 'NOK', 'ON', 'OFF'].includes(
+          valor.toUpperCase(),
+        );
         setFont(7, 'normal', TXT);
         const etiqueta = ajustar(it.l, w * 0.62);
         txt(etiqueta, x + 2, y + 4.1);
@@ -277,7 +317,11 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       const borde = tono2 === 'aviso' ? ACCENT : BORDER;
       rect(ML, y, CW, h, fondo, borde, 1);
       setFont(5.6, 'normal', tono2 === 'aviso' ? [146, 64, 14] : MUTED);
-      txt((etiqueta + (primera ? '' : ' (cont.)')).toUpperCase(), ML + 2.5, y + 3.4);
+      txt(
+        (etiqueta + (primera ? '' : ' (cont.)')).toUpperCase(),
+        ML + 2.5,
+        y + 3.4,
+      );
       setFont(7.6, 'normal', TXT);
       doc.text(trozo, ML + 2.5, y + 7.2);
       y += h + 1.8;
@@ -293,9 +337,12 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     const gap = 3,
       w = (CW - gap * (con.length - 1)) / con.length;
     setFont(7.6, 'normal');
-    const lineas = con.map(([, t]) => doc.splitTextToSize(String(t), w - 5) as string[]);
-    if (lineas.some((l) => l.length > 6)) return con.forEach(([e, t]) => textoLargo(e, t));
-    const h = 5 + Math.max(...lineas.map((l) => l.length)) * 3.6 + 1;
+    const lineas = con.map(
+      ([, t]) => doc.splitTextToSize(String(t), w - 5) as string[],
+    );
+    if (lineas.some(l => l.length > 6))
+      return con.forEach(([e, t]) => textoLargo(e, t));
+    const h = 5 + Math.max(...lineas.map(l => l.length)) * 3.6 + 1;
     checkPage(altoPendiente() + h);
     dibujarSubtitulo();
     con.forEach(([e], i) => {
@@ -355,7 +402,9 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     setFont(5.6, 'normal', MUTED);
     txt(l.toUpperCase(), cx, y + 3.6, { align: 'center' });
     setFont(8.4, 'bold', NAVY);
-    txt(ajustar(vacio(valor) ? '—' : valor, qw - 3), cx, y + 8.2, { align: 'center' });
+    txt(ajustar(vacio(valor) ? '—' : valor, qw - 3), cx, y + 8.2, {
+      align: 'center',
+    });
   });
   y += 13;
 
@@ -395,9 +444,14 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     const encabezado = () => {
       rect(ML, y, CW, 5.5, BLUE, null, 1);
       let mx = ML;
-      cols.forEach((c) => {
+      cols.forEach(c => {
         setFont(6.2, 'bold', WHITE);
-        txt(c.l.toUpperCase(), c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 3.8, c.c ? { align: 'center' } : {});
+        txt(
+          c.l.toUpperCase(),
+          c.c ? mx + (CW * c.w) / 2 : mx + 2.5,
+          y + 3.8,
+          c.c ? { align: 'center' } : {},
+        );
         mx += CW * c.w;
       });
       y += 5.5;
@@ -415,7 +469,12 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
         const c = cols[ci]!;
         setFont(7.4, ci === 1 ? 'bold' : 'normal', ci === 0 ? BLUE : TXT);
         const t = ajustar(vacio(v) ? '—' : v, CW * c.w - 4);
-        txt(t, c.c ? mx + (CW * c.w) / 2 : mx + 2.5, y + 4.1, c.c ? { align: 'center' } : {});
+        txt(
+          t,
+          c.c ? mx + (CW * c.w) / 2 : mx + 2.5,
+          y + 4.1,
+          c.c ? { align: 'center' } : {},
+        );
         mx += CW * c.w;
       });
       y += 6;
@@ -436,7 +495,8 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     for (let i = 0; i < fotos.length; i += 2) {
       checkPage(FH + CAP + 2);
       const enFila = fotos.slice(i, i + 2);
-      const x0 = enFila.length === 1 && fotos.length === 1 ? ML + (CW - FW) / 2 : ML;
+      const x0 =
+        enFila.length === 1 && fotos.length === 1 ? ML + (CW - FW) / 2 : ML;
       enFila.forEach((foto: FotoFicha, j: number) => {
         const x = x0 + j * (FW + 4);
         rect(x, y, FW, FH + CAP, WHITE, BORDER, 1.2);
@@ -445,10 +505,21 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
           const k = Math.min((FW - 2.4) / pr.width, (FH - 2.4) / pr.height);
           const iw = pr.width * k,
             ih = pr.height * k;
-          doc.addImage(foto.base64, 'JPEG', x + (FW - iw) / 2, y + 1.2 + (FH - 2.4 - ih) / 2, iw, ih, '', 'FAST');
+          doc.addImage(
+            foto.base64,
+            'JPEG',
+            x + (FW - iw) / 2,
+            y + 1.2 + (FH - 2.4 - ih) / 2,
+            iw,
+            ih,
+            '',
+            'FAST',
+          );
         } catch {
           setFont(7.6, 'normal', MUTED);
-          txt('Imagen no disponible', x + FW / 2, y + FH / 2, { align: 'center' });
+          txt('Imagen no disponible', x + FW / 2, y + FH / 2, {
+            align: 'center',
+          });
         }
         line(x, y + FH, x + FW, y + FH, BORDER, 0.2);
         setFont(6.8, 'bold', NAVY);
@@ -471,7 +542,9 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     persW = CW * 0.6 - gap / 2,
     firmaW = CW - persW - gap,
     firmaX = ML + persW + gap;
-  const lineasObs = vacio(v.obs_generales) ? [] : (doc.splitTextToSize(String(v.obs_generales), persW - 5) as string[]);
+  const lineasObs = vacio(v.obs_generales)
+    ? []
+    : (doc.splitTextToSize(String(v.obs_generales), persW - 5) as string[]);
   const altoObs = lineasObs.length ? 5 + lineasObs.length * 3.6 + 2 : 0;
   const altoTabla = cabP + Math.max(1, personal.length) * filaP;
   const altoBloque = Math.max(36, altoObs + altoTabla);
@@ -502,7 +575,9 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
   });
   rect(firmaX, y0, firmaW, altoBloque, BGROW, BORDER, 1.2);
   setFont(5.8, 'bold', MUTED);
-  txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4, { align: 'center' });
+  txt('FIRMA DEL RESPONSABLE', firmaX + firmaW / 2, y0 + 4, {
+    align: 'center',
+  });
   const fTop = y0 + 6,
     fBot = y0 + altoBloque - 9;
   if (v.firma_img && String(v.firma_img).startsWith('data:image')) {
@@ -511,17 +586,33 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
       const k = Math.min((firmaW - 8) / pr.width, (fBot - fTop) / pr.height);
       const iw = pr.width * k,
         ih = pr.height * k;
-      doc.addImage(v.firma_img, 'PNG', firmaX + (firmaW - iw) / 2, fTop + (fBot - fTop - ih) / 2, iw, ih, '', 'FAST');
+      doc.addImage(
+        v.firma_img,
+        'PNG',
+        firmaX + (firmaW - iw) / 2,
+        fTop + (fBot - fTop - ih) / 2,
+        iw,
+        ih,
+        '',
+        'FAST',
+      );
     } catch {
       // firma ilegible: queda el recuadro con el nombre
     }
   } else {
     setFont(7.6, 'italic', MUTED);
-    txt('Sin firma digital', firmaX + firmaW / 2, (fTop + fBot) / 2, { align: 'center' });
+    txt('Sin firma digital', firmaX + firmaW / 2, (fTop + fBot) / 2, {
+      align: 'center',
+    });
   }
   line(firmaX + 6, fBot + 1, firmaX + firmaW - 6, fBot + 1, MUTED, 0.3);
   setFont(8, 'bold', NAVY);
-  txt(ajustar(v.firma_responsable || '—', firmaW - 8), firmaX + firmaW / 2, fBot + 5.5, { align: 'center' });
+  txt(
+    ajustar(v.firma_responsable || '—', firmaW - 8),
+    firmaX + firmaW / 2,
+    fBot + 5.5,
+    { align: 'center' },
+  );
   y = y0 + altoBloque + 4;
 
   // ══════════════════════════════════════════════════════
@@ -533,7 +624,14 @@ export async function generarFicha(v: Visita, fotosFicha: FotoFicha[]): Promise<
     doc.setPage(i);
     rect(0, PH - 9, PW, 9, NAVY);
     setFont(6.2, 'normal', [150, 170, 200]);
-    txt('Hoja de inspección · ' + (v.visita_num || '') + ' · ' + (v.fecha_visita || ''), ML, PH - 3.6);
+    txt(
+      'Hoja de inspección · ' +
+        (v.visita_num || '') +
+        ' · ' +
+        (v.fecha_visita || ''),
+      ML,
+      PH - 3.6,
+    );
     txt(generado, PW / 2, PH - 3.6, { align: 'center' });
     txt('Pág. ' + i + ' / ' + paginas, PW - MR, PH - 3.6, { align: 'right' });
   }

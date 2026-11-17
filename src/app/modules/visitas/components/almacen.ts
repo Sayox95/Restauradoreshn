@@ -55,9 +55,12 @@ function abrir(): Promise<IDBDatabase> {
     const req = indexedDB.open(NOMBRE, VERSION);
     req.onupgradeneeded = () => {
       const db = req.result;
-      if (!db.objectStoreNames.contains('cola')) db.createObjectStore('cola', { keyPath: 'visita_num' });
-      if (!db.objectStoreNames.contains('borrador')) db.createObjectStore('borrador');
-      if (!db.objectStoreNames.contains('catalogos')) db.createObjectStore('catalogos');
+      if (!db.objectStoreNames.contains('cola'))
+        db.createObjectStore('cola', { keyPath: 'visita_num' });
+      if (!db.objectStoreNames.contains('borrador'))
+        db.createObjectStore('borrador');
+      if (!db.objectStoreNames.contains('catalogos'))
+        db.createObjectStore('catalogos');
     };
     req.onsuccess = () => {
       req.result.onversionchange = () => {
@@ -74,7 +77,11 @@ function abrir(): Promise<IDBDatabase> {
   return abierta;
 }
 
-async function operar<T>(store: string, modo: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T | undefined> {
+async function operar<T>(
+  store: string,
+  modo: IDBTransactionMode,
+  fn: (s: IDBObjectStore) => IDBRequest<T> | void,
+): Promise<T | undefined> {
   const db = await abrir();
   return new Promise((ok, mal) => {
     const tx = db.transaction(store, modo);
@@ -96,7 +103,7 @@ function pedirPersistencia() {
   persistenciaPedida = true;
   void navigator.storage
     ?.persisted?.()
-    .then((ya) => ya || navigator.storage.persist())
+    .then(ya => ya || navigator.storage.persist())
     .catch(() => {});
 }
 
@@ -119,10 +126,13 @@ export function fijarCuenta(id: number | null) {
  * que la app prellenaba con la cuenta que capturaba.
  */
 const duenoAnterior = (datos: unknown): number | undefined => {
-  const personal = (datos as { personal?: { usuario_id?: number | null }[] } | undefined)?.personal;
+  const personal = (
+    datos as { personal?: { usuario_id?: number | null }[] } | undefined
+  )?.personal;
   return personal?.[0]?.usuario_id ?? undefined;
 };
-const esDeLaCuenta = (usuarioId: number | undefined, datos: unknown) => cuentaActual !== null && (usuarioId ?? duenoAnterior(datos)) === cuentaActual;
+const esDeLaCuenta = (usuarioId: number | undefined, datos: unknown) =>
+  cuentaActual !== null && (usuarioId ?? duenoAnterior(datos)) === cuentaActual;
 
 // ── Cola de envíos ──────────────────────────────────────────────────────────────────────────
 const oyentes = new Set<() => void>();
@@ -131,21 +141,25 @@ export function alCambiarCola(fn: () => void) {
   oyentes.add(fn);
   return () => void oyentes.delete(fn);
 }
-const avisar = () => oyentes.forEach((f) => f());
+const avisar = () => oyentes.forEach(f => f());
 
 /** Pendientes de la cuenta activa (lo de otras cuentas no se muestra ni se envía). */
 export const listarCola = async () =>
-  ((await operar<Pendiente[]>('cola', 'readonly', (s) => s.getAll())) ?? [])
-    .filter((p) => esDeLaCuenta(p.usuario_id, p.visita))
+  ((await operar<Pendiente[]>('cola', 'readonly', s => s.getAll())) ?? [])
+    .filter(p => esDeLaCuenta(p.usuario_id, p.visita))
     .sort((a, b) => a.guardado_en.localeCompare(b.guardado_en));
 export async function guardarEnCola(p: Pendiente) {
   pedirPersistencia();
-  const conDueno = { ...p, usuario_id: p.usuario_id ?? duenoAnterior(p.visita) ?? cuentaActual ?? undefined };
-  await operar('cola', 'readwrite', (s) => s.put(conDueno));
+  const conDueno = {
+    ...p,
+    usuario_id:
+      p.usuario_id ?? duenoAnterior(p.visita) ?? cuentaActual ?? undefined,
+  };
+  await operar('cola', 'readwrite', s => s.put(conDueno));
   avisar();
 }
 export async function quitarDeCola(visitaNum: string) {
-  await operar('cola', 'readwrite', (s) => s.delete(visitaNum));
+  await operar('cola', 'readwrite', s => s.delete(visitaNum));
   avisar();
 }
 
@@ -154,21 +168,33 @@ export async function quitarDeCola(visitaNum: string) {
 const claveBorrador = () => `cuenta-${cuentaActual}`;
 export async function leerBorrador(): Promise<Borrador | undefined> {
   if (cuentaActual === null) return undefined;
-  const propio = await operar<Borrador>('borrador', 'readonly', (s) => s.get(claveBorrador()));
+  const propio = await operar<Borrador>('borrador', 'readonly', s =>
+    s.get(claveBorrador()),
+  );
   if (propio) return propio;
-  const anterior = await operar<Borrador>('borrador', 'readonly', (s) => s.get('actual'));
-  if (!anterior || !esDeLaCuenta(anterior.usuario_id, anterior.datos)) return undefined;
-  await operar('borrador', 'readwrite', (s) => s.put({ ...anterior, usuario_id: cuentaActual! }, claveBorrador()));
-  await operar('borrador', 'readwrite', (s) => s.delete('actual'));
+  const anterior = await operar<Borrador>('borrador', 'readonly', s =>
+    s.get('actual'),
+  );
+  if (!anterior || !esDeLaCuenta(anterior.usuario_id, anterior.datos))
+    return undefined;
+  await operar('borrador', 'readwrite', s =>
+    s.put({ ...anterior, usuario_id: cuentaActual! }, claveBorrador()),
+  );
+  await operar('borrador', 'readwrite', s => s.delete('actual'));
   return anterior;
 }
 export const guardarBorrador = (b: Borrador) => {
   if (cuentaActual === null) return Promise.resolve(undefined);
   pedirPersistencia();
-  return operar('borrador', 'readwrite', (s) => s.put({ ...b, usuario_id: cuentaActual! }, claveBorrador()));
+  return operar('borrador', 'readwrite', s =>
+    s.put({ ...b, usuario_id: cuentaActual! }, claveBorrador()),
+  );
 };
-export const borrarBorrador = () => operar('borrador', 'readwrite', (s) => s.delete(claveBorrador()));
+export const borrarBorrador = () =>
+  operar('borrador', 'readwrite', s => s.delete(claveBorrador()));
 
 // ── Catálogos para capturar sin señal ──────────────────────────────────────────────────────
-export const leerCatalogosLocales = () => operar<CatalogosVisita>('catalogos', 'readonly', (s) => s.get('visita'));
-export const guardarCatalogosLocales = (c: CatalogosVisita) => operar('catalogos', 'readwrite', (s) => s.put(c, 'visita'));
+export const leerCatalogosLocales = () =>
+  operar<CatalogosVisita>('catalogos', 'readonly', s => s.get('visita'));
+export const guardarCatalogosLocales = (c: CatalogosVisita) =>
+  operar('catalogos', 'readwrite', s => s.put(c, 'visita'));

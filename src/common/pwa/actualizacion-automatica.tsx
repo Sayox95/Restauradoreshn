@@ -15,7 +15,7 @@ function hayTrabajoSinGuardar() {
     ...document.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>(
       'textarea, input[type=text], input[type=number], input[type=tel], input[type=email], input[type=password], input:not([type])',
     ),
-  ].some((c) => c.value.trim() !== '' && c.inputMode !== 'search');
+  ].some(c => c.value.trim() !== '' && c.inputMode !== 'search');
 }
 
 /**
@@ -50,7 +50,8 @@ export function ActualizacionAutomatica() {
       pendiente = requestAnimationFrame(recargarSiSeguro);
     });
     obs.observe(document.body, { childList: true, subtree: true });
-    const alOcultar = () => document.visibilityState === 'hidden' && recargarSiSeguro();
+    const alOcultar = () =>
+      document.visibilityState === 'hidden' && recargarSiSeguro();
     document.addEventListener('visibilitychange', alOcultar);
     return () => {
       hecho = true;
@@ -62,16 +63,24 @@ export function ActualizacionAutomatica() {
 
   if (hayNueva && enCurso && !actualizando)
     return (
-      <div className="fixed inset-x-0 top-14 z-[55] flex justify-center px-4 pt-2" role="status">
+      <div
+        className="fixed inset-x-0 top-14 z-[55] flex justify-center px-4 pt-2"
+        role="status"
+      >
         <div className="flex w-full max-w-md items-center gap-3 rounded-xl bg-marca-900 px-4 py-2.5 text-sm text-white shadow-lg">
           <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="flex-1">Hay una versión nueva. Se aplicará al terminar la inspección.</span>
+          <span className="flex-1">
+            Hay una versión nueva. Se aplicará al terminar la inspección.
+          </span>
         </div>
       </div>
     );
   if (!actualizando) return null;
   return (
-    <div className="fixed inset-x-0 bottom-[calc(9.25rem+env(safe-area-inset-bottom))] z-[55] flex justify-center px-4 lg:bottom-4" role="status">
+    <div
+      className="fixed inset-x-0 bottom-[calc(9.25rem+env(safe-area-inset-bottom))] z-[55] flex justify-center px-4 lg:bottom-4"
+      role="status"
+    >
       <div className="flex w-full max-w-md items-center gap-3 rounded-xl bg-marca-900 px-4 py-3 text-sm text-white shadow-lg">
         <RefreshCcw className="h-4 w-4 animate-spin" aria-hidden />
         <span className="flex-1">Actualizando a la versión nueva…</span>

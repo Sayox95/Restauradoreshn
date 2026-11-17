@@ -41,30 +41,52 @@ export type Permiso =
   | (typeof PermisosCatalogos)[keyof typeof PermisosCatalogos];
 
 /** Módulos con sus permisos y nombres (lo que registraría el seeder del SSO). */
-export const MODULOS: { codigo: string; nombre: string; permisos: { codigo: Permiso; nombre: string }[] }[] = [
+export const MODULOS: {
+  codigo: string;
+  nombre: string;
+  permisos: { codigo: Permiso; nombre: string }[];
+}[] = [
   {
     codigo: 'utcd_restauradores_visitas',
     nombre: 'Inspecciones',
     permisos: [
       { codigo: PermisosVisitas.Registrar, nombre: 'Registrar inspecciones' },
-      { codigo: PermisosVisitas.Consultar, nombre: 'Consultar las inspecciones de todos' },
-      { codigo: PermisosVisitas.Exportar, nombre: 'Exportar inspecciones a CSV' },
+      {
+        codigo: PermisosVisitas.Consultar,
+        nombre: 'Consultar las inspecciones de todos',
+      },
+      {
+        codigo: PermisosVisitas.Exportar,
+        nombre: 'Exportar inspecciones a CSV',
+      },
       { codigo: PermisosVisitas.Eliminar, nombre: 'Eliminar inspecciones' },
     ],
   },
   {
     codigo: 'utcd_restauradores_usuarios',
     nombre: 'Usuarios',
-    permisos: [{ codigo: PermisosUsuarios.Gestionar, nombre: 'Gestionar usuarios y solicitudes de cuenta' }],
+    permisos: [
+      {
+        codigo: PermisosUsuarios.Gestionar,
+        nombre: 'Gestionar usuarios y solicitudes de cuenta',
+      },
+    ],
   },
   {
     codigo: 'utcd_restauradores_catalogos',
     nombre: 'Catálogos',
-    permisos: [{ codigo: PermisosCatalogos.Gestionar, nombre: 'Gestionar catálogos de la hoja de inspección y zona horaria' }],
+    permisos: [
+      {
+        codigo: PermisosCatalogos.Gestionar,
+        nombre: 'Gestionar catálogos de la hoja de inspección y zona horaria',
+      },
+    ],
   },
 ];
 
-export const TODOS_LOS_PERMISOS: Permiso[] = MODULOS.flatMap((m) => m.permisos.map((p) => p.codigo));
+export const TODOS_LOS_PERMISOS: Permiso[] = MODULOS.flatMap(m =>
+  m.permisos.map(p => p.codigo),
+);
 
 /**
  * Roles del sistema: uno por perfil. El rol es la plantilla de permisos de la cuenta; al asignar el
@@ -80,18 +102,35 @@ export interface RolSistema {
   permisos: Permiso[];
 }
 export const ROLES_SISTEMA: RolSistema[] = [
-  { codigo: 'utcd_restauradores_tecnico', nombre: 'Técnico', perfil: 'tecnico', nivel: 1, permisos: [PermisosVisitas.Registrar] },
+  {
+    codigo: 'utcd_restauradores_tecnico',
+    nombre: 'Técnico',
+    perfil: 'tecnico',
+    nivel: 1,
+    permisos: [PermisosVisitas.Registrar],
+  },
   {
     codigo: 'utcd_restauradores_supervisor',
     nombre: 'Supervisor',
     perfil: 'supervisor',
     nivel: 2,
-    permisos: [PermisosVisitas.Registrar, PermisosVisitas.Consultar, PermisosVisitas.Exportar],
+    permisos: [
+      PermisosVisitas.Registrar,
+      PermisosVisitas.Consultar,
+      PermisosVisitas.Exportar,
+    ],
   },
-  { codigo: 'utcd_restauradores_administrador', nombre: 'Administrador', perfil: 'admin', nivel: 3, permisos: TODOS_LOS_PERMISOS },
+  {
+    codigo: 'utcd_restauradores_administrador',
+    nombre: 'Administrador',
+    perfil: 'admin',
+    nivel: 3,
+    permisos: TODOS_LOS_PERMISOS,
+  },
 ];
 
-const rolSistema = (perfil: Rol) => ROLES_SISTEMA.find((r) => r.perfil === perfil)!;
+const rolSistema = (perfil: Rol) =>
+  ROLES_SISTEMA.find(r => r.perfil === perfil)!;
 
 /** Rol del sistema que corresponde a un perfil. */
 export const rolDePerfil = (perfil: Rol) => rolSistema(perfil).codigo;
@@ -100,18 +139,23 @@ export const rolDePerfil = (perfil: Rol) => rolSistema(perfil).codigo;
 export const nivelDePerfil = (perfil: Rol) => rolSistema(perfil).nivel;
 
 /** Permisos que trae un perfil (la plantilla al asignar acceso a una cuenta). */
-export const permisosDePerfil = (perfil: Rol): Permiso[] => [...rolSistema(perfil).permisos];
+export const permisosDePerfil = (perfil: Rol): Permiso[] => [
+  ...rolSistema(perfil).permisos,
+];
 
 /** ¿Los permisos elegidos son exactamente los del perfil? (si no, la cuenta tiene permisos a la medida). */
 export const igualAlPerfil = (perfil: Rol, permisos: readonly string[]) => {
   const p = new Set<string>(permisosDePerfil(perfil));
   const elegidos = new Set(permisos);
-  return p.size === elegidos.size && [...p].every((x) => elegidos.has(x));
+  return p.size === elegidos.size && [...p].every(x => elegidos.has(x));
 };
 
 /** Perfil en palabras para listas: «Supervisor» o «Supervisor (personalizado)». */
-export const resumenAcceso = (rol: Rol, personalizado: boolean) => `${ROL_ETIQUETA[rol] ?? rol}${personalizado ? ' (personalizado)' : ''}`;
+export const resumenAcceso = (rol: Rol, personalizado: boolean) =>
+  `${ROL_ETIQUETA[rol] ?? rol}${personalizado ? ' (personalizado)' : ''}`;
 
 /** ¿Tiene al menos uno de los permisos? (lista vacía = basta con iniciar sesión). */
-export const tieneAcceso = (permisos: readonly string[], requeridos: readonly Permiso[]) =>
-  requeridos.length === 0 || requeridos.some((p) => permisos.includes(p));
+export const tieneAcceso = (
+  permisos: readonly string[],
+  requeridos: readonly Permiso[],
+) => requeridos.length === 0 || requeridos.some(p => permisos.includes(p));

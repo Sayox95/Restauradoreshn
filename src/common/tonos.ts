@@ -42,12 +42,19 @@ export function tonoRespuesta(valor: string): string {
   return TONO.neutro.boton;
 }
 
-export const TONO_ESTADO_VISITA: Record<EstadoVisita, { etiqueta: string; punto: string }> = {
-  registrada: { etiqueta: 'bg-sky-50 text-sky-800 ring-sky-200', punto: 'bg-sky-400' },
+export const TONO_ESTADO_VISITA: Record<
+  EstadoVisita,
+  { etiqueta: string; punto: string }
+> = {
+  registrada: {
+    etiqueta: 'bg-sky-50 text-sky-800 ring-sky-200',
+    punto: 'bg-sky-400',
+  },
 };
 
 /** Botón de salida o de cancelar: rojo muy suave, casi transparente (p. ej. «Salir» del formulario). */
-export const TONO_SALIDA = 'border-rose-200/60 bg-rose-50/40 text-rose-700 hover:bg-rose-50/80';
+export const TONO_SALIDA =
+  'border-rose-200/60 bg-rose-50/40 text-rose-700 hover:bg-rose-50/80';
 
 /** Estado de una cuenta de usuario. */
 export const TONO_CUENTA: Record<EstadoCuenta, string> = {
@@ -58,4 +65,5 @@ export const TONO_CUENTA: Record<EstadoCuenta, string> = {
 };
 
 /** Cuenta con permisos a la medida (distintos de los de su perfil). */
-export const TONO_PERSONALIZADO = 'bg-violet-50 text-violet-800 ring-violet-200';
+export const TONO_PERSONALIZADO =
+  'bg-violet-50 text-violet-800 ring-violet-200';

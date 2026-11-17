@@ -22,8 +22,8 @@ export function useFotoPantalla(idVisita: number, foto: FotoVisita) {
     let vivo = true;
     let local: string | null = null;
     descargarFotoOriginal(idVisita, orden, v)
-      .then((blob) => vistaReducida(blob))
-      .then((u) => {
+      .then(blob => vistaReducida(blob))
+      .then(u => {
         if (!vivo) return u && URL.revokeObjectURL(u);
         local = u;
         if (u) setSrc(u);

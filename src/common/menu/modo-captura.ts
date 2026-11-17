@@ -11,7 +11,7 @@ const oyentes = new Set<(v: boolean) => void>();
 export function fijarModoCaptura(v: boolean) {
   if (activo === v) return;
   activo = v;
-  oyentes.forEach((f) => f(v));
+  oyentes.forEach(f => f(v));
 }
 
 export function useModoCaptura() {

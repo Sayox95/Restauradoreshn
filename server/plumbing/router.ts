@@ -20,9 +20,18 @@ export interface Ruta {
 }
 
 export const rutas: Ruta[] = [];
-export function ruta(metodo: string, camino: string, acceso: Acceso, manejar: Manejador) {
+export function ruta(
+  metodo: string,
+  camino: string,
+  acceso: Acceso,
+  manejar: Manejador,
+) {
   const claves: string[] = [];
-  const patron = new RegExp('^' + camino.replace(/:(\w+)/g, (_, k: string) => (claves.push(k), '([^/]+)')) + '/?$');
+  const patron = new RegExp(
+    '^' +
+      camino.replace(/:(\w+)/g, (_, k: string) => (claves.push(k), '([^/]+)')) +
+      '/?$',
+  );
   rutas.push({ metodo, camino, patron, claves, acceso, manejar });
 }
 
@@ -30,4 +39,5 @@ export function ruta(metodo: string, camino: string, acceso: Acceso, manejar: Ma
  * Respuesta con el contrato de TI: el DTO directo, sin envoltorio. La hora del servidor va en la cabecera
  * `X-Servidor-Ahora` de toda respuesta (la agrega manejarApi).
  */
-export const r = (_ctx: Ctx, datos: unknown, status = 200) => json(datos, status);
+export const r = (_ctx: Ctx, datos: unknown, status = 200) =>
+  json(datos, status);

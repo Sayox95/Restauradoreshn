@@ -7,15 +7,24 @@ import { urlNueva } from '@/app/nueva/urls';
 import { menuVisitas, nuevasVisitas } from '@modules/visitas';
 
 /** Administración se muestra a quien tenga alguna de sus secciones. */
-export const accesoAdministracion = [PermisosUsuarios.Gestionar, PermisosCatalogos.Gestionar];
+export const accesoAdministracion = [
+  PermisosUsuarios.Gestionar,
+  PermisosCatalogos.Gestionar,
+];
 
 /** Tipos de registro que se pueden empezar (hoy la inspección de restaurador; después, otros). */
 export const opcionesNueva: OpcionNueva[] = [...nuevasVisitas];
 /** «+ Nueva» se muestra a quien pueda empezar alguno. */
-export const accesoNueva = [...new Set(opcionesNueva.flatMap((o) => o.access))];
+export const accesoNueva = [...new Set(opcionesNueva.flatMap(o => o.access))];
 
 export const menuPrincipal: OpcionMenu[] = [
   ...menuVisitas,
   { a: urlNueva, texto: 'Nueva', icono: FilePlus2, access: accesoNueva },
-  { a: urlAdministracion, texto: 'Administración', corto: 'Admin', icono: Settings, access: accesoAdministracion },
+  {
+    a: urlAdministracion,
+    texto: 'Administración',
+    corto: 'Admin',
+    icono: Settings,
+    access: accesoAdministracion,
+  },
 ];

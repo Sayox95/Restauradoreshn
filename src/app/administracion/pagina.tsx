@@ -13,15 +13,21 @@ export function Administracion() {
   const { hasAccess } = useAccess();
   const gestionaUsuarios = hasAccess([PermisosUsuarios.Gestionar]);
   const usuarios = useUsuarios(gestionaUsuarios);
-  useTiempoReal(['usuarios'], () => gestionaUsuarios && void usuarios.refetch());
-  const pendientes = usuarios.data?.filter((u) => u.estado === 'pendiente').length ?? 0;
+  useTiempoReal(
+    ['usuarios'],
+    () => gestionaUsuarios && void usuarios.refetch(),
+  );
+  const pendientes =
+    usuarios.data?.filter(u => u.estado === 'pendiente').length ?? 0;
   const secciones = [
     {
       a: urlUsuarios,
       titulo: 'Usuarios',
       Icono: Users,
       access: [PermisosUsuarios.Gestionar],
-      aviso: pendientes ? `${pendientes} ${pendientes === 1 ? 'solicitud' : 'solicitudes'}` : null,
+      aviso: pendientes
+        ? `${pendientes} ${pendientes === 1 ? 'solicitud' : 'solicitudes'}`
+        : null,
     },
     {
       a: urlCatalogos,
@@ -30,20 +36,32 @@ export function Administracion() {
       access: [PermisosCatalogos.Gestionar],
       aviso: null,
     },
-  ].filter((s) => hasAccess(s.access));
+  ].filter(s => hasAccess(s.access));
   return (
     <div>
       <Encabezado titulo="Administración" />
       <ul className="grid gap-3 md:grid-cols-2">
         {secciones.map(({ a, titulo, Icono, aviso }) => (
           <li key={a}>
-            <Link to={a} className="tarjeta flex h-full items-center gap-4 p-4 hover:bg-slate-50">
+            <Link
+              to={a}
+              className="tarjeta flex h-full items-center gap-4 p-4 hover:bg-slate-50"
+            >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-marca-50 text-marca-600">
                 <Icono className="h-6 w-6" aria-hidden />
               </span>
-              <span className="min-w-0 flex-1 font-semibold text-slate-900">{titulo}</span>
-              {aviso && <span className="shrink-0 rounded-full bg-amber-300 px-2 py-0.5 text-xs font-bold text-slate-900">{aviso}</span>}
-              <ChevronRight className="h-4 w-4 shrink-0 text-slate-300" aria-hidden />
+              <span className="min-w-0 flex-1 font-semibold text-slate-900">
+                {titulo}
+              </span>
+              {aviso && (
+                <span className="shrink-0 rounded-full bg-amber-300 px-2 py-0.5 text-xs font-bold text-slate-900">
+                  {aviso}
+                </span>
+              )}
+              <ChevronRight
+                className="h-4 w-4 shrink-0 text-slate-300"
+                aria-hidden
+              />
             </Link>
           </li>
         ))}

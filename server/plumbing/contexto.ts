@@ -1,6 +1,14 @@
-import type { DestinoNotificacion, Notificacion, NotificacionCanal } from '../../shared/tiempo-real';
+import type {
+  DestinoNotificacion,
+  Notificacion,
+  NotificacionCanal,
+} from '../../shared/tiempo-real';
 import type { UsuarioSesion } from '../../shared/tipos';
-import { type Permiso, PermisosVisitas, tieneAcceso } from '../../shared/permisos';
+import {
+  type Permiso,
+  PermisosVisitas,
+  tieneAcceso,
+} from '../../shared/permisos';
 import { prohibido } from './http';
 import { eventoDe } from './eventos';
 
@@ -25,11 +33,21 @@ export interface Ctx {
 }
 
 /** Agrega una notificación dirigida; sale por el canal de tiempo real después de guardar con éxito. */
-export function notificar(ctx: Ctx, n: Notificacion, destino: DestinoNotificacion) {
-  ctx.notificaciones.push({ tipo: 'notificacion', ...n, destino: { excluir: ctx.usuario.id, ...destino }, origen: null });
+export function notificar(
+  ctx: Ctx,
+  n: Notificacion,
+  destino: DestinoNotificacion,
+) {
+  ctx.notificaciones.push({
+    tipo: 'notificacion',
+    ...n,
+    destino: { excluir: ctx.usuario.id, ...destino },
+    origen: null,
+  });
 }
 
-export const tiene = (usuario: UsuarioSesion, ...permisos: Permiso[]) => tieneAcceso(usuario.permisos, permisos);
+export const tiene = (usuario: UsuarioSesion, ...permisos: Permiso[]) =>
+  tieneAcceso(usuario.permisos, permisos);
 
 /** Rechaza la solicitud si el usuario no tiene ninguno de los permisos indicados. */
 export function requierePermiso(ctx: Ctx, ...permisos: Permiso[]) {
@@ -43,7 +61,10 @@ export const NO_ELIMINADA = 'v.eliminada_en IS NULL';
  * Inspecciones propias (alias `r` para registros y `v` para visitas_registro, ver DESDE_VISITAS): las
  * que registró el usuario y aquellas en las que figura en el personal (por su usuario_id).
  */
-export function visitasPropias(usuario: UsuarioSesion): { sql: string; binds: number[] } {
+export function visitasPropias(usuario: UsuarioSesion): {
+  sql: string;
+  binds: number[];
+} {
   return {
     sql: `(${NO_ELIMINADA} AND (v.registrado_por = ? OR EXISTS (
       SELECT 1 FROM json_each(CASE WHEN json_valid(r.personal_json) THEN r.personal_json ELSE '[]' END) p
@@ -56,8 +77,12 @@ export function visitasPropias(usuario: UsuarioSesion): { sql: string; binds: nu
  * Filtro de visitas: con permiso de consultar, todas; sin él, las propias (las que registró o en las
  * que participó: «datos visibles sin permiso: ver lo suyo»).
  */
-export function filtroVisitas(usuario: UsuarioSesion): { sql: string; binds: number[] } {
-  if (tiene(usuario, PermisosVisitas.Consultar)) return { sql: NO_ELIMINADA, binds: [] };
+export function filtroVisitas(usuario: UsuarioSesion): {
+  sql: string;
+  binds: number[];
+} {
+  if (tiene(usuario, PermisosVisitas.Consultar))
+    return { sql: NO_ELIMINADA, binds: [] };
   return visitasPropias(usuario);
 }
 
@@ -71,7 +96,16 @@ export async function auditar(
   despues: unknown,
   ahora: string,
 ) {
-  return sentenciaAuditoria(env, usuarioId, accion, entidad, entidadId, antes, despues, ahora).run();
+  return sentenciaAuditoria(
+    env,
+    usuarioId,
+    accion,
+    entidad,
+    entidadId,
+    antes,
+    despues,
+    ahora,
+  ).run();
 }
 
 export function sentenciaAuditoria(
@@ -84,7 +118,9 @@ export function sentenciaAuditoria(
   despues: unknown,
   ahora: string,
 ) {
-  return env.DB.prepare('INSERT INTO auditoria (usuario_id, accion, evento, entidad, entidad_id, antes, despues, creado_en) VALUES (?,?,?,?,?,?,?,?)').bind(
+  return env.DB.prepare(
+    'INSERT INTO auditoria (usuario_id, accion, evento, entidad, entidad_id, antes, despues, creado_en) VALUES (?,?,?,?,?,?,?,?)',
+  ).bind(
     usuarioId,
     accion,
     eventoDe(accion, entidad),

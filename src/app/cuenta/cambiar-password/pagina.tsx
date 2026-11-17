@@ -10,10 +10,15 @@ export function CambiarPasswordObligatorio() {
     <Marco subtitulo="Elija su contraseña">
       <div className="tarjeta w-full max-w-sm space-y-4 p-6">
         <p className="text-sm text-slate-600">
-          Hola, <strong>{usuario?.nombre}</strong>. Ingresó con una contraseña temporal; elija una propia para continuar.
+          Hola, <strong>{usuario?.nombre}</strong>. Ingresó con una contraseña
+          temporal; elija una propia para continuar.
         </p>
         <FormCambiarPassword temporal onListo={() => void recargarSesion()} />
-        <button type="button" className="w-full text-sm font-semibold text-slate-500" onClick={() => salir()}>
+        <button
+          type="button"
+          className="w-full text-sm font-semibold text-slate-500"
+          onClick={() => salir()}
+        >
           Salir
         </button>
       </div>

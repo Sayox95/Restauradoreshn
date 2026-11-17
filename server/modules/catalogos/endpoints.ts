@@ -14,13 +14,26 @@ import {
 } from '../../../shared/esquemas';
 import { PermisosVisitas } from '../../../shared/permisos';
 import { PermisosCatalogos } from './permisos';
-import { catalogosVisita, guardarCatalogo, guardarTablero, listarCatalogo, listarTableros } from './features/gestionar-catalogos';
+import {
+  catalogosVisita,
+  guardarCatalogo,
+  guardarTablero,
+  listarCatalogo,
+  listarTableros,
+} from './features/gestionar-catalogos';
 
 const G = [PermisosCatalogos.Gestionar];
 
 // --- Lo que usa el formulario de visita (solo registros activos) ---
-ruta('GET', '/api/v1/catalogos/visita', [PermisosVisitas.Registrar, PermisosVisitas.Consultar, PermisosCatalogos.Gestionar], async (ctx) =>
-  r(ctx, await catalogosVisita(ctx)),
+ruta(
+  'GET',
+  '/api/v1/catalogos/visita',
+  [
+    PermisosVisitas.Registrar,
+    PermisosVisitas.Consultar,
+    PermisosCatalogos.Gestionar,
+  ],
+  async ctx => r(ctx, await catalogosVisita(ctx)),
 );
 
 // --- Administración de cada catálogo (se desactivan, no se borran) ---
@@ -31,26 +44,55 @@ for (const [cat, esquema] of [
   ['marcas', marcaCatalogoEsquema],
   ['cargos', cargoCatalogoEsquema],
 ] as const) {
-  ruta('GET', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, listaCompleta(await listarCatalogo(ctx, cat))));
-  ruta('POST', `/api/v1/catalogos/${cat}`, G, async (ctx) => r(ctx, await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)), 201));
-  ruta('PATCH', `/api/v1/catalogos/${cat}/:id`, G, async (ctx) =>
-    r(ctx, await guardarCatalogo(ctx, cat, idParam(ctx.params.id), await leerJson(ctx.req, esquema))),
+  ruta('GET', `/api/v1/catalogos/${cat}`, G, async ctx =>
+    r(ctx, listaCompleta(await listarCatalogo(ctx, cat))),
+  );
+  ruta('POST', `/api/v1/catalogos/${cat}`, G, async ctx =>
+    r(
+      ctx,
+      await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)),
+      201,
+    ),
+  );
+  ruta('PATCH', `/api/v1/catalogos/${cat}/:id`, G, async ctx =>
+    r(
+      ctx,
+      await guardarCatalogo(
+        ctx,
+        cat,
+        idParam(ctx.params.id),
+        await leerJson(ctx.req, esquema),
+      ),
+    ),
   );
 }
 
 // --- Tableros de control: la lista de campos de cada marca ---
-ruta('GET', '/api/v1/catalogos/tableros', G, async (ctx) => r(ctx, listaCompleta(await listarTableros(ctx))));
-ruta('PUT', '/api/v1/catalogos/tableros', G, async (ctx) => r(ctx, await guardarTablero(ctx, await leerJson(ctx.req, tableroEsquema))));
+ruta('GET', '/api/v1/catalogos/tableros', G, async ctx =>
+  r(ctx, listaCompleta(await listarTableros(ctx))),
+);
+ruta('PUT', '/api/v1/catalogos/tableros', G, async ctx =>
+  r(ctx, await guardarTablero(ctx, await leerJson(ctx.req, tableroEsquema))),
+);
 
 // --- Configuración ---
-ruta('PUT', '/api/v1/catalogos/configuracion', G, async (ctx) => {
+ruta('PUT', '/api/v1/catalogos/configuracion', G, async ctx => {
   const d = await leerJson(ctx.req, configuracionEsquema);
   const antes = await zonaHoraria(ctx.env);
   await ctx.env.DB.batch([
-    ctx.env.DB.prepare("INSERT INTO configuracion (clave, valor) VALUES ('zona_horaria', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor").bind(
-      d.zona_horaria,
+    ctx.env.DB.prepare(
+      "INSERT INTO configuracion (clave, valor) VALUES ('zona_horaria', ?) ON CONFLICT(clave) DO UPDATE SET valor = excluded.valor",
+    ).bind(d.zona_horaria),
+    sentenciaAuditoria(
+      ctx.env,
+      ctx.usuario.id,
+      'editar',
+      'configuracion',
+      null,
+      { zona_horaria: antes },
+      d,
+      ctx.ahora,
     ),
-    sentenciaAuditoria(ctx.env, ctx.usuario.id, 'editar', 'configuracion', null, { zona_horaria: antes }, d, ctx.ahora),
   ]);
   return r(ctx, d);
 });

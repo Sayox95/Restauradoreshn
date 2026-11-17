@@ -12,7 +12,7 @@ import './index.css';
 import { ProveedorConfirmacion } from '@components/confirm-dialog';
 
 // Si una pantalla no se puede descargar (p. ej. tras publicar una versión nueva), recargar para tomar la nueva.
-window.addEventListener('vite:preloadError', (e) => {
+window.addEventListener('vite:preloadError', e => {
   if (recargarUnaVez()) e.preventDefault();
 });
 
@@ -21,7 +21,8 @@ const qc = new QueryClient({
     queries: {
       staleTime: 30_000,
       refetchOnWindowFocus: true,
-      retry: (n, e) => !(e instanceof ErrorApi && e.status >= 400 && e.status < 500) && n < 2,
+      retry: (n, e) =>
+        !(e instanceof ErrorApi && e.status >= 400 && e.status < 500) && n < 2,
     },
   },
 });

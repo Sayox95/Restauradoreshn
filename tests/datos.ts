@@ -2,12 +2,17 @@
 import type { VisitaEntrada } from '../shared/visitas';
 
 /** PNG de 1×1 (firma). */
-export const FIRMA_PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+export const FIRMA_PNG =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
 /** Inicio mínimo de un JPEG y de un PDF (el servidor valida el formato por sus primeros bytes). */
-export const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1]);
+export const JPEG = new Uint8Array([
+  0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70, 0, 1, 1, 0, 0, 1,
+]);
 export const PDF = new TextEncoder().encode('%PDF-1.4\n%prueba\n');
 
-export function visitaCompleta(extra: Partial<VisitaEntrada> = {}): VisitaEntrada {
+export function visitaCompleta(
+  extra: Partial<VisitaEntrada> = {},
+): VisitaEntrada {
   return {
     visita_num: 'HV-20261101-080000',
     fecha_visita: '2026-11-01',
@@ -53,7 +58,9 @@ export function visitaCompleta(extra: Partial<VisitaEntrada> = {}): VisitaEntrad
     num_pararrayos: 3,
     tiene_potencial: 'NO',
     alimentado_acometida: 'SI',
-    personal: [{ usuario_id: null, nombre: 'Mauricio Cerros', cargo: 'Técnico SCADA' }],
+    personal: [
+      { usuario_id: null, nombre: 'Mauricio Cerros', cargo: 'Técnico SCADA' },
+    ],
     firma_responsable: 'Mauricio Cerros',
     firma_img: FIRMA_PNG,
     num_fotos: 1,

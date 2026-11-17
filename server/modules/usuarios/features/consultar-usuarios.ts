@@ -37,10 +37,22 @@ interface Evento {
 export async function verUsuario(ctx: Ctx, id: number) {
   await cargarUsuario(ctx, id);
   const db = ctx.env.DB;
-  const [u, sesiones, reportes, historial] = await db.batch<Record<string, unknown>>([
-    db.prepare(`SELECT ${COLUMNAS}, ${PERMISOS} FROM usuarios WHERE id = ?`).bind(id),
-    db.prepare('SELECT COUNT(*) AS n FROM sesiones WHERE usuario_id = ? AND expira_en > ?').bind(id, ctx.ahora),
-    db.prepare('SELECT COUNT(*) AS n FROM visitas_registro WHERE registrado_por = ? AND eliminada_en IS NULL').bind(id),
+  const [u, sesiones, reportes, historial] = await db.batch<
+    Record<string, unknown>
+  >([
+    db
+      .prepare(`SELECT ${COLUMNAS}, ${PERMISOS} FROM usuarios WHERE id = ?`)
+      .bind(id),
+    db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM sesiones WHERE usuario_id = ? AND expira_en > ?',
+      )
+      .bind(id, ctx.ahora),
+    db
+      .prepare(
+        'SELECT COUNT(*) AS n FROM visitas_registro WHERE registrado_por = ? AND eliminada_en IS NULL',
+      )
+      .bind(id),
     db
       .prepare(
         `SELECT a.id, a.accion, a.antes, a.despues, a.creado_en, p.nombre AS por
@@ -53,7 +65,7 @@ export async function verUsuario(ctx: Ctx, id: number) {
     ...formato(u!.results[0] as unknown as FilaUsuario & { permisos: string }),
     sesiones_activas: Number(sesiones!.results[0]!.n),
     visitas_registradas: Number(reportes!.results[0]!.n),
-    historial: (historial!.results as unknown as Evento[]).map((h) => ({
+    historial: (historial!.results as unknown as Evento[]).map(h => ({
       ...h,
       antes: h.antes ? JSON.parse(h.antes) : null,
       despues: h.despues ? JSON.parse(h.despues) : null,

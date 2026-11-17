@@ -39,4 +39,7 @@ export const EVENTOS: Record<string, string> = {
 
 /** Nombre del evento de una acción; si no está en la lista, uno genérico (la prueba lo detecta). */
 export const eventoDe = (accion: string, entidad: string) =>
-  EVENTOS[`${entidad}.${accion}`] ?? `${entidad}_${accion}`.replace(/(^|_)(\w)/g, (_, __, l: string) => l.toUpperCase());
+  EVENTOS[`${entidad}.${accion}`] ??
+  `${entidad}_${accion}`.replace(/(^|_)(\w)/g, (_, __, l: string) =>
+    l.toUpperCase(),
+  );
