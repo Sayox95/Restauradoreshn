@@ -1,4 +1,8 @@
-import { type Ctx, sentenciaAuditoria } from '../../../plumbing/contexto';
+import {
+  type Ctx,
+  detallarAviso,
+  sentenciaAuditoria,
+} from '../../../plumbing/contexto';
 import { cargarVisita } from '../comun';
 
 /**
@@ -28,5 +32,6 @@ export async function eliminarVisita(ctx: Ctx, id: number, motivo: string) {
       ctx.ahora,
     ),
   ]);
+  detallarAviso(ctx, 'Inspección eliminada', String(v.visita_num));
   return { id, visita_num: String(v.visita_num) };
 }

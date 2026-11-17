@@ -1,23 +1,33 @@
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 /**
- * Versión de esta compilación. Va dentro de la app (__VERSION_APP__) y en /version.json (fuera del caché
- * del service worker): si una página se abrió sin service worker (p. ej. recarga forzada) y luego toma el
- * control uno nuevo, la app compara ambas para saber si quedó vieja (ver src/common/pwa/pwa.ts).
+ * Versión (lineamientos v2 §11): la SemVer de package.json, que se sube antes de cada publicación y se
+ * etiqueta vX.Y.Z; la app la muestra (__VERSION_APP__). Aparte, la marca de esta compilación
+ * (__COMPILACION__): con ella la app sabe si quedó vieja tras una recarga forzada (src/common/pwa/pwa.ts),
+ * aunque alguien publique sin subir la versión. Las dos van en /version.json, fuera del caché del SW.
  */
-const VERSION_APP = new Date().toISOString();
+const VERSION_APP = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
+const COMPILACION = new Date().toISOString();
 const archivoVersion = (): Plugin => ({
   name: 'archivo-version',
   generateBundle() {
-    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: VERSION_APP }) });
+    this.emitFile({
+      type: 'asset',
+      fileName: 'version.json',
+      source: JSON.stringify({ version: VERSION_APP, compilacion: COMPILACION }),
+    });
   },
 });
 
 export default defineConfig({
-  define: { __VERSION_APP__: JSON.stringify(VERSION_APP) },
+  define: {
+    __VERSION_APP__: JSON.stringify(VERSION_APP),
+    __COMPILACION__: JSON.stringify(COMPILACION),
+  },
   plugins: [
     react(),
     archivoVersion(),

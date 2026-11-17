@@ -8,9 +8,9 @@
  *
  * Página abierta sin service worker al mando (primera visita o recarga forzada, Ctrl+Shift+R): el primer
  * cambio de control puede ser la misma versión (primera visita) o una nueva publicada mientras tanto.
- * Ahí, y solo ahí, se compara la versión de la app con /version.json para decidir.
+ * Ahí, y solo ahí, se compara la compilación de la app con /version.json para decidir.
  */
-declare const __VERSION_APP__: string;
+declare const __COMPILACION__: string;
 
 /** Revisiones seguidas (p. ej. foco y visibilidad juntos, o varias secciones rápido) cuentan como una. */
 const ESPERA_ENTRE_REVISIONES_MS = 5_000;
@@ -30,8 +30,8 @@ async function versionPublicadaEsOtra() {
   try {
     const r = await fetch('/version.json', { cache: 'no-store' });
     if (!r.ok) return false;
-    const { version } = (await r.json()) as { version?: string };
-    return !!version && version !== __VERSION_APP__;
+    const { compilacion } = (await r.json()) as { compilacion?: string };
+    return !!compilacion && compilacion !== __COMPILACION__;
   } catch {
     return false;
   }

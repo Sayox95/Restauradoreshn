@@ -10,7 +10,7 @@ import './modules/tiempo-real/endpoints';
 import { tieneAcceso } from '../shared/permisos';
 import { login } from './modules/sesion/features/iniciar-sesion';
 import { registrarCuenta } from './modules/sesion/features/solicitar-cuenta';
-import { type Env } from './plumbing/contexto';
+import { type Ctx, type Env } from './plumbing/contexto';
 import { conIdempotencia } from './plumbing/idempotencia';
 import { asegurarEsquema } from './plumbing/esquema';
 import {
@@ -124,16 +124,16 @@ async function atender(
         rt.claves.map((k, i) => [k, decodeURIComponent(m[i + 1]!)]),
       );
       const notificaciones: NotificacionCanal[] = [];
-      const ejecutar = async () =>
-        (await rt.manejar({
-          env,
-          req,
-          url,
-          params,
-          usuario: sesion.usuario,
-          ahora,
-          notificaciones,
-        })) as Response;
+      const ctx: Ctx = {
+        env,
+        req,
+        url,
+        params,
+        usuario: sesion.usuario,
+        ahora,
+        notificaciones,
+      };
+      const ejecutar = async () => (await rt.manejar(ctx)) as Response;
       const res = rt.idempotente
         ? await conIdempotencia(
             env,
@@ -148,7 +148,8 @@ async function atender(
       if (sesion.cookie && res.status !== 101)
         res.headers.append('Set-Cookie', sesion.cookie);
       if (req.method !== 'GET' && res.ok) {
-        const aviso = avisoDeEscritura(req, url);
+        const base = avisoDeEscritura(req, url);
+        const aviso = base && ctx.aviso ? { ...base, ...ctx.aviso } : base;
         // Las notificaciones no vuelven a la conexión que hizo el cambio.
         const origen = aviso?.origen ?? null;
         avisar([

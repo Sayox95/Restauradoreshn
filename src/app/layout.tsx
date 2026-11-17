@@ -15,6 +15,7 @@ import { Notificaciones } from '@/app/notificaciones';
 import { Avatar } from '@components/avatar';
 import { detenerCanal, iniciarCanal } from '@common/tiempo-real/canal';
 import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
+import { VERSION_APP } from '@common/version';
 
 function useEnLinea() {
   const [enLinea, setEnLinea] = useState(navigator.onLine);
@@ -166,6 +167,9 @@ export function Layout() {
             </NavLink>
           ))}
         </nav>
+        <p className="absolute bottom-3 left-6 text-xs text-slate-400">
+          Versión {VERSION_APP}
+        </p>
       </aside>
 
       <Notificaciones />

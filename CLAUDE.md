@@ -21,6 +21,9 @@ en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
   **sin líneas de atribución**.
 - **Idioma**: textos, comentarios y nombres en español.
 - **Antes de subir**: `npm run verificar` (tsc, eslint, pruebas y build) sin errores, y `npm run format`.
+- **Versión** (lineamientos §11): SemVer en `package.json`, visible en Mi cuenta y en el menú. Cada
+  publicación sube la versión (parche: correcciones; menor: funciones nuevas) y su commit lleva la
+  etiqueta `vX.Y.Z`.
 - **Despliegue**: Cloudflare Pages con `npm run build` y salida `dist` (ver `docs/despliegue.md`).
   Enlaces en el panel: `DB` (D1) y `PDF_BUCKET` o `ARCHIVOS` (R2); `TIEMPO_REAL` opcional.
 

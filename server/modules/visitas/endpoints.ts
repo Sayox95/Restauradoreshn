@@ -3,6 +3,7 @@ import { eliminarVisitaEsquema } from '../../../shared/esquemas';
 import { visitaEsquema } from '../../../shared/visitas';
 import { idParam, leerJson, paginacion } from '../../plumbing/http';
 import { SOLO_SESION, r, ruta } from '../../plumbing/router';
+import { detallarAviso } from '../../plumbing/contexto';
 import { PermisosVisitas } from './permisos';
 import { detalleVisita } from './comun';
 import {
@@ -42,6 +43,7 @@ ruta('POST', '/api/v1/visitas', [PermisosVisitas.Registrar], async ctx => {
     ctx,
     await leerJson(ctx.req, visitaEsquema),
   );
+  detallarAviso(ctx, 'Inspección registrada', visita.visita_num);
   return r(ctx, { visita, creada }, creada ? 201 : 200);
 });
 ruta(

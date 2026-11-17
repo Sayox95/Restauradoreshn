@@ -30,6 +30,17 @@ export interface Ctx {
   ahora: string;
   /** Notificaciones dirigidas que se envían solo si la solicitud termina bien (ver notificar). */
   notificaciones: NotificacionCanal[];
+  /** Código y mensaje corto del aviso de tiempo real de esta escritura (ver detallarAviso). */
+  aviso?: { codigo: string | null; mensaje: string };
+}
+
+/** Completa el aviso de tiempo real de la escritura con el código del registro y un mensaje corto. */
+export function detallarAviso(
+  ctx: Ctx,
+  mensaje: string,
+  codigo: string | null = null,
+) {
+  ctx.aviso = { codigo, mensaje };
 }
 
 /** Agrega una notificación dirigida; sale por el canal de tiempo real después de guardar con éxito. */

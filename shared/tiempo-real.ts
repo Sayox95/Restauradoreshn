@@ -14,6 +14,10 @@ export interface Aviso {
   modulo: ModuloAviso;
   /** Id del registro afectado: el primer número de la ruta (/api/v1/fallas/12/estado → 12). */
   id: number | null;
+  /** Código legible del registro (p. ej. el folio de la inspección), nunca nombres de personas. */
+  codigo?: string | null;
+  /** Mensaje corto («Inspección registrada»), el mismo contrato que el hub de TI (lineamientos §13). */
+  mensaje?: string | null;
 }
 
 /** Aviso tal como lo envía el servidor al canal. */

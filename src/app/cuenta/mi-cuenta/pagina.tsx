@@ -14,6 +14,7 @@ import { Encabezado, Seccion } from '@components/ui';
 import { useAccess } from '@common/seguridad/acceso';
 import { useSesion } from '@common/seguridad/sesion';
 import { zonaActual } from '@common/utils/fechas';
+import { VERSION_APP } from '@common/version';
 import { FormCambiarPassword } from '@/app/cuenta/cambiar-password/form-cambiar-password';
 import { leerBorrador } from '@modules/visitas/components/almacen';
 import { useCola } from '@modules/visitas/components/envio';
@@ -167,6 +168,7 @@ export function MiCuenta() {
       </button>
       <p className="px-1 text-center text-xs text-slate-500">
         Las fechas se muestran en la zona horaria {zonaActual()}.
+        <span className="block">Versión {VERSION_APP}</span>
       </p>
 
       {cambiandoClave && (

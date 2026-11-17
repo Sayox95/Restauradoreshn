@@ -34,7 +34,7 @@ beforeEach(async () => {
 });
 
 describe('avisos de tiempo real', () => {
-  it('tras guardar con éxito avisa el módulo y el id, con la conexión de origen', async () => {
+  it('tras guardar con éxito avisa el módulo, el id, el código y un mensaje corto, con la conexión de origen', async () => {
     const tec = await t.crearUsuario('beto', 'tecnico');
     const r = await t.pedir('POST', '/api/v1/visitas', {
       cookie: tec.cookie,
@@ -49,6 +49,9 @@ describe('avisos de tiempo real', () => {
         origen: 'conexion-1',
         permiso: null,
         destinatario: null,
+        // Código y mensaje corto, sin nombres de personas (lineamientos §13).
+        codigo: 'HV-20261101-080000',
+        mensaje: 'Inspección registrada',
       },
     ]);
   });
