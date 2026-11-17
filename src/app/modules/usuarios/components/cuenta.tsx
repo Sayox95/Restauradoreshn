@@ -30,6 +30,7 @@ import { Hoja } from '@components/hoja';
 export { Avatar } from '@components/avatar';
 import { useAvisos } from '@components/toast';
 import { mensajeError } from '@common/http/api';
+import { useClaveIntento } from '@common/http/clave-intento';
 import { TONO_CUENTA, TONO_PERSONALIZADO } from '@common/tonos';
 import {
   aprobarCuenta,
@@ -271,6 +272,7 @@ export function FormCuenta({
   } | null>(null);
   const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
+  const intento = useClaveIntento();
   const correo = String(form.watch('correo') ?? '')
     .trim()
     .toLowerCase();
@@ -285,7 +287,10 @@ export function FormCuenta({
     try {
       const datos = d as DatosUsuario;
       if (u) await editarUsuario(u.id, datos);
-      else setCreada(await crearUsuario(datos));
+      else {
+        setCreada(await crearUsuario(datos, intento.clave()));
+        intento.renovar();
+      }
       void recargar(u?.id);
       if (u) {
         avisar('Usuario actualizado');

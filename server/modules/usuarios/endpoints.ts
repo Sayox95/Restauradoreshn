@@ -33,12 +33,17 @@ ruta('GET', '/api/v1/usuarios/:id', G, async ctx =>
   r(ctx, await verUsuario(ctx, idParam(ctx.params.id))),
 );
 // --- Alta y datos ---
-ruta('POST', '/api/v1/usuarios', G, async ctx =>
-  r(
-    ctx,
-    await crearUsuario(ctx, await leerJson(ctx.req, usuarioCrearEsquema)),
-    201,
-  ),
+ruta(
+  'POST',
+  '/api/v1/usuarios',
+  G,
+  async ctx =>
+    r(
+      ctx,
+      await crearUsuario(ctx, await leerJson(ctx.req, usuarioCrearEsquema)),
+      201,
+    ),
+  { idempotente: true },
 );
 ruta('PATCH', '/api/v1/usuarios/:id', G, async ctx =>
   r(

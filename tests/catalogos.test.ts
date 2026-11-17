@@ -246,4 +246,27 @@ describe('catálogos de la hoja de visita', () => {
       ).status,
     ).toBe(400);
   });
+
+  it('crear con la misma Idempotency-Key devuelve lo ya creado (doble toque)', async () => {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const crear = (clave?: string) =>
+      t.pedir('POST', '/api/v1/catalogos/cargos', {
+        cookie: admin.cookie,
+        cuerpo: { nombre: 'Operador' },
+        headers:
+          clave === undefined
+            ? { 'Idempotency-Key': '' }
+            : { 'Idempotency-Key': clave },
+      });
+    expect((await crear()).status).toBe(400);
+    const a = await crear('clave-de-prueba-1');
+    const b = await crear('clave-de-prueba-1');
+    expect(a.status).toBe(201);
+    expect(b.status).toBe(201);
+    expect(b.datos.id).toBe(a.datos.id);
+    const n = await t.DB.prepare(
+      "SELECT COUNT(*) AS n FROM cargos WHERE nombre = 'Operador'",
+    ).first<{ n: number }>();
+    expect(n!.n).toBe(1);
+  });
 });

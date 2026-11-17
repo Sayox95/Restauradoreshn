@@ -11,6 +11,7 @@ import { tieneAcceso } from '../shared/permisos';
 import { login } from './modules/sesion/features/iniciar-sesion';
 import { registrarCuenta } from './modules/sesion/features/solicitar-cuenta';
 import { type Env } from './plumbing/contexto';
+import { conIdempotencia } from './plumbing/idempotencia';
 import { asegurarEsquema } from './plumbing/esquema';
 import {
   ApiError,
@@ -123,15 +124,26 @@ async function atender(
         rt.claves.map((k, i) => [k, decodeURIComponent(m[i + 1]!)]),
       );
       const notificaciones: NotificacionCanal[] = [];
-      const res = (await rt.manejar({
-        env,
-        req,
-        url,
-        params,
-        usuario: sesion.usuario,
-        ahora,
-        notificaciones,
-      })) as Response;
+      const ejecutar = async () =>
+        (await rt.manejar({
+          env,
+          req,
+          url,
+          params,
+          usuario: sesion.usuario,
+          ahora,
+          notificaciones,
+        })) as Response;
+      const res = rt.idempotente
+        ? await conIdempotencia(
+            env,
+            sesion.usuario.id,
+            req,
+            `${rt.metodo} ${rt.camino}`,
+            ahora,
+            ejecutar,
+          )
+        : await ejecutar();
       // La conexión de tiempo real (101) no lleva cookie: sus cabeceras no se pueden cambiar.
       if (sesion.cookie && res.status !== 101)
         res.headers.append('Set-Cookie', sesion.cookie);

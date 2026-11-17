@@ -47,12 +47,17 @@ for (const [cat, esquema] of [
   ruta('GET', `/api/v1/catalogos/${cat}`, G, async ctx =>
     r(ctx, listaCompleta(await listarCatalogo(ctx, cat))),
   );
-  ruta('POST', `/api/v1/catalogos/${cat}`, G, async ctx =>
-    r(
-      ctx,
-      await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)),
-      201,
-    ),
+  ruta(
+    'POST',
+    `/api/v1/catalogos/${cat}`,
+    G,
+    async ctx =>
+      r(
+        ctx,
+        await guardarCatalogo(ctx, cat, null, await leerJson(ctx.req, esquema)),
+        201,
+      ),
+    { idempotente: true },
   );
   ruta('PATCH', `/api/v1/catalogos/${cat}/:id`, G, async ctx =>
     r(

@@ -132,6 +132,10 @@ export const EVENTO_AUDITORIA = [
   `ALTER TABLE auditoria ADD COLUMN evento TEXT`,
 ];
 
+export const IDEMPOTENCIA = [
+  `CREATE TABLE IF NOT EXISTS idempotencia ( usuario_id INTEGER NOT NULL REFERENCES usuarios(id), clave TEXT NOT NULL, ruta TEXT NOT NULL, estado INTEGER NOT NULL, respuesta TEXT NOT NULL, creado_en TEXT NOT NULL, PRIMARY KEY (usuario_id, clave) )`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -224,6 +228,11 @@ export const CAMBIOS: Cambio[] = [
     migracion: '0012_evento_auditoria.sql',
     sentencias: EVENTO_AUDITORIA,
     yaAplicado: existeColumna('auditoria', 'evento'),
+  },
+  {
+    migracion: '0013_idempotencia.sql',
+    sentencias: IDEMPOTENCIA,
+    yaAplicado: existeTabla('idempotencia'),
   },
 ];
 

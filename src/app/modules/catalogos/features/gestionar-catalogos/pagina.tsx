@@ -31,6 +31,7 @@ import {
   Vacio,
 } from '@components/ui';
 import { mensajeError } from '@common/http/api';
+import { useClaveIntento } from '@common/http/clave-intento';
 import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
 import { fijarZona, zonaActual } from '@common/utils/fechas';
 import {
@@ -174,12 +175,16 @@ function FormItem({
   const [error, setError] = useState<string | null>(null);
   const recargar = useRecargarCatalogos();
   const avisar = useAvisos();
+  const intento = useClaveIntento();
   const valorActual = (clave: string) => String(form.watch(clave) ?? '');
   const guardar = form.handleSubmit(async datos => {
     setError(null);
     try {
       if (item) await editarItemCatalogo(tipo, item.id, datos);
-      else await crearItemCatalogo(tipo, datos);
+      else {
+        await crearItemCatalogo(tipo, datos, intento.clave());
+        intento.renovar();
+      }
       await recargar(tipo);
       avisar(item ? 'Registro actualizado' : 'Registro agregado');
       onCerrar();

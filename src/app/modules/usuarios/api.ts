@@ -2,6 +2,7 @@
 import type { EstadoCuenta, Rol } from '@shared/constantes';
 import type { Pagina } from '@shared/tipos';
 import { get, patch, post } from '@common/http/api';
+import { cabeceraIntento } from '@common/http/clave-intento';
 
 const BASE = '/api/v1/usuarios';
 
@@ -56,8 +57,13 @@ export const listarCargos = () =>
     p => p.data,
   );
 export const verUsuario = (id: number) => get<DetalleUsuario>(`${BASE}/${id}`);
-export const crearUsuario = (datos: DatosUsuario) =>
-  post<{ id: number; usuario: string; password_temporal: string }>(BASE, datos);
+/** Alta de una cuenta; `clave` evita crearla dos veces (Idempotency-Key). */
+export const crearUsuario = (datos: DatosUsuario, clave: string) =>
+  post<{ id: number; usuario: string; password_temporal: string }>(
+    BASE,
+    datos,
+    cabeceraIntento(clave),
+  );
 /** Las cuentas antiguas pueden no tener correo: entonces no se envía. */
 export const editarUsuario = (
   id: number,

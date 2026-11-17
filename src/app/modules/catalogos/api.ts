@@ -10,6 +10,7 @@ import type {
   TipoRestaurador,
 } from '@shared/tipos';
 import { get, patch, post, put } from '@common/http/api';
+import { cabeceraIntento } from '@common/http/clave-intento';
 
 const BASE = '/api/v1/catalogos';
 
@@ -25,8 +26,12 @@ export type TipoCatalogo = keyof Catalogos;
 
 export const listarCatalogo = <T extends TipoCatalogo>(tipo: T) =>
   get<Pagina<Catalogos[T]>>(`${BASE}/${tipo}`).then(p => p.data);
-export const crearItemCatalogo = (tipo: TipoCatalogo, datos: unknown) =>
-  post(`${BASE}/${tipo}`, datos);
+/** Alta de un registro de catálogo; `clave` evita crearlo dos veces (Idempotency-Key). */
+export const crearItemCatalogo = (
+  tipo: TipoCatalogo,
+  datos: unknown,
+  clave: string,
+) => post(`${BASE}/${tipo}`, datos, cabeceraIntento(clave));
 export const editarItemCatalogo = (
   tipo: TipoCatalogo,
   id: number,

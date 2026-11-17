@@ -17,6 +17,8 @@ export interface Ruta {
   claves: string[];
   acceso: Acceso;
   manejar: Manejador;
+  /** Crea algo importante: pide la cabecera Idempotency-Key (ver idempotencia.ts). */
+  idempotente: boolean;
 }
 
 export const rutas: Ruta[] = [];
@@ -25,6 +27,7 @@ export function ruta(
   camino: string,
   acceso: Acceso,
   manejar: Manejador,
+  opciones: { idempotente?: boolean } = {},
 ) {
   const claves: string[] = [];
   const patron = new RegExp(
@@ -32,7 +35,15 @@ export function ruta(
       camino.replace(/:(\w+)/g, (_, k: string) => (claves.push(k), '([^/]+)')) +
       '/?$',
   );
-  rutas.push({ metodo, camino, patron, claves, acceso, manejar });
+  rutas.push({
+    metodo,
+    camino,
+    patron,
+    claves,
+    acceso,
+    manejar,
+    idempotente: !!opciones.idempotente,
+  });
 }
 
 /**

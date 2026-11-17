@@ -137,6 +137,8 @@ export async function crearEntorno(hastaMigracion = Infinity) {
   ) {
     const headers: Record<string, string> = {
       Origin: ORIGEN,
+      // Como la app: cada alta lleva su clave de intento (Idempotency-Key).
+      ...(metodo === 'POST' ? { 'Idempotency-Key': crypto.randomUUID() } : {}),
       ...opciones.headers,
     };
     if (opciones.cookie) headers.Cookie = opciones.cookie;
