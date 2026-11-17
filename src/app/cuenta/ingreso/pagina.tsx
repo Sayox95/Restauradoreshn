@@ -2,10 +2,10 @@ import { DOMINIO_CORREO, PATRON_USUARIO, usuarioDeCorreo } from '@shared/constan
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { loginEsquema, registroFormEsquema } from '@shared/esquemas';
 import { type ReactNode, useState } from 'react';
-import { CampoForm, ErrorServidor, useFormulario } from '@/common/components/Formulario';
-import { mensajeError } from '@/common/http/api';
-import { iniciarSesion, solicitarCuenta } from '@/common/seguridad/api';
-import { tomarAvisoIngreso, useRecargarSesion } from '@/common/seguridad/sesion';
+import { CampoForm, ErrorServidor, useFormulario } from '@components/formulario';
+import { mensajeError } from '@common/http/api';
+import { iniciarSesion, solicitarCuenta } from '@common/seguridad/api';
+import { tomarAvisoIngreso, useRecargarSesion } from '@common/seguridad/sesion';
 
 export function Marco({ subtitulo, children }: { subtitulo: string; children: ReactNode }) {
   return (

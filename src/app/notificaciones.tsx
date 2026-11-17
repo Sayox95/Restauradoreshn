@@ -5,10 +5,10 @@
 import type { Notificacion } from '@shared/tiempo-real';
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAvisos } from '@/common/components/Toast';
-import { escucharNotificaciones } from '@/common/tiempo-real/canal';
-import { urlVisita } from '@/app/modules/visitas/urls';
-import { urlUsuarios } from '@/app/modules/usuarios/urls';
+import { useAvisos } from '@components/toast';
+import { escucharNotificaciones } from '@common/tiempo-real/canal';
+import { urlVisita } from '@modules/visitas/urls';
+import { urlUsuarios } from '@modules/usuarios/urls';
 
 /** A qué pantalla lleva cada notificación. */
 const destino = (n: Notificacion) => (n.modulo === 'visitas' && n.id ? urlVisita(n.id) : n.modulo === 'usuarios' ? urlUsuarios : null);

@@ -2,8 +2,8 @@ import { ESTADO_VISITA_ETIQUETA, type EstadoVisita } from '@shared/constantes';
 import { AlertTriangle, ChevronLeft, Inbox } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { mensajeError } from '@/common/http/api';
-import { TONO_ESTADO_VISITA } from '@/common/tonos';
+import { mensajeError } from '@common/http/api';
+import { TONO_ESTADO_VISITA } from '@common/tonos';
 
 export function BadgeVisita({ estado }: { estado: EstadoVisita }) {
   return (

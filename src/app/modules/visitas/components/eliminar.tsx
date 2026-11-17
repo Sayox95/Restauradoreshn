@@ -3,10 +3,10 @@ import { Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { eliminarVisitaEsquema } from '@shared/esquemas';
-import { ErrorCampo, ErrorServidor, useFormulario } from '@/common/components/Formulario';
-import { Hoja } from '@/common/components/Hoja';
-import { useAvisos } from '@/common/components/Toast';
-import { mensajeError } from '@/common/http/api';
+import { ErrorCampo, ErrorServidor, useFormulario } from '@components/formulario';
+import { Hoja } from '@components/hoja';
+import { useAvisos } from '@components/toast';
+import { mensajeError } from '@common/http/api';
 import { useEliminarInspeccion } from '../hooks/useInspecciones';
 import { urlInspecciones } from '../urls';
 

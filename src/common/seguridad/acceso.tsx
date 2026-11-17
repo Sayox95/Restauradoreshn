@@ -1,6 +1,6 @@
 import { type Permiso, tieneAcceso } from '@shared/permisos';
 import type { ReactNode } from 'react';
-import { useSesion } from '@/common/seguridad/sesion';
+import { useSesion } from '@common/seguridad/sesion';
 
 /**
  * Permisos en pantalla, como useAccess() del marco de TI: los códigos llegan con la sesión.

@@ -6,9 +6,9 @@
  */
 import { visitaEsquema } from '@shared/visitas';
 import { useEffect, useState } from 'react';
-import { ErrorApi, mensajeError } from '@/common/http/api';
-import { blobDeDataUrl } from '@/common/utils/imagen';
-import { registrarVisita, subirCopiaFoto, subirFoto, subirPdf } from '@/app/modules/visitas/api';
+import { ErrorApi, mensajeError } from '@common/http/api';
+import { blobDeDataUrl } from '@common/utils/imagen';
+import { registrarVisita, subirCopiaFoto, subirFoto, subirPdf } from '@modules/visitas/api';
 import { type Pendiente, alCambiarCola, guardarEnCola, listarCola, quitarDeCola } from './almacen';
 import { generarFicha } from './ficha-pdf';
 

@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { Navigate, Route } from 'react-router-dom';
-import { AuthRoute } from '@/common/seguridad/acceso';
+import { AuthRoute } from '@common/seguridad/acceso';
 import { PermisosVisitas } from './permisos';
 
 const RegistrarVisita = lazy(() => import('./features/registrar-visita/pagina').then((m) => ({ default: m.RegistrarVisita })));

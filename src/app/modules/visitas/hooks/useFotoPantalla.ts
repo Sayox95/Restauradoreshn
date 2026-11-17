@@ -1,6 +1,6 @@
 import type { FotoVisita } from '@shared/tipos';
 import { useEffect, useState } from 'react';
-import { vistaReducida } from '@/common/utils/imagen';
+import { vistaReducida } from '@common/utils/imagen';
 import { descargarFotoOriginal, urlFotoCopia } from '../api';
 
 /**

@@ -1,8 +1,8 @@
 import { RefreshCcw, Sparkles } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { iniciarActualizaciones, revisarActualizacion } from '@/common/pwa/pwa';
-import { alCambiarTrabajo, hayTrabajoEnCurso } from '@/common/pwa/trabajo';
+import { iniciarActualizaciones, revisarActualizacion } from '@common/pwa/pwa';
+import { alCambiarTrabajo, hayTrabajoEnCurso } from '@common/pwa/trabajo';
 
 /**
  * Hay algo que no debe interrumpirse al recargar: una visita en curso (la marca el formulario), una

@@ -18,12 +18,12 @@ import {
 import type { CatalogosVisita, Restaurador } from '@shared/tipos';
 import { esCooper, esMonofasico } from '@shared/visitas';
 import { Plus, Search, X } from 'lucide-react';
-import { Avatar } from '@/common/components/Avatar';
+import { Avatar } from '@components/avatar';
 import { useMemo, useState } from 'react';
 import { Bloque, Campo, FilaMediciones, Lista, Opciones, Texto } from './campos';
 import { opcionesDe } from '../hooks/useCatalogosVisita';
-import { Firma } from './Firma';
-import { Fotos } from './Fotos';
+import { Firma } from './firma';
+import { Fotos } from './fotos';
 import type { Borrador, Cambios, MaterialB, PersonaB } from './formulario';
 import type { FotoLocal } from './almacen';
 

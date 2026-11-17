@@ -1,10 +1,10 @@
 /** Menú principal (un solo nivel) y opciones de «+ Nueva», armados con lo que declara cada módulo. */
 import { PermisosCatalogos, PermisosUsuarios } from '@shared/permisos';
 import { FilePlus2, Settings } from 'lucide-react';
-import type { OpcionMenu, OpcionNueva } from '@/common/menu/tipos';
+import type { OpcionMenu, OpcionNueva } from '@common/menu/tipos';
 import { urlAdministracion } from '@/app/administracion/urls';
 import { urlNueva } from '@/app/nueva/urls';
-import { menuVisitas, nuevasVisitas } from '@/app/modules/visitas';
+import { menuVisitas, nuevasVisitas } from '@modules/visitas';
 
 /** Administración se muestra a quien tenga alguna de sus secciones. */
 export const accesoAdministracion = [PermisosUsuarios.Gestionar, PermisosCatalogos.Gestionar];

@@ -4,13 +4,13 @@ import { usuarioCrearEsquema, usuarioEditarFormEsquema } from '@shared/esquemas'
 import { igualAlPerfil, MODULOS, type Permiso, permisosDePerfil } from '@shared/permisos';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { CampoForm, ErrorServidor, useFormulario } from '@/common/components/Formulario';
-import { Hoja } from '@/common/components/Hoja';
-export { Avatar } from '@/common/components/Avatar';
-import { useAvisos } from '@/common/components/Toast';
-import { mensajeError } from '@/common/http/api';
-import { TONO_CUENTA, TONO_PERSONALIZADO } from '@/common/tonos';
-import { aprobarCuenta, crearUsuario, type DatosUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
+import { CampoForm, ErrorServidor, useFormulario } from '@components/formulario';
+import { Hoja } from '@components/hoja';
+export { Avatar } from '@components/avatar';
+import { useAvisos } from '@components/toast';
+import { mensajeError } from '@common/http/api';
+import { TONO_CUENTA, TONO_PERSONALIZADO } from '@common/tonos';
+import { aprobarCuenta, crearUsuario, type DatosUsuario, editarUsuario, type Usuario } from '@modules/usuarios/api';
 import { useCargos, useRecargarUsuarios } from '../hooks/useUsuarios';
 
 export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {

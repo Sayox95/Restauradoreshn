@@ -6,12 +6,12 @@
 import { FileDown, ImageOff } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { BadgeVisita, CajaError, Encabezado, Vacio } from '@/common/components/ui';
-import { type Columna, Tabla } from '@/common/components/Tabla';
-import { VisorFotos } from '@/common/components/VisorFotos';
-import { useAccess } from '@/common/seguridad/acceso';
-import { TONO } from '@/common/tonos';
-import { fecha, fechaHora } from '@/common/utils/fechas';
+import { BadgeVisita, CajaError, Encabezado, Vacio } from '@components/ui';
+import { type Columna, Tabla } from '@components/tabla';
+import { VisorFotos } from '@components/visor-fotos';
+import { useAccess } from '@common/seguridad/acceso';
+import { TONO } from '@common/tonos';
+import { fecha, fechaHora } from '@common/utils/fechas';
 import type { FotoVisita } from '@shared/tipos';
 import type { Visita } from '@shared/visitas';
 import { urlFoto, urlPdf } from '../../api';

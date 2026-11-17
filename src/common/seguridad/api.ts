@@ -1,6 +1,6 @@
 /** Sesión (ruta base /api/v1/sesion). Al migrar, la reemplaza el SSO de TI. */
 import type { UsuarioSesion } from '@shared/tipos';
-import { get, post } from '@/common/http/api';
+import { get, post } from '@common/http/api';
 
 const BASE = '/api/v1/sesion';
 

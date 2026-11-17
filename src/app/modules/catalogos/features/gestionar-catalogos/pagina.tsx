@@ -10,19 +10,19 @@ import {
   restauradorEsquema,
   tipoCatalogoEsquema,
 } from '@shared/esquemas';
-import { CampoForm, ErrorCampo, ErrorServidor, useFormulario } from '@/common/components/Formulario';
+import { CampoForm, ErrorCampo, ErrorServidor, useFormulario } from '@components/formulario';
 import { ELEMENTOS_MARCA } from '@shared/constantes';
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
-import { Hoja } from '@/common/components/Hoja';
-import { type Columna, Tabla } from '@/common/components/Tabla';
-import { useAvisos } from '@/common/components/Toast';
-import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@/common/components/ui';
-import { mensajeError } from '@/common/http/api';
-import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
-import { fijarZona, zonaActual } from '@/common/utils/fechas';
-import { type TipoCatalogo, crearItemCatalogo, editarItemCatalogo, guardarConfiguracion, guardarTablero } from '@/app/modules/catalogos/api';
+import { Hoja } from '@components/hoja';
+import { type Columna, Tabla } from '@components/tabla';
+import { useAvisos } from '@components/toast';
+import { CajaError, Cargando, Encabezado, Seccion, Vacio } from '@components/ui';
+import { mensajeError } from '@common/http/api';
+import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
+import { fijarZona, zonaActual } from '@common/utils/fechas';
+import { type TipoCatalogo, crearItemCatalogo, editarItemCatalogo, guardarConfiguracion, guardarTablero } from '@modules/catalogos/api';
 import { useCatalogo, useRecargarCatalogos, useTableros } from '../../hooks/useCatalogos';
 import { SECCION, esSeccionCatalogo } from '../../secciones';
 import { urlCatalogos } from '../../urls';

@@ -58,7 +58,14 @@ export default defineConfig({
     }),
   ],
   resolve: {
-    alias: { '@shared': resolve(process.cwd(), 'shared'), '@': resolve(process.cwd(), 'src') },
+    // Alias de la plantilla de TI (@common, @components, @modules) más @shared y @ para lo propio de la app.
+    alias: {
+      '@shared': resolve(process.cwd(), 'shared'),
+      '@components': resolve(process.cwd(), 'src/common/components'),
+      '@common': resolve(process.cwd(), 'src/common'),
+      '@modules': resolve(process.cwd(), 'src/app/modules'),
+      '@': resolve(process.cwd(), 'src'),
+    },
   },
   server: {
     proxy: { '/api': 'http://localhost:8788' },

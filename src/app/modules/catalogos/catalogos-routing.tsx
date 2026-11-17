@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { Route } from 'react-router-dom';
-import { AuthRoute } from '@/common/seguridad/acceso';
+import { AuthRoute } from '@common/seguridad/acceso';
 import { PermisosCatalogos } from './permisos';
 
 const ListarCatalogos = lazy(() => import('./features/listar-catalogos/pagina').then((m) => ({ default: m.ListarCatalogos })));

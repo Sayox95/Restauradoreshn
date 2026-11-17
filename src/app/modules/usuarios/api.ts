@@ -1,7 +1,7 @@
 /** Llamadas HTTP del módulo Usuarios (ruta base /api/v1/usuarios). */
 import type { EstadoCuenta, Rol } from '@shared/constantes';
 import type { Pagina } from '@shared/tipos';
-import { get, patch, post } from '@/common/http/api';
+import { get, patch, post } from '@common/http/api';
 
 const BASE = '/api/v1/usuarios';
 

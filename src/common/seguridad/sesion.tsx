@@ -3,9 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ErrorApi, configurarExpiracion } from '@/common/http/api';
-import { fijarZona } from '@/common/utils/fechas';
-import { cerrarSesion, quienSoy } from '@/common/seguridad/api';
+import { ErrorApi, configurarExpiracion } from '@common/http/api';
+import { fijarZona } from '@common/utils/fechas';
+import { cerrarSesion, quienSoy } from '@common/seguridad/api';
 
 interface Sesion {
   usuario: UsuarioSesion | null;

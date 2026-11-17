@@ -1,12 +1,12 @@
 import { PermisosCatalogos, PermisosUsuarios } from '@shared/permisos';
 import { ChevronRight, Settings, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Encabezado } from '@/common/components/ui';
-import { useAccess } from '@/common/seguridad/acceso';
-import { urlCatalogos } from '@/app/modules/catalogos/urls';
-import { useUsuarios } from '@/app/modules/usuarios/hooks/useUsuarios';
-import { urlUsuarios } from '@/app/modules/usuarios/urls';
-import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
+import { Encabezado } from '@components/ui';
+import { useAccess } from '@common/seguridad/acceso';
+import { urlCatalogos } from '@modules/catalogos/urls';
+import { useUsuarios } from '@modules/usuarios/hooks/useUsuarios';
+import { urlUsuarios } from '@modules/usuarios/urls';
+import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
 
 /** Administración: cada sección aparece según el permiso de quien entra. */
 export function Administracion() {

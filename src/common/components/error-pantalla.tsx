@@ -1,6 +1,6 @@
 import { AlertTriangle, RefreshCcw } from 'lucide-react';
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { actualizarYRecargar } from '@/common/pwa/version';
+import { actualizarYRecargar } from '@common/pwa/version';
 
 const CLAVE_RECARGA = 'recarga-por-error';
 

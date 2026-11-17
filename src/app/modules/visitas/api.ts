@@ -1,7 +1,7 @@
 /** Llamadas HTTP del módulo Visitas (ruta base /api/v1/visitas). */
 import type { Pagina, VisitaDetalle, VisitaResumen } from '@shared/tipos';
 import type { VisitaEntrada } from '@shared/visitas';
-import { get, pedir, post, qs, subirArchivo } from '@/common/http/api';
+import { get, pedir, post, qs, subirArchivo } from '@common/http/api';
 
 const BASE = '/api/v1/visitas';
 

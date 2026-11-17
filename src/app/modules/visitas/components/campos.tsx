@@ -4,7 +4,7 @@
  * catálogo se muestra bloqueado, en gris.
  */
 import type { ReactNode } from 'react';
-import { tonoRespuesta } from '@/common/tonos';
+import { tonoRespuesta } from '@common/tonos';
 
 export function Bloque({ titulo, children }: { titulo: string; children: ReactNode }) {
   return (

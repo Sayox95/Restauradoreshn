@@ -1,6 +1,6 @@
-import { useRecargarSesion, useSesion } from '@/common/seguridad/sesion';
+import { useRecargarSesion, useSesion } from '@common/seguridad/sesion';
 import { Marco } from '@/app/cuenta/ingreso/pagina';
-import { FormCambiarPassword } from './FormCambiarPassword';
+import { FormCambiarPassword } from './form-cambiar-password';
 
 /** Primer ingreso con contraseña temporal: hay que elegir una propia antes de usar la app. */
 export function CambiarPasswordObligatorio() {

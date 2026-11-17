@@ -1,10 +1,10 @@
 import { MAX_FOTOS, MAX_FOTO_BYTES } from '@shared/constantes';
 import { Camera, ImageOff, Images, Loader2, Pencil, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { useConfirmar } from '@/common/components/ConfirmDialog';
-import { Hoja } from '@/common/components/Hoja';
-import { useAvisos } from '@/common/components/Toast';
-import { copiaReducida } from '@/common/utils/imagen';
+import { useConfirmar } from '@components/confirm-dialog';
+import { Hoja } from '@components/hoja';
+import { useAvisos } from '@components/toast';
+import { copiaReducida } from '@common/utils/imagen';
 import type { FotoLocal } from './almacen';
 
 const MB = (b: number) => `${(b / 1024 / 1024).toFixed(1)} MB`;

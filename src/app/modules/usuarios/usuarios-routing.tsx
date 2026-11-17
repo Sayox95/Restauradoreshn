@@ -1,6 +1,6 @@
 import { lazy } from 'react';
 import { Route } from 'react-router-dom';
-import { AuthRoute } from '@/common/seguridad/acceso';
+import { AuthRoute } from '@common/seguridad/acceso';
 import { PermisosUsuarios } from './permisos';
 
 const ListarUsuarios = lazy(() => import('./features/listar-usuarios/pagina').then((m) => ({ default: m.Usuarios })));

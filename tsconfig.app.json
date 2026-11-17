@@ -25,6 +25,15 @@
       "@shared/*": [
         "shared/*"
       ],
+      "@common/*": [
+        "src/common/*"
+      ],
+      "@components/*": [
+        "src/common/components/*"
+      ],
+      "@modules/*": [
+        "src/app/modules/*"
+      ],
       "@/*": [
         "src/*"
       ]

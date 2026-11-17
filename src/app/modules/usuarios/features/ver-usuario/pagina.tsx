@@ -3,15 +3,15 @@ import { MODULOS, TODOS_LOS_PERMISOS } from '@shared/permisos';
 import { Check, KeyRound, LogOut, Pencil, Power, UserX } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { useConfirmar } from '@/common/components/ConfirmDialog';
-import { useAvisos } from '@/common/components/Toast';
-import { CajaError, Cargando, Encabezado, Seccion } from '@/common/components/ui';
-import { mensajeError } from '@/common/http/api';
-import { useSesion } from '@/common/seguridad/sesion';
-import { fecha, fechaHora } from '@/common/utils/fechas';
-import { activarCuenta, cerrarSesionesDe, desactivarCuenta, type EventoCuenta, rechazarCuenta, restablecerPassword } from '@/app/modules/usuarios/api';
-import { BadgeCuenta, ClaveTemporal, DialogoAprobar, FormCuenta } from '@/app/modules/usuarios/components/cuenta';
-import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
+import { useConfirmar } from '@components/confirm-dialog';
+import { useAvisos } from '@components/toast';
+import { CajaError, Cargando, Encabezado, Seccion } from '@components/ui';
+import { mensajeError } from '@common/http/api';
+import { useSesion } from '@common/seguridad/sesion';
+import { fecha, fechaHora } from '@common/utils/fechas';
+import { activarCuenta, cerrarSesionesDe, desactivarCuenta, type EventoCuenta, rechazarCuenta, restablecerPassword } from '@modules/usuarios/api';
+import { BadgeCuenta, ClaveTemporal, DialogoAprobar, FormCuenta } from '@modules/usuarios/components/cuenta';
+import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
 import { useRecargarUsuarios, useUsuario } from '../../hooks/useUsuarios';
 
 const ACCION: Record<string, string> = {

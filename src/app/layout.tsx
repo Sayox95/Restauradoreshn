@@ -1,20 +1,20 @@
 import { CloudOff, Menu, WifiOff } from 'lucide-react';
 import { Suspense, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { fijarCuenta } from '@/app/modules/visitas/components/almacen';
-import { useCola, useEnvioAutomatico } from '@/app/modules/visitas/components/envio';
-import { urlInspecciones } from '@/app/modules/visitas/urls';
-import { useModoCaptura } from '@/common/menu/modo-captura';
-import { Cargando } from '@/common/components/ui';
-import { ErrorPantalla } from '@/common/components/ErrorPantalla';
-import { useAccess } from '@/common/seguridad/acceso';
-import { useRecargarSesion, useSesion } from '@/common/seguridad/sesion';
+import { fijarCuenta } from '@modules/visitas/components/almacen';
+import { useCola, useEnvioAutomatico } from '@modules/visitas/components/envio';
+import { urlInspecciones } from '@modules/visitas/urls';
+import { useModoCaptura } from '@common/menu/modo-captura';
+import { Cargando } from '@components/ui';
+import { ErrorPantalla } from '@components/error-pantalla';
+import { useAccess } from '@common/seguridad/acceso';
+import { useRecargarSesion, useSesion } from '@common/seguridad/sesion';
 import { menuPrincipal } from '@/app/menu';
 import { urlMiCuenta } from '@/app/cuenta/urls';
-import { Notificaciones } from '@/app/Notificaciones';
-import { Avatar } from '@/common/components/Avatar';
-import { detenerCanal, iniciarCanal } from '@/common/tiempo-real/canal';
-import { useTiempoReal } from '@/common/tiempo-real/useTiempoReal';
+import { Notificaciones } from '@/app/notificaciones';
+import { Avatar } from '@components/avatar';
+import { detenerCanal, iniciarCanal } from '@common/tiempo-real/canal';
+import { useTiempoReal } from '@common/tiempo-real/useTiempoReal';
 
 function useEnLinea() {
   const [enLinea, setEnLinea] = useState(navigator.onLine);

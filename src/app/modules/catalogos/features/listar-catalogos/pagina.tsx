@@ -1,7 +1,7 @@
 /** Catálogos: la lista de catálogos; cada uno abre su pantalla, donde se crean y editan sus registros. */
 import { ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Encabezado } from '@/common/components/ui';
+import { Encabezado } from '@components/ui';
 import { SECCION, SECCIONES_CATALOGO } from '../../secciones';
 import { urlCatalogo } from '../../urls';
 

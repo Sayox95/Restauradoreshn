@@ -1,6 +1,6 @@
 import { ClipboardList, Zap } from 'lucide-react';
-import type { OpcionMenu, OpcionNueva } from '@/common/menu/tipos';
-import { fechaHora } from '@/common/utils/fechas';
+import type { OpcionMenu, OpcionNueva } from '@common/menu/tipos';
+import { fechaHora } from '@common/utils/fechas';
 import { leerBorrador } from './components/almacen';
 import { PermisosVisitas } from './permisos';
 import { urlInspecciones, urlNuevaVisita } from './urls';

@@ -3,10 +3,10 @@ import { ChevronRight, PencilLine } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { opcionesNueva } from '@/app/menu';
-import { Encabezado } from '@/common/components/ui';
-import type { OpcionNueva } from '@/common/menu/tipos';
-import { useAccess } from '@/common/seguridad/acceso';
-import { TONO } from '@/common/tonos';
+import { Encabezado } from '@components/ui';
+import type { OpcionNueva } from '@common/menu/tipos';
+import { useAccess } from '@common/seguridad/acceso';
+import { TONO } from '@common/tonos';
 
 function Opcion({ o }: { o: OpcionNueva }) {
   const [enCurso, setEnCurso] = useState<string | null>(null);

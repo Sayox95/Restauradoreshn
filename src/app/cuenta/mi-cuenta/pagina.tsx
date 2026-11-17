@@ -1,17 +1,17 @@
 import { igualAlPerfil, MODULOS, PermisosVisitas, resumenAcceso } from '@shared/permisos';
 import { Check, KeyRound, LogOut, MonitorSmartphone } from 'lucide-react';
 import { useState } from 'react';
-import { Avatar } from '@/common/components/Avatar';
-import { useConfirmar } from '@/common/components/ConfirmDialog';
-import { Hoja } from '@/common/components/Hoja';
-import { useAvisos } from '@/common/components/Toast';
-import { Encabezado, Seccion } from '@/common/components/ui';
-import { useAccess } from '@/common/seguridad/acceso';
-import { useSesion } from '@/common/seguridad/sesion';
-import { zonaActual } from '@/common/utils/fechas';
-import { FormCambiarPassword } from '@/app/cuenta/cambiar-password/FormCambiarPassword';
-import { leerBorrador } from '@/app/modules/visitas/components/almacen';
-import { useCola } from '@/app/modules/visitas/components/envio';
+import { Avatar } from '@components/avatar';
+import { useConfirmar } from '@components/confirm-dialog';
+import { Hoja } from '@components/hoja';
+import { useAvisos } from '@components/toast';
+import { Encabezado, Seccion } from '@components/ui';
+import { useAccess } from '@common/seguridad/acceso';
+import { useSesion } from '@common/seguridad/sesion';
+import { zonaActual } from '@common/utils/fechas';
+import { FormCambiarPassword } from '@/app/cuenta/cambiar-password/form-cambiar-password';
+import { leerBorrador } from '@modules/visitas/components/almacen';
+import { useCola } from '@modules/visitas/components/envio';
 
 /**
  * Mi cuenta: igual para todos los perfiles (lo propio de cada quien, sin permiso). Los datos de la cuenta

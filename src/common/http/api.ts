@@ -1,5 +1,5 @@
 import { CABECERA_CONEXION } from '@shared/tiempo-real';
-import { conexionActual } from '@/common/tiempo-real/canal';
+import { conexionActual } from '@common/tiempo-real/canal';
 
 export class ErrorApi extends Error {
   constructor(

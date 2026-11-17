@@ -2,14 +2,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { App } from '@/app/App';
-import { ActualizacionAutomatica } from '@/common/pwa/ActualizacionAutomatica';
-import { ErrorPantalla, recargarUnaVez } from '@/common/components/ErrorPantalla';
-import { ProveedorAvisos } from '@/common/components/Toast';
-import { ErrorApi } from '@/common/http/api';
-import { ProveedorSesion } from '@/common/seguridad/sesion';
+import { App } from '@/app/app';
+import { ActualizacionAutomatica } from '@common/pwa/actualizacion-automatica';
+import { ErrorPantalla, recargarUnaVez } from '@components/error-pantalla';
+import { ProveedorAvisos } from '@components/toast';
+import { ErrorApi } from '@common/http/api';
+import { ProveedorSesion } from '@common/seguridad/sesion';
 import './index.css';
-import { ProveedorConfirmacion } from '@/common/components/ConfirmDialog';
+import { ProveedorConfirmacion } from '@components/confirm-dialog';
 
 // Si una pantalla no se puede descargar (p. ej. tras publicar una versión nueva), recargar para tomar la nueva.
 window.addEventListener('vite:preloadError', (e) => {

@@ -1,9 +1,9 @@
 import { cambiarPasswordFormEsquema } from '@shared/esquemas';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { CampoForm, ErrorServidor, useFormulario } from '@/common/components/Formulario';
-import { mensajeError } from '@/common/http/api';
-import { cambiarPassword } from '@/common/seguridad/api';
+import { CampoForm, ErrorServidor, useFormulario } from '@components/formulario';
+import { mensajeError } from '@common/http/api';
+import { cambiarPassword } from '@common/seguridad/api';
 
 /** Cambio de contraseña con la actual (o la temporal que entregó el administrador). */
 export function FormCambiarPassword({ temporal = false, onListo }: { temporal?: boolean; onListo: () => void }) {
