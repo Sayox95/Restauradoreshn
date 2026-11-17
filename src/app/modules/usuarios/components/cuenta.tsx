@@ -1,14 +1,16 @@
 /** Piezas comunes de la gestión de cuentas: estado, perfil y permisos, contraseña temporal y formularios. */
 import { DOMINIO_CORREO, ESTADO_CUENTA_ETIQUETA, PATRON_USUARIO, ROL_ETIQUETA, ROLES, type EstadoCuenta, type Rol, usuarioDeCorreo } from '@shared/constantes';
-import { igualAlPerfil, MODULOS, permisosDePerfil } from '@shared/permisos';
+import { usuarioCrearEsquema, usuarioEditarFormEsquema } from '@shared/esquemas';
+import { igualAlPerfil, MODULOS, type Permiso, permisosDePerfil } from '@shared/permisos';
 import { Check, Copy, KeyRound, Loader2 } from 'lucide-react';
 import { useState } from 'react';
+import { CampoForm, ErrorServidor, useFormulario } from '@/common/components/Formulario';
 import { Hoja } from '@/common/components/Hoja';
 export { Avatar } from '@/common/components/Avatar';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
 import { TONO_CUENTA, TONO_PERSONALIZADO } from '@/common/tonos';
-import { aprobarCuenta, crearUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
+import { aprobarCuenta, crearUsuario, type DatosUsuario, editarUsuario, type Usuario } from '@/app/modules/usuarios/api';
 import { useCargos, useRecargarUsuarios } from '../hooks/useUsuarios';
 
 export function BadgeCuenta({ estado }: { estado: EstadoCuenta }) {
@@ -157,31 +159,35 @@ export function ClaveTemporal({ usuario, password, onCerrar }: { usuario: string
 
 /** Alta (con contraseña temporal) o corrección de los datos de una cuenta. */
 export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () => void }) {
-  const [f, setF] = useState({
+  // Al crear, el correo y el celular son obligatorios; al editar, una cuenta antigua puede no tener correo.
+  const esquema = (u ? usuarioEditarFormEsquema : usuarioCrearEsquema) as typeof usuarioCrearEsquema;
+  const form = useFormulario(esquema, {
     correo: u?.correo ?? '',
     nombre: u?.nombre ?? '',
     telefono: u?.telefono ?? '',
-    rol: u?.rol ?? ('tecnico' as Rol),
-    permisos: u?.permisos ?? permisosDePerfil(u?.rol ?? 'tecnico'),
-    cargo_id: u?.cargo_id ? String(u.cargo_id) : '',
+    rol: u?.rol ?? 'tecnico',
+    permisos: (u?.permisos ?? permisosDePerfil(u?.rol ?? 'tecnico')) as Permiso[],
+    cargo_id: u?.cargo_id ?? null,
   });
   const cargos = useCargos().data ?? [];
   // Si su cargo actual fue desactivado en el catálogo, se sigue mostrando para no perderlo al guardar.
   const opcionesCargo = u?.cargo_id && u.cargo && !cargos.some((c) => c.id === u.cargo_id) ? [...cargos, { id: u.cargo_id, nombre: u.cargo }] : cargos;
   const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
   const [creada, setCreada] = useState<{ usuario: string; password_temporal: string } | null>(null);
   const recargar = useRecargarUsuarios();
   const avisar = useAvisos();
-  const correo = f.correo.trim().toLowerCase();
+  const correo = String(form.watch('correo') ?? '')
+    .trim()
+    .toLowerCase();
   const usuario = correo.endsWith(`@${DOMINIO_CORREO}`) ? usuarioDeCorreo(correo) : '';
+  const rol = form.watch('rol') as Rol;
+  const permisos = form.watch('permisos') as string[];
 
-  const guardar = async () => {
-    setEnviando(true);
+  const guardar = form.handleSubmit(async (d) => {
     setError(null);
     try {
-      const datos = { ...f, correo, telefono: f.telefono.trim() || null, cargo_id: f.cargo_id ? Number(f.cargo_id) : null };
-      if (u) await editarUsuario(u.id, { ...datos, correo: correo || undefined });
+      const datos = d as DatosUsuario;
+      if (u) await editarUsuario(u.id, datos);
       else setCreada(await crearUsuario(datos));
       void recargar(u?.id);
       if (u) {
@@ -190,10 +196,8 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
       }
     } catch (e) {
       setError(mensajeError(e));
-    } finally {
-      setEnviando(false);
     }
-  };
+  });
 
   if (creada) return <ClaveTemporal usuario={creada.usuario} password={creada.password_temporal} onCerrar={onCerrar} />;
 
@@ -203,57 +207,37 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
       titulo={u ? `Editar ${u.usuario}` : 'Nuevo usuario'}
       onCerrar={onCerrar}
       pie={
-        <div>
-          {error && (
-            <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="btn-primario w-full" onClick={guardar} disabled={enviando}>
-            {enviando && <Loader2 className="h-5 w-5 animate-spin" />} {u ? 'Guardar' : 'Crear usuario'}
+        <div className="space-y-2">
+          <ErrorServidor mensaje={error} />
+          <button className="btn-primario w-full" onClick={guardar} disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} {u ? 'Guardar' : 'Crear usuario'}
           </button>
         </div>
       }
     >
       <div className="space-y-4">
-        <div>
-          <label className="etiqueta" htmlFor="u-correo">
-            Correo institucional
-          </label>
-          <input
-            id="u-correo"
-            type="email"
-            className="campo"
-            autoCapitalize="none"
-            placeholder={`nombre.apellido@${DOMINIO_CORREO}`}
-            value={f.correo}
-            onChange={(e) => setF({ ...f, correo: e.target.value })}
-          />
-          {u ? null : usuario ? (
-            <p className={`mt-1 text-xs ${PATRON_USUARIO.test(usuario) ? 'text-slate-600' : 'text-rose-700'}`}>
-              Usuario: <strong className="font-mono">{usuario}</strong>
-            </p>
-          ) : (
-            <p className="mt-1 text-xs text-slate-500">Sin correo propio: use una variante con «+», p. ej. jefe+nombre.apellido@{DOMINIO_CORREO}.</p>
-          )}
-        </div>
-        <div>
-          <label className="etiqueta" htmlFor="u-nombre">
-            Nombre completo
-          </label>
-          <input id="u-nombre" className="campo" autoComplete="off" value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} />
-        </div>
-        <div>
-          <label className="etiqueta" htmlFor="u-tel">
-            Celular
-          </label>
-          <input id="u-tel" type="tel" inputMode="tel" className="campo" value={f.telefono} onChange={(e) => setF({ ...f, telefono: e.target.value })} />
-        </div>
+        <CampoForm
+          form={form}
+          nombre="correo"
+          id="u-correo"
+          type="email"
+          autoCapitalize="none"
+          placeholder={`nombre.apellido@${DOMINIO_CORREO}`}
+          etiqueta="Correo institucional"
+          ayuda={u || usuario ? undefined : `Sin correo propio: use una variante con «+», p. ej. jefe+nombre.apellido@${DOMINIO_CORREO}.`}
+        />
+        {!u && usuario && (
+          <p className={`-mt-3 text-xs ${PATRON_USUARIO.test(usuario) ? 'text-slate-600' : 'text-rose-700'}`}>
+            Usuario: <strong className="font-mono">{usuario}</strong>
+          </p>
+        )}
+        <CampoForm form={form} nombre="nombre" id="u-nombre" autoComplete="off" etiqueta="Nombre completo" />
+        <CampoForm form={form} nombre="telefono" id="u-tel" type="tel" inputMode="tel" etiqueta="Celular" />
         <div>
           <label className="etiqueta" htmlFor="u-cargo">
             Cargo
           </label>
-          <select id="u-cargo" className="campo" value={f.cargo_id} onChange={(e) => setF({ ...f, cargo_id: e.target.value })}>
+          <select id="u-cargo" className="campo" {...form.register('cargo_id', { setValueAs: (v) => (v === '' || v === null ? null : Number(v)) })}>
             <option value="">— Sin cargo —</option>
             {opcionesCargo.map((c) => (
               <option key={c.id} value={c.id}>
@@ -263,12 +247,7 @@ export function FormCuenta({ u, onCerrar }: { u: Usuario | null; onCerrar: () =>
           </select>
           <p className="mt-1 text-xs text-slate-500">Aparece en el personal de las inspecciones.</p>
         </div>
-        <CamposAcceso
-          rol={f.rol}
-          permisos={f.permisos}
-          onRol={(rol) => setF((x) => ({ ...x, rol }))}
-          onPermisos={(permisos) => setF((x) => ({ ...x, permisos }))}
-        />
+        <CamposAcceso rol={rol} permisos={permisos} onRol={(r) => form.setValue('rol', r)} onPermisos={(p) => form.setValue('permisos', p as Permiso[])} />
         {!u && <p className="text-xs text-slate-500">Se generará una contraseña temporal para entregarle.</p>}
       </div>
     </Hoja>

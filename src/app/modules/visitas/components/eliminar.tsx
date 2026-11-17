@@ -2,6 +2,8 @@
 import { Loader2, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { eliminarVisitaEsquema } from '@shared/esquemas';
+import { ErrorCampo, ErrorServidor, useFormulario } from '@/common/components/Formulario';
 import { Hoja } from '@/common/components/Hoja';
 import { useAvisos } from '@/common/components/Toast';
 import { mensajeError } from '@/common/http/api';
@@ -27,38 +29,32 @@ export function BotonEliminar({ id, folio }: { id: number; folio: string }) {
 }
 
 function DialogoEliminar({ id, folio, onCerrar }: { id: number; folio: string; onCerrar: () => void }) {
-  const [motivo, setMotivo] = useState('');
-  const [enviando, setEnviando] = useState(false);
+  const form = useFormulario(eliminarVisitaEsquema, { motivo: '' });
   const [error, setError] = useState<string | null>(null);
   const eliminarInspeccion = useEliminarInspeccion();
   const avisar = useAvisos();
   const navegar = useNavigate();
-  const eliminar = async () => {
-    setEnviando(true);
+  const motivo = form.watch('motivo') ?? '';
+  const eliminar = form.handleSubmit(async (d) => {
     setError(null);
     try {
-      await eliminarInspeccion(id, motivo.trim());
+      await eliminarInspeccion(id, d.motivo);
       avisar('Inspección eliminada');
       navegar(urlInspecciones, { replace: true });
     } catch (e) {
       setError(mensajeError(e));
-      setEnviando(false);
     }
-  };
+  });
   return (
     <Hoja
       abierta
       titulo="Eliminar inspección"
       onCerrar={onCerrar}
       pie={
-        <div>
-          {error && (
-            <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="btn-peligro w-full" onClick={eliminar} disabled={enviando || !motivo.trim()}>
-            {enviando ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />} Eliminar
+        <div className="space-y-2">
+          <ErrorServidor mensaje={error} />
+          <button className="btn-peligro w-full" onClick={eliminar} disabled={form.formState.isSubmitting || !motivo.trim()}>
+            {form.formState.isSubmitting ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />} Eliminar
           </button>
         </div>
       }
@@ -77,9 +73,9 @@ function DialogoEliminar({ id, folio, onCerrar }: { id: number; folio: string; o
             className="campo min-h-[88px]"
             maxLength={300}
             placeholder="P. ej. inspección de prueba"
-            value={motivo}
-            onChange={(e) => setMotivo(e.target.value)}
+            {...form.register('motivo')}
           />
+          <ErrorCampo form={form} nombre="motivo" />
         </div>
       </div>
     </Hoja>

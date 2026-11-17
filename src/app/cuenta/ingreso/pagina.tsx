@@ -1,6 +1,8 @@
 import { DOMINIO_CORREO, PATRON_USUARIO, usuarioDeCorreo } from '@shared/constantes';
 import { CheckCircle2, Loader2 } from 'lucide-react';
-import { type FormEvent, type ReactNode, useState } from 'react';
+import { loginEsquema, registroFormEsquema } from '@shared/esquemas';
+import { type ReactNode, useState } from 'react';
+import { CampoForm, ErrorServidor, useFormulario } from '@/common/components/Formulario';
 import { mensajeError } from '@/common/http/api';
 import { iniciarSesion, solicitarCuenta } from '@/common/seguridad/api';
 import { tomarAvisoIngreso, useRecargarSesion } from '@/common/seguridad/sesion';
@@ -16,44 +18,24 @@ export function Marco({ subtitulo, children }: { subtitulo: string; children: Re
   );
 }
 
-function Campo({ id, etiqueta, ayuda, ...props }: { id: string; etiqueta: string; ayuda?: string } & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <div>
-      <label htmlFor={id} className="etiqueta">
-        {etiqueta}
-      </label>
-      <input id={id} className="campo" required {...props} />
-      {ayuda && <p className="mt-1 text-xs text-slate-500">{ayuda}</p>}
-    </div>
-  );
-}
-
 /** Solicitud de cuenta con correo institucional; queda pendiente de aprobación. */
 function CrearCuenta({ onVolver }: { onVolver: () => void }) {
-  const [f, setF] = useState({ nombre: '', correo: '', telefono: '', password: '', confirmar: '' });
+  const form = useFormulario(registroFormEsquema, { nombre: '', correo: '', telefono: '', password: '', confirmar: '' });
   const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
   const [enviada, setEnviada] = useState<string | null>(null);
-  const set = (k: keyof typeof f) => (e: { target: { value: string } }) => setF({ ...f, [k]: e.target.value });
-  const correo = f.correo.trim().toLowerCase();
+  const correo = (form.watch('correo') ?? '').trim().toLowerCase();
   // El usuario sale del correo: antes de la @, o después del «+» si es una variante.
   const usuario = correo.endsWith(`@${DOMINIO_CORREO}`) ? usuarioDeCorreo(correo) : '';
 
-  const enviar = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!usuario) return setError(`Use su correo institucional @${DOMINIO_CORREO}.`);
-    if (f.password !== f.confirmar) return setError('Las contraseñas no coinciden.');
-    setEnviando(true);
+  const enviar = form.handleSubmit(async (d) => {
     setError(null);
     try {
-      const r = await solicitarCuenta({ nombre: f.nombre, correo, telefono: f.telefono, password: f.password });
+      const r = await solicitarCuenta({ nombre: d.nombre, correo: d.correo, telefono: d.telefono, password: d.password });
       setEnviada(r.usuario);
     } catch (err) {
       setError(mensajeError(err));
-    } finally {
-      setEnviando(false);
     }
-  };
+  });
 
   if (enviada)
     return (
@@ -74,17 +56,17 @@ function CrearCuenta({ onVolver }: { onVolver: () => void }) {
 
   return (
     <Marco subtitulo="Crear cuenta">
-      <form onSubmit={enviar} className="tarjeta w-full max-w-sm space-y-4 p-6">
-        <Campo id="nombre" etiqueta="Nombre completo" autoComplete="name" value={f.nombre} onChange={set('nombre')} />
-        <Campo
+      <form onSubmit={enviar} className="tarjeta w-full max-w-sm space-y-4 p-6" noValidate>
+        <CampoForm form={form} nombre="nombre" id="nombre" etiqueta="Nombre completo" autoComplete="name" />
+        <CampoForm
+          form={form}
+          nombre="correo"
           id="correo"
           etiqueta="Correo institucional"
           type="email"
           autoComplete="email"
           autoCapitalize="none"
           placeholder={`nombre@${DOMINIO_CORREO}`}
-          value={f.correo}
-          onChange={set('correo')}
           ayuda={
             usuario ? undefined : `Solo correos @${DOMINIO_CORREO}. Si no tiene uno propio, use una variante con «+»: jefe+nombre.apellido@${DOMINIO_CORREO}.`
           }
@@ -94,25 +76,12 @@ function CrearCuenta({ onVolver }: { onVolver: () => void }) {
             Su usuario será <strong className="font-mono">{usuario}</strong>
           </p>
         )}
-        <Campo id="telefono" etiqueta="Celular" type="tel" inputMode="tel" autoComplete="tel" value={f.telefono} onChange={set('telefono')} />
-        <Campo
-          id="password"
-          etiqueta="Contraseña"
-          type="password"
-          autoComplete="new-password"
-          minLength={8}
-          value={f.password}
-          onChange={set('password')}
-          ayuda="Mínimo 8 caracteres."
-        />
-        <Campo id="confirmar" etiqueta="Repita la contraseña" type="password" autoComplete="new-password" value={f.confirmar} onChange={set('confirmar')} />
-        {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-            {error}
-          </p>
-        )}
-        <button className="btn-primario w-full" disabled={enviando}>
-          {enviando && <Loader2 className="h-5 w-5 animate-spin" />} Solicitar cuenta
+        <CampoForm form={form} nombre="telefono" id="telefono" etiqueta="Celular" type="tel" inputMode="tel" autoComplete="tel" />
+        <CampoForm form={form} nombre="password" id="password" etiqueta="Contraseña" type="password" autoComplete="new-password" ayuda="Mínimo 8 caracteres." />
+        <CampoForm form={form} nombre="confirmar" id="confirmar" etiqueta="Repita la contraseña" type="password" autoComplete="new-password" />
+        <ErrorServidor mensaje={error} />
+        <button className="btn-primario w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} Solicitar cuenta
         </button>
         <p className="text-center text-xs text-slate-500">Un administrador revisará y aprobará su solicitud.</p>
         <button type="button" className="w-full text-sm font-semibold text-marca-600" onClick={onVolver}>
@@ -124,61 +93,36 @@ function CrearCuenta({ onVolver }: { onVolver: () => void }) {
 }
 
 export function Login() {
-  const [usuario, setUsuario] = useState('');
-  const [password, setPassword] = useState('');
+  const form = useFormulario(loginEsquema, { usuario: '', password: '' });
   const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
   const [creando, setCreando] = useState(false);
+  const recargarSesion = useRecargarSesion();
   // «Su sesión terminó…»: solo si la sesión terminó sin que la persona saliera (se lee una vez).
   const [aviso] = useState(tomarAvisoIngreso);
-  const recargarSesion = useRecargarSesion();
   if (creando) return <CrearCuenta onVolver={() => setCreando(false)} />;
-  const entrar = async (e: FormEvent) => {
-    e.preventDefault();
-    setEnviando(true);
+  const entrar = form.handleSubmit(async (d) => {
     setError(null);
     try {
-      await iniciarSesion(usuario, password);
+      await iniciarSesion(d.usuario, d.password);
       await recargarSesion();
     } catch (err) {
       setError(mensajeError(err));
-    } finally {
-      setEnviando(false);
     }
-  };
+  });
 
   return (
     <Marco subtitulo="UTCD · Hojas de inspección">
-      <form onSubmit={entrar} className="tarjeta w-full max-w-sm space-y-4 p-6">
+      <form onSubmit={entrar} className="tarjeta w-full max-w-sm space-y-4 p-6" noValidate>
         {aviso && !error && (
           <p className="rounded-lg bg-marca-50 px-3 py-2 text-sm text-marca-900" role="status">
             {aviso}
           </p>
         )}
-        <Campo
-          id="usuario"
-          etiqueta="Usuario o correo"
-          autoComplete="username"
-          autoCapitalize="none"
-          autoFocus
-          value={usuario}
-          onChange={(e) => setUsuario(e.target.value)}
-        />
-        <Campo
-          id="password"
-          etiqueta="Contraseña"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-        {error && (
-          <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-            {error}
-          </p>
-        )}
-        <button className="btn-primario w-full" disabled={enviando}>
-          {enviando && <Loader2 className="h-5 w-5 animate-spin" />} Ingresar
+        <CampoForm form={form} nombre="usuario" id="usuario" etiqueta="Usuario o correo" autoComplete="username" autoCapitalize="none" autoFocus />
+        <CampoForm form={form} nombre="password" id="password" etiqueta="Contraseña" type="password" autoComplete="current-password" />
+        <ErrorServidor mensaje={error} />
+        <button className="btn-primario w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} Ingresar
         </button>
         <p className="border-t border-slate-100 pt-4 text-center text-sm text-slate-600">
           ¿No tiene cuenta?{' '}

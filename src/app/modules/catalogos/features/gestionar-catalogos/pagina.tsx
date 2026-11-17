@@ -1,4 +1,16 @@
 import type { UseQueryResult } from '@tanstack/react-query';
+import { type UseFormReturn, useFieldArray } from 'react-hook-form';
+import type { ZodTypeAny } from 'zod';
+import {
+  cargoCatalogoEsquema,
+  configuracionEsquema,
+  tableroFormEsquema,
+  marcaCatalogoEsquema,
+  materialCatalogoEsquema,
+  restauradorEsquema,
+  tipoCatalogoEsquema,
+} from '@shared/esquemas';
+import { CampoForm, ErrorCampo, ErrorServidor, useFormulario } from '@/common/components/Formulario';
 import { ELEMENTOS_MARCA } from '@shared/constantes';
 import { ArrowDown, ArrowUp, Loader2, Plus, Search, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
@@ -76,21 +88,29 @@ const DEFINICIONES: Record<TipoCatalogo, { campos: DefCampo[]; principal: (r: Fi
 
 type Fila = Record<string, unknown> & { id: number; activo: boolean };
 
+/** Esquema de cada catálogo: el mismo que valida el servidor. */
+const ESQUEMAS: Record<TipoCatalogo, ZodTypeAny> = {
+  restauradores: restauradorEsquema,
+  materiales: materialCatalogoEsquema,
+  tipos: tipoCatalogoEsquema,
+  marcas: marcaCatalogoEsquema,
+  cargos: cargoCatalogoEsquema,
+};
+
 function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | null; onCerrar: () => void }) {
   const def = DEFINICIONES[tipo];
-  const [f, setF] = useState<Record<string, string>>(() =>
-    Object.fromEntries(def.campos.map((c) => [c.clave, item?.[c.clave] === null || item?.[c.clave] === undefined ? '' : String(item[c.clave])])),
-  );
-  const [activo, setActivo] = useState(item?.activo ?? true);
+  // El mismo esquema que valida el servidor (shared/esquemas.ts); cada catálogo tiene sus campos.
+  const form = useFormulario(ESQUEMAS[tipo], {
+    ...Object.fromEntries(def.campos.map((c) => [c.clave, item?.[c.clave] === null || item?.[c.clave] === undefined ? '' : String(item[c.clave])])),
+    activo: item?.activo ?? true,
+  }) as unknown as UseFormReturn<Record<string, unknown>>;
   const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
   const recargar = useRecargarCatalogos();
   const avisar = useAvisos();
-  const guardar = async () => {
-    setEnviando(true);
+  const valorActual = (clave: string) => String(form.watch(clave) ?? '');
+  const guardar = form.handleSubmit(async (datos) => {
     setError(null);
     try {
-      const datos = { ...Object.fromEntries(def.campos.map((c) => [c.clave, f[c.clave]?.trim() || null])), activo };
       if (item) await editarItemCatalogo(tipo, item.id, datos);
       else await crearItemCatalogo(tipo, datos);
       await recargar(tipo);
@@ -98,24 +118,18 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
       onCerrar();
     } catch (e) {
       setError(mensajeError(e));
-    } finally {
-      setEnviando(false);
     }
-  };
+  });
   return (
     <Hoja
       abierta
       titulo={item ? `Editar · ${SECCION[tipo].titulo}` : `Nuevo · ${SECCION[tipo].titulo}`}
       onCerrar={onCerrar}
       pie={
-        <div>
-          {error && (
-            <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="btn-primario w-full" onClick={guardar} disabled={enviando}>
-            {enviando && <Loader2 className="h-5 w-5 animate-spin" />} Guardar
+        <div className="space-y-2">
+          <ErrorServidor mensaje={error} />
+          <button className="btn-primario w-full" onClick={guardar} disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} Guardar
           </button>
         </div>
       }
@@ -128,25 +142,20 @@ function FormItem({ tipo, item, onCerrar }: { tipo: TipoCatalogo; item: Fila | n
               {c.obligatorio && <span className="text-rose-600"> *</span>}
             </label>
             {c.tipo === 'lista' ? (
-              <select id={`cat-${c.clave}`} className="campo" value={f[c.clave]} onChange={(e) => setF({ ...f, [c.clave]: e.target.value })}>
+              <select id={`cat-${c.clave}`} className="campo" {...form.register(c.clave)}>
                 <option value="">— Elegir —</option>
-                {[...new Set([...(c.opciones ?? []), ...(f[c.clave] ? [f[c.clave]!] : [])])].map((o) => (
+                {[...new Set([...(c.opciones ?? []), ...(valorActual(c.clave) ? [valorActual(c.clave)] : [])])].map((o) => (
                   <option key={o}>{o}</option>
                 ))}
               </select>
             ) : (
-              <input
-                id={`cat-${c.clave}`}
-                className="campo"
-                inputMode={c.tipo === 'numero' ? 'decimal' : undefined}
-                value={f[c.clave]}
-                onChange={(e) => setF({ ...f, [c.clave]: e.target.value })}
-              />
+              <input id={`cat-${c.clave}`} className="campo" inputMode={c.tipo === 'numero' ? 'decimal' : undefined} {...form.register(c.clave)} />
             )}
+            <ErrorCampo form={form} nombre={c.clave} />
           </div>
         ))}
         <label className="flex min-h-[44px] items-center gap-3">
-          <input type="checkbox" className="h-5 w-5" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
+          <input type="checkbox" className="h-5 w-5" {...form.register('activo')} />
           <span className="text-sm font-medium text-slate-700">Activo (aparece en la hoja de inspección)</span>
         </label>
       </div>
@@ -253,72 +262,69 @@ function BarraCatalogo({ resumen, buscar, onBuscar, onNuevo }: { resumen: string
 }
 
 function FormTablero({ marca, campos, onCerrar }: { marca: string; campos: string[]; onCerrar: () => void }) {
-  const [m, setM] = useState(marca);
-  const [lista, setLista] = useState<string[]>(campos.length ? campos : ['']);
+  const form = useFormulario(tableroFormEsquema, { marca, campos: (campos.length ? campos : ['']).map((nombre) => ({ nombre })) });
+  const lista = useFieldArray({ control: form.control, name: 'campos' });
   const [error, setError] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
   const recargar = useRecargarCatalogos();
   const avisar = useAvisos();
-  const mover = (i: number, d: number) => {
-    const n = [...lista];
-    [n[i], n[i + d]] = [n[i + d]!, n[i]!];
-    setLista(n);
-  };
-  const guardar = async () => {
-    setEnviando(true);
+  const marcaEscrita = String(form.watch('marca') ?? '').trim();
+  const guardar = form.handleSubmit(async (d) => {
     setError(null);
     try {
-      await guardarTablero(m.trim(), lista.map((c) => c.trim()).filter(Boolean));
+      await guardarTablero(d.marca, d.campos);
       await recargar('tableros');
       avisar('Tablero guardado');
       onCerrar();
     } catch (e) {
       setError(mensajeError(e));
-    } finally {
-      setEnviando(false);
     }
-  };
+  });
   return (
     <Hoja
       abierta
       titulo={marca ? `Tablero · ${marca}` : 'Nuevo tablero'}
       onCerrar={onCerrar}
       pie={
-        <div>
-          {error && (
-            <p className="mb-2 rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
-              {error}
-            </p>
-          )}
-          <button className="btn-primario w-full" onClick={guardar} disabled={enviando || !m.trim()}>
-            {enviando && <Loader2 className="h-5 w-5 animate-spin" />} Guardar tablero
+        <div className="space-y-2">
+          <ErrorServidor mensaje={error} />
+          <button className="btn-primario w-full" onClick={guardar} disabled={form.formState.isSubmitting || !marcaEscrita}>
+            {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} Guardar tablero
           </button>
         </div>
       }
     >
       <div className="space-y-3">
-        <div>
-          <label className="etiqueta" htmlFor="tab-marca">
-            Marca del restaurador
-          </label>
-          <input id="tab-marca" className="campo" value={m} disabled={!!marca} onChange={(e) => setM(e.target.value)} />
-        </div>
+        {/* Solo lectura (no `disabled`): react-hook-form no envía los campos deshabilitados. */}
+        <CampoForm
+          form={form}
+          nombre="marca"
+          id="tab-marca"
+          etiqueta="Marca del restaurador"
+          readOnly={!!marca}
+          className={marca ? 'bg-slate-100 text-slate-500' : undefined}
+        />
         <p className="etiqueta">Campos en el orden en que aparecen</p>
-        {lista.map((c, i) => (
-          <div key={i} className="flex items-center gap-1">
-            <input className="campo" value={c} aria-label={`Campo ${i + 1}`} onChange={(e) => setLista(lista.map((x, j) => (j === i ? e.target.value : x)))} />
-            <button className="btn-secundario px-2" disabled={i === 0} onClick={() => mover(i, -1)} aria-label="Subir">
+        {lista.fields.map((c, i) => (
+          <div key={c.id} className="flex items-center gap-1">
+            <input className="campo" aria-label={`Campo ${i + 1}`} {...form.register(`campos.${i}.nombre`)} />
+            <button type="button" className="btn-secundario px-2" disabled={i === 0} onClick={() => lista.move(i, i - 1)} aria-label="Subir">
               <ArrowUp className="h-4 w-4" />
             </button>
-            <button className="btn-secundario px-2" disabled={i === lista.length - 1} onClick={() => mover(i, 1)} aria-label="Bajar">
+            <button
+              type="button"
+              className="btn-secundario px-2"
+              disabled={i === lista.fields.length - 1}
+              onClick={() => lista.move(i, i + 1)}
+              aria-label="Bajar"
+            >
               <ArrowDown className="h-4 w-4" />
             </button>
-            <button className="btn-secundario px-2" onClick={() => setLista(lista.filter((_, j) => j !== i))} aria-label="Quitar">
+            <button type="button" className="btn-secundario px-2" onClick={() => lista.remove(i)} aria-label="Quitar">
               <X className="h-4 w-4" />
             </button>
           </div>
         ))}
-        <button className="btn-secundario w-full" onClick={() => setLista([...lista, ''])}>
+        <button type="button" className="btn-secundario w-full" onClick={() => lista.append({ nombre: '' })}>
           <Plus className="h-4 w-4" /> Agregar campo
         </button>
       </div>
@@ -370,35 +376,32 @@ function Tableros() {
 const ZONAS = ['America/Tegucigalpa', 'America/Guatemala', 'America/El_Salvador', 'America/Managua', 'America/Costa_Rica', 'America/Panama', 'UTC'];
 
 function ZonaHoraria() {
-  const [zona, setZona] = useState(zonaActual());
-  const [guardando, setGuardando] = useState(false);
+  const form = useFormulario(configuracionEsquema, { zona_horaria: zonaActual() });
+  const zona = form.watch('zona_horaria');
   const avisar = useAvisos();
   const recargar = useRecargarCatalogos();
-  const guardar = async () => {
-    setGuardando(true);
+  const guardar = form.handleSubmit(async (d) => {
     try {
-      await guardarConfiguracion({ zona_horaria: zona });
-      fijarZona(zona);
+      await guardarConfiguracion(d);
+      fijarZona(d.zona_horaria);
       void recargar();
       avisar('Zona horaria actualizada');
     } catch (e) {
       avisar(mensajeError(e), { tipo: 'error' });
-    } finally {
-      setGuardando(false);
     }
-  };
+  });
   return (
     <Seccion titulo="Zona horaria de la app">
-      <div className="tarjeta flex gap-2 p-4">
-        <select className="campo" value={zona} onChange={(e) => setZona(e.target.value)} aria-label="Zona horaria">
+      <form onSubmit={guardar} className="tarjeta flex gap-2 p-4">
+        <select className="campo" aria-label="Zona horaria" {...form.register('zona_horaria')}>
           {[...new Set([zona, ...ZONAS])].map((z) => (
             <option key={z}>{z}</option>
           ))}
         </select>
-        <button className="btn-primario shrink-0" onClick={guardar} disabled={guardando}>
-          {guardando && <Loader2 className="h-5 w-5 animate-spin" />} Guardar
+        <button className="btn-primario shrink-0" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting && <Loader2 className="h-5 w-5 animate-spin" />} Guardar
         </button>
-      </div>
+      </form>
     </Seccion>
   );
 }

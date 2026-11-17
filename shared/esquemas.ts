@@ -87,6 +87,11 @@ export const usuarioEditarEsquema = z.object({
   cargo_id,
 });
 
+/** Formulario de edición de una cuenta: las cuentas antiguas pueden no tener correo (vacío = no se envía). */
+export const usuarioEditarFormEsquema = usuarioEditarEsquema.extend({
+  correo: z.preprocess((v) => (v === '' ? undefined : v), correoInstitucional.optional()),
+});
+
 export const aprobarCuentaEsquema = z.object({ rol: z.enum(ROLES), permisos: permisos.optional() });
 
 export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
@@ -108,6 +113,21 @@ export const cambiarPasswordEsquema = z
     nueva: password,
   })
   .refine((d) => d.actual !== d.nueva, { message: 'La nueva contraseña debe ser distinta de la actual.', path: ['nueva'] });
+
+/** Formulario de cambio de contraseña: el del servidor más «repita la nueva» (solo en la pantalla). */
+export const cambiarPasswordFormEsquema = z
+  .object({
+    actual: z.string().min(1, 'Escriba su contraseña actual').max(200),
+    nueva: password,
+    confirmar: z.string(),
+  })
+  .refine((d) => d.nueva === d.confirmar, { message: 'Las contraseñas no coinciden.', path: ['confirmar'] })
+  .refine((d) => d.actual !== d.nueva, { message: 'La nueva contraseña debe ser distinta de la actual.', path: ['nueva'] });
+
+/** Formulario de solicitud de cuenta: el del servidor más «repita la contraseña». */
+export const registroFormEsquema = registroEsquema
+  .extend({ confirmar: z.string() })
+  .refine((d) => d.password === d.confirmar, { message: 'Las contraseñas no coinciden.', path: ['confirmar'] });
 
 export const configuracionEsquema = z.object({
   zona_horaria: z.string().refine((tz) => {
@@ -168,3 +188,15 @@ export const tableroEsquema = z.object({
   marca: obligatorio('la marca', 60),
   campos: z.array(z.string().trim().min(1).max(80)).max(40),
 });
+
+/**
+ * Formulario del tablero: cada campo como objeto (lo pide la lista dinámica de react-hook-form); al enviar
+ * queda la lista de nombres que valida el servidor, sin los vacíos.
+ */
+export const tableroFormEsquema = z
+  .object({
+    marca: obligatorio('la marca', 60),
+    campos: z.array(z.object({ nombre: z.string().trim().max(80, 'Máximo 80 caracteres') })).max(40),
+  })
+  .transform((d) => ({ marca: d.marca, campos: d.campos.map((c) => c.nombre).filter(Boolean) }))
+  .pipe(tableroEsquema);
