@@ -7,8 +7,8 @@ import { useEffect, useRef, useState } from 'react';
  *
  * Carga progresiva (como las galerías de los teléfonos): al pasar de foto se ve al instante su copia
  * reducida (`previa`, ya descargada en la pantalla de atrás) y encima se carga el original, que la
- * reemplaza con un fundido al terminar. Mientras se mira una foto se adelanta el original de la
- * siguiente. Así el cambio de foto nunca se queda «pegado» esperando un archivo de varios MB.
+ * reemplaza con un fundido al terminar. El original se descarga solo al abrir esa foto (no se adelanta
+ * la siguiente, para no gastar datos). Así el cambio de foto nunca se queda «pegado».
  */
 export function VisorFotos({
   fotos,
@@ -47,15 +47,6 @@ export function VisorFotos({
 
   const foto = fotos[i];
   const lista = !!foto && listas.has(foto.src);
-  // Con la foto actual lista, se adelanta la descarga del original de la siguiente.
-  const siguiente = n > 1 ? fotos[(i + 1) % n]?.src : undefined;
-  useEffect(() => {
-    if (!lista || !siguiente || listas.has(siguiente)) return;
-    const img = new Image();
-    img.onload = () => marcarLista(siguiente);
-    img.src = siguiente;
-  }, [lista, siguiente, listas]);
-
   if (!foto) return null;
   const flecha =
     'absolute top-1/2 z-10 flex h-12 w-12 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white hover:bg-black/70';
