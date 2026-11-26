@@ -14,7 +14,7 @@ import { TONO } from '@common/tonos';
 import { fecha, fechaHora } from '@common/utils/fechas';
 import type { FotoVisita } from '@shared/tipos';
 import type { Visita } from '@shared/visitas';
-import { urlFoto, urlPdf } from '../../api';
+import { urlFoto, urlFotoCopia, urlPdf } from '../../api';
 import { useInspeccion } from '../../hooks/useInspecciones';
 import { BotonEliminar } from '../../components/eliminar';
 import {
@@ -260,6 +260,8 @@ export function VerVisita() {
   // El visor abre el ORIGINAL (a pedido, E2); la cuadrícula muestra la copia reducida.
   const fotos = d.fotos.map(f => ({
     src: urlFoto(d.id, f.orden, f.v),
+    // La copia reducida (ya descargada para la cuadrícula) se ve al instante mientras carga el original.
+    previa: f.copia ? urlFotoCopia(d.id, f.orden, f.v) : null,
     alt: f.observacion ?? `Foto ${f.orden}`,
     obs: f.observacion,
   }));
