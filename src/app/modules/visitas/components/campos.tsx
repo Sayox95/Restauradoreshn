@@ -16,7 +16,7 @@ function Antes({ id }: { id: string }) {
   const antes = useContext(ValoresAnteriores).get(id);
   if (antes === undefined) return null;
   return (
-    <p className="mt-1 text-xs text-marca-700">
+    <p className="mt-1 text-xs text-amber-800">
       antes: <span className="font-semibold">{antes}</span>
     </p>
   );

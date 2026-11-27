@@ -19,8 +19,6 @@ import {
   SECCIONES,
   type Visita,
   faltantes,
-  resumenMateriales,
-  resumenPersonal,
   visitaEsquema,
 } from '@shared/visitas';
 import {
@@ -121,6 +119,10 @@ function Editor({ d }: { d: VisitaDetalle }) {
     [d.datos, actual, obsOriginal, obs],
   );
   const modificadas = seccionesConCambios(cambios);
+  const cambiados = useMemo(
+    () => new Set(cambios.map(c => c.campo)),
+    [cambios],
+  );
   const anteriores = useMemo(
     () =>
       new Map(cambios.map(c => [c.campo.replace(/^tablero\./, ''), c.antes])),
@@ -129,6 +131,8 @@ function Editor({ d }: { d: VisitaDetalle }) {
 
   // Sin el menú inferior (la barra de guardar va fija abajo); con cambios, la versión nueva de la app
   // espera a que termine (nunca se recarga encima de lo editado).
+  // Se entra desde el final del detalle: la edición empieza arriba.
+  useEffect(() => window.scrollTo(0, 0), []);
   useEffect(() => {
     fijarModoCaptura(true);
     return () => fijarModoCaptura(false);
@@ -147,18 +151,29 @@ function Editor({ d }: { d: VisitaDetalle }) {
       });
     });
 
+  /** Lleva la pantalla al título de una sección (debajo de la barra superior). */
+  const alInicio = (i: number | null) =>
+    // Dos cuadros: el primero deja que la sección se dibuje abierta o cerrada.
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() =>
+        document
+          .querySelector(`[data-seccion="${i}"]`)
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      ),
+    );
+
   const abrir = (i: number) => {
     if (abierta !== null) {
       avisar('Aplique o cancele la sección abierta primero', {
         tipo: 'error',
       });
-      enfocar(`[data-seccion="${abierta}"]`);
+      alInicio(abierta);
       return;
     }
     setRespaldo({ b, obs });
     setFaltan(new Set());
     setAbierta(i);
-    enfocar(`[data-seccion="${i}"]`);
+    alInicio(i);
   };
 
   /**
@@ -170,11 +185,7 @@ function Editor({ d }: { d: VisitaDetalle }) {
     setRespaldo(null);
     setFaltan(new Set());
     setAbierta(null);
-    requestAnimationFrame(() =>
-      document
-        .querySelector(`[data-seccion="${i}"]`)
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
-    );
+    alInicio(i);
   };
 
   const cancelar = () => {
@@ -336,6 +347,7 @@ function Editor({ d }: { d: VisitaDetalle }) {
                     idVisita={d.id}
                     fotos={d.fotos}
                     obs={obs}
+                    cambiados={cambiados}
                   />
                 )}
               </div>
@@ -419,19 +431,35 @@ function Editor({ d }: { d: VisitaDetalle }) {
 const texto = (v: unknown) =>
   v === null || v === undefined ? '' : String(v).trim();
 
-/** Sección bloqueada: sus datos en resumen (solo lo que tiene valor). */
+/** Valor del resumen; si cambió en esta edición, resaltado en amarillo. */
+function Valor({ cambio, children }: { cambio: boolean; children: string }) {
+  return cambio ? (
+    <mark className="rounded bg-amber-100 px-1 font-semibold text-amber-900">
+      {children}
+    </mark>
+  ) : (
+    <>{children}</>
+  );
+}
+
+/**
+ * Sección bloqueada: sus datos en resumen (solo lo que tiene valor), en el orden del formulario y
+ * leyendo hacia abajo por columna. Materiales y personal van aparte, uno por renglón.
+ */
 function Resumen({
   i,
   v,
   idVisita,
   fotos,
   obs,
+  cambiados,
 }: {
   i: number;
   v: Visita;
   idVisita: number;
   fotos: FotoVisita[];
   obs: ObservacionesFotos;
+  cambiados: Set<string>;
 }) {
   if (i === FOTOGRAFIAS)
     return fotos.length ? (
@@ -441,7 +469,14 @@ function Resumen({
             <Miniatura idVisita={idVisita} foto={f} />
             <figcaption className="mt-1 text-xs text-slate-600">
               <span className="font-semibold">Foto {f.orden}</span>
-              {texto(obs[f.orden]) ? ` · ${texto(obs[f.orden])}` : ''}
+              {texto(obs[f.orden]) && (
+                <>
+                  {' · '}
+                  <Valor cambio={cambiados.has(`foto.${f.orden}`)}>
+                    {texto(obs[f.orden])}
+                  </Valor>
+                </>
+              )}
             </figcaption>
           </figure>
         ))}
@@ -451,48 +486,116 @@ function Resumen({
     );
 
   const nombre = SECCIONES[i]!;
-  const filas: [string, string][] = [];
+  const filas: { campo: string; etiqueta: string; valor: string }[] = [];
   for (const [campo, [sec, etiqueta]] of Object.entries(CAMPOS_EDITABLES) as [
     keyof Visita,
     [string, string],
   ][]) {
-    if (sec !== nombre) continue;
+    if (sec !== nombre || campo === 'materiales' || campo === 'personal')
+      continue;
     const valor =
-      campo === 'materiales'
-        ? resumenMateriales(v.materiales)
-        : campo === 'personal'
-          ? resumenPersonal(v.personal)
-          : campo === 'fecha_visita' && v.fecha_visita
-            ? fecha(`${v.fecha_visita}T12:00:00`)
-            : texto(v[campo]);
-    if (valor) filas.push([etiqueta, valor]);
+      campo === 'fecha_visita' && v.fecha_visita
+        ? fecha(`${v.fecha_visita}T12:00:00`)
+        : texto(v[campo]);
+    if (valor) filas.push({ campo, etiqueta, valor });
   }
   if (i === TABLERO)
     for (const [k, x] of Object.entries(v.tablero_campos ?? {}))
-      filas.push([`Tablero: ${k}`, x]);
+      filas.push({
+        campo: `tablero.${k}`,
+        etiqueta: `Tablero: ${k}`,
+        valor: x,
+      });
+
+  const materiales = nombre === 'Materiales' ? v.materiales : [];
+  const personal = i === PERSONAL ? v.personal : [];
+  const vacio = !filas.length && !materiales.length && !personal.length;
 
   return (
     <>
-      {filas.length ? (
-        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 lg:grid-cols-3">
-          {filas.map(([e, valor]) => (
-            <div key={e} className="min-w-0">
+      {materiales.length > 0 && (
+        <Lista
+          titulo="Materiales"
+          cambio={cambiados.has('materiales')}
+          items={materiales.map(m => ({
+            principal: m.desc ?? '—',
+            detalle: [
+              m.codigo && `Código ${m.codigo}`,
+              `${m.cant ?? '—'} ${m.unidad ?? ''}`.trim(),
+              m.motivo,
+            ]
+              .filter(Boolean)
+              .join(' · '),
+          }))}
+        />
+      )}
+      {personal.length > 0 && (
+        <Lista
+          titulo="Personal de la inspección"
+          cambio={cambiados.has('personal')}
+          items={personal.map(p => ({
+            principal: p.nombre || '—',
+            detalle: p.cargo ?? '',
+          }))}
+        />
+      )}
+      {filas.length > 0 && (
+        <dl className="columns-2 gap-x-4 lg:columns-3">
+          {filas.map(f => (
+            <div key={f.campo} className="mb-2 min-w-0 break-inside-avoid">
               <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {e}
+                {f.etiqueta}
               </dt>
-              <dd className="break-words text-sm text-slate-900">{valor}</dd>
+              <dd className="break-words text-sm text-slate-900">
+                <Valor cambio={cambiados.has(f.campo)}>{f.valor}</Valor>
+              </dd>
             </div>
           ))}
         </dl>
-      ) : (
-        <p className="text-sm text-slate-500">Sin datos.</p>
       )}
+      {vacio && <p className="text-sm text-slate-500">Sin datos.</p>}
       {i === PERSONAL && (
         <div className="mt-3">
           <FirmaFija firma={v.firma_img} />
         </div>
       )}
     </>
+  );
+}
+
+/** Materiales o personal en el resumen: uno por renglón (con su detalle debajo). */
+function Lista({
+  titulo,
+  cambio,
+  items,
+}: {
+  titulo: string;
+  cambio: boolean;
+  items: { principal: string; detalle: string }[];
+}) {
+  return (
+    <div className="mb-3">
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+        {titulo}
+        {cambio && (
+          <mark className="ml-2 rounded bg-amber-100 px-1 normal-case tracking-normal text-amber-900">
+            cambió
+          </mark>
+        )}
+      </p>
+      <ul
+        className={`divide-y divide-slate-100 rounded-xl border ${cambio ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200'}`}
+      >
+        {items.map((x, k) => (
+          <li key={k} className="px-3 py-2">
+            <p className="text-sm font-semibold text-slate-900">
+              {x.principal}
+            </p>
+            {x.detalle && <p className="text-xs text-slate-500">{x.detalle}</p>}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
