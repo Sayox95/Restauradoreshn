@@ -443,15 +443,20 @@ function EnvioEnCurso() {
   const actual = a ? orden[a.etapa] : 0;
   const total = a?.total ?? 0;
   const pasos: { texto: string; n: number }[] = [
-    { texto: 'Guardada en el teléfono', n: 0 },
-    { texto: 'Registrando', n: 1 },
+    { texto: 'Inspección guardada', n: 0 },
+    {
+      texto: actual > 1 ? 'Datos enviados' : 'Enviando datos de la inspección',
+      n: 1,
+    },
     ...(total
       ? [
           {
             texto:
               a?.etapa === 'copias'
                 ? `Subiendo copias ${a.actual} de ${total}`
-                : 'Subiendo copias',
+                : actual > 2
+                  ? 'Copias subidas'
+                  : 'Subiendo copias',
             n: 2,
           },
           {
@@ -529,7 +534,7 @@ function EnvioEnCurso() {
           </div>
         )}
         <p className="mt-4 text-center text-xs text-slate-500">
-          No cierre la app. La inspección ya quedó guardada en el teléfono.
+          No cierre la app.
         </p>
       </div>
     </div>,
