@@ -176,7 +176,7 @@ export function Layout() {
       <div
         className={`transition-[padding] duration-200 ease-out ${menuAbierto ? 'lg:pl-64' : ''}`}
       >
-        <main className="mx-auto max-w-6xl px-4 pt-4 lg:px-6 lg:pt-6">
+        <main className="mx-auto max-w-7xl px-4 pt-4 lg:px-6 lg:pt-6">
           <ErrorPantalla key={ruta}>
             {/* Al cambiar de pantalla, la nueva entra con un desvanecido corto. */}
             <div className="anim-pagina">

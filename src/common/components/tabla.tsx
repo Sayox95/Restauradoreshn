@@ -56,7 +56,7 @@ export function Tabla<T>({
                 <th
                   key={c.titulo}
                   scope="col"
-                  className={`px-4 py-3 ${c.clase ?? ''}`}
+                  className={`px-3 py-3 ${c.clase ?? ''}`}
                 >
                   {c.titulo}
                 </th>
@@ -78,7 +78,7 @@ export function Tabla<T>({
                 {columnas.map(c => (
                   <td
                     key={c.titulo}
-                    className={`px-4 py-3 align-middle ${c.clase ?? ''}`}
+                    className={`px-3 py-3 align-middle ${c.clase ?? ''}`}
                   >
                     {c.celda(f)}
                   </td>

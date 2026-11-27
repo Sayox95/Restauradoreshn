@@ -43,11 +43,9 @@ const fechaDe = (v: VisitaResumen) =>
   v.fecha_visita ? fecha(`${v.fecha_visita}T12:00:00`) : '—';
 const equipoDe = (v: VisitaResumen) => EQUIPO_ETIQUETA[v.equipo] ?? v.equipo;
 
-const Archivos = ({ v }: { v: VisitaResumen }) => (
-  <span className="inline-flex items-center gap-3 text-slate-500">
-    <span className="inline-flex items-center gap-1" title="Fotos">
-      <Imagen className="h-4 w-4" aria-hidden /> {v.num_fotos}
-    </span>
+const Fotos = ({ v }: { v: VisitaResumen }) => (
+  <span className="inline-flex items-center gap-1 text-slate-500" title="Fotos">
+    <Imagen className="h-4 w-4" aria-hidden /> {v.num_fotos}
   </span>
 );
 
@@ -56,7 +54,11 @@ function columnas(todas: boolean): Columna<VisitaResumen>[] {
   return [
     {
       titulo: 'Folio',
-      celda: v => <span className="font-mono text-xs">{v.visita_num}</span>,
+      celda: v => (
+        <span className="font-mono text-[11px] tracking-tight">
+          {v.visita_num}
+        </span>
+      ),
       clase: 'whitespace-nowrap',
     },
     { titulo: 'Fecha', celda: fechaDe, clase: 'whitespace-nowrap' },
@@ -93,13 +95,20 @@ function columnas(todas: boolean): Columna<VisitaResumen>[] {
       ? [
           {
             titulo: 'Registró',
-            celda: (v: VisitaResumen) => v.registrado_por ?? '—',
-            clase: 'whitespace-nowrap',
+            // Nombres largos en dos líneas: así la tabla cabe en PC sin barra horizontal.
+            celda: (v: VisitaResumen) => (
+              <span
+                className="line-clamp-2 block min-w-[7rem] max-w-[12rem]"
+                title={v.registrado_por ?? undefined}
+              >
+                {v.registrado_por ?? '—'}
+              </span>
+            ),
           },
         ]
       : []),
     { titulo: 'Estado', celda: v => <BadgeVisita estado={v.estado} /> },
-    { titulo: 'Archivos', celda: v => <Archivos v={v} /> },
+    { titulo: 'Fotos', celda: v => <Fotos v={v} /> },
   ];
 }
 
@@ -122,7 +131,7 @@ function TarjetaVisita({ v, todas }: { v: VisitaResumen; todas: boolean }) {
         <span>{v.tipo_visita}</span>
         <span className="font-mono">{v.visita_num}</span>
         {todas && v.registrado_por && <span>{v.registrado_por}</span>}
-        <Archivos v={v} />
+        <Fotos v={v} />
       </p>
     </>
   );
