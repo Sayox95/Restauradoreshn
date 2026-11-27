@@ -29,6 +29,7 @@ import {
   tonoEstado,
 } from '../../components/ficha';
 import { useFotoPantalla } from '../../hooks/useFotoPantalla';
+import { EQUIPO_ETIQUETA } from '@shared/constantes';
 import { PermisosVisitas } from '../../permisos';
 
 // Clases fijas por cantidad de columnas (Tailwind necesita verlas escritas completas).
@@ -322,7 +323,7 @@ export function VerVisita() {
     <div className="anim-solo-fundido">
       <Encabezado
         volver
-        titulo={`${v.codigo_energis ?? 'Inspección'}${v.circuito ? ` · ${v.circuito}` : ''}`}
+        titulo={`${EQUIPO_ETIQUETA[d.equipo] ?? d.equipo}${v.codigo_energis ? ` ${v.codigo_energis}` : ''}`}
         subtitulo={
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <BadgeVisita estado={d.estado} />
