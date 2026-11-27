@@ -136,6 +136,8 @@ export interface VisitaDetalle extends VisitaResumen {
   /** Última edición (permiso Editar), si la hubo. */
   editado_en: string | null;
   editado_por: string | null;
+  /** Cuántas ediciones tiene (el historial se pide aparte, al abrirlo). */
+  ediciones: number;
   /**
    * Versión de lo guardado: se envía al editar y el servidor la compara, para no pisar los cambios de
    * otra persona que editó mientras tanto.

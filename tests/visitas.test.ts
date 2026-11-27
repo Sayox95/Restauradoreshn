@@ -580,6 +580,8 @@ describe('editar inspecciones (permiso Editar)', () => {
       fotos: [{ orden: 1, observacion: 'Placa del equipo' }],
     });
     expect(r.datos.version).not.toBe(antes.version);
+    expect(antes.ediciones).toBe(0);
+    expect(r.datos.ediciones).toBe(1);
     expect(r.datos.datos).toMatchObject({
       medicion_ac: 121.5,
       zona: 'Occidente',

@@ -250,7 +250,7 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
 ];
 
 /** Historial de ediciones (permiso Editar): cerrado; se pide al servidor al abrirlo. */
-function Historial({ id }: { id: number }) {
+function Historial({ id, total }: { id: number; total: number }) {
   const [abierto, setAbierto] = useState(false);
   const h = useHistorialInspeccion(id, abierto);
   return (
@@ -261,9 +261,7 @@ function Historial({ id }: { id: number }) {
         aria-expanded={abierto}
         className="flex min-h-[48px] w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold uppercase tracking-wide text-marca-900 hover:bg-slate-50"
       >
-        <span className="flex-1">
-          Historial de cambios{h.data ? ` (${h.data.length})` : ''}
-        </span>
+        <span className="flex-1">Historial de cambios ({total})</span>
         <ChevronDown
           className={`h-5 w-5 transition-transform ${abierto ? 'rotate-180' : ''}`}
           aria-hidden
@@ -498,7 +496,7 @@ export function VerVisita() {
 
       {hasAccess([PermisosVisitas.Editar]) && (
         <>
-          {d.editado_en && <Historial id={d.id} />}
+          {d.ediciones > 0 && <Historial id={d.id} total={d.ediciones} />}
           <div className="tarjeta mb-3 overflow-hidden">
             <Link
               to={urlEditarVisita(d.id)}

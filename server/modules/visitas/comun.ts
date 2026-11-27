@@ -199,7 +199,8 @@ export async function detalleVisita(
   // Los datos van en una consulta aparte (menos de 100 columnas).
   const datos = await ctx.env.DB.prepare(
     `SELECT ${COLUMNAS_DATOS.map(c => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img, v.editado_en,
-       (SELECT nombre FROM usuarios WHERE id = v.editado_por) AS editado_por_nombre
+       (SELECT nombre FROM usuarios WHERE id = v.editado_por) AS editado_por_nombre,
+       (SELECT COUNT(*) FROM auditoria a WHERE a.entidad = 'visita' AND a.entidad_id = r.id AND a.accion = 'editar') AS ediciones
      FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
   )
     .bind(id)
@@ -225,6 +226,7 @@ export async function detalleVisita(
     fotos,
     editado_en: editadoEn,
     editado_por: (datos?.editado_por_nombre as string) ?? null,
+    ediciones: Number(datos?.ediciones ?? 0),
     version: versionVisita(editadoEn, (f.registrado_en as string) ?? null),
   };
 }
