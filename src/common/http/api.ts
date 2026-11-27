@@ -136,6 +136,8 @@ export function subirArchivo<T>(
     tipo?: string;
     signal?: AbortSignal;
     inactividadMs?: number;
+    /** Avance de la subida (0 a 1), para mostrarlo en pantalla. */
+    onProgreso?: (fraccion: number) => void;
   } = {},
 ): Promise<T> {
   const {
@@ -143,6 +145,7 @@ export function subirArchivo<T>(
     tipo = archivo.type || 'application/octet-stream',
     signal,
     inactividadMs = 60_000,
+    onProgreso,
   } = opciones;
   return new Promise<T>((ok, mal) => {
     const xhr = new XMLHttpRequest();
@@ -163,7 +166,11 @@ export function subirArchivo<T>(
     xhr.setRequestHeader('Content-Type', tipo);
     const conexion = conexionActual();
     if (conexion) xhr.setRequestHeader(CABECERA_CONEXION, conexion);
-    xhr.upload.onprogress = sinAvance;
+    xhr.upload.onprogress = e => {
+      sinAvance();
+      if (onProgreso && e.lengthComputable && e.total > 0)
+        onProgreso(e.loaded / e.total);
+    };
     xhr.onprogress = sinAvance;
     xhr.onabort = xhr.onerror = () => {
       terminar();

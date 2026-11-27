@@ -484,8 +484,9 @@ export async function generarFicha(
   }
 
   // Fotografías: cuadrícula de 2 × 2 (las 4 caben en media página); con 1 o 2 fotos van más grandes
-  // y una sola queda centrada
-  const fotos = (fotosFicha || []).filter((f: FotoFicha) => f && f.base64);
+  // y una sola queda centrada. Una foto sin imagen legible conserva su lugar y su número, con el
+  // aviso «Imagen no disponible».
+  const fotos = (fotosFicha || []).filter((f: FotoFicha) => !!f);
   if (fotos.length > 0) {
     const FW = (CW - 4) / 2,
       FH = fotos.length <= 2 ? 80 : 50,
@@ -501,6 +502,7 @@ export async function generarFicha(
         const x = x0 + j * (FW + 4);
         rect(x, y, FW, FH + CAP, WHITE, BORDER, 1.2);
         try {
+          if (!foto.base64) throw new Error('sin imagen');
           const pr = doc.getImageProperties(foto.base64);
           const k = Math.min((FW - 2.4) / pr.width, (FH - 2.4) / pr.height);
           const iw = pr.width * k,

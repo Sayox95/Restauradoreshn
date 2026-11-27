@@ -3,6 +3,7 @@
  * sección con las mismas reglas del servidor y avance real. Excepción E1: la visita se guarda primero en
  * el teléfono y se envía sola al haber señal; el borrador se conserva aunque se cierre la app.
  */
+import { descargar } from '@common/utils/descargar';
 import { SECCIONES, avance, faltantes, visitaEsquema } from '@shared/visitas';
 import {
   CheckCircle2,
@@ -34,6 +35,7 @@ import {
 } from '../../components/almacen';
 import { useCatalogosVisita } from '../../hooks/useCatalogosVisita';
 import {
+  type AvanceEnvio,
   alCambiarPaso,
   cancelarEnvio,
   enviarPendientes,
@@ -59,18 +61,12 @@ interface Resultado {
   senalDebil?: boolean;
 }
 
-/** Tiempo máximo con la pantalla bloqueada esperando el envío al guardar. */
-const ESPERA_MAX_MS = 60_000;
-
-function descargar(blob: Blob, nombre: string) {
-  const url = URL.createObjectURL(blob);
-  const a = Object.assign(document.createElement('a'), {
-    href: url,
-    download: nombre,
-  });
-  a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
+/**
+ * Tope total con la pantalla bloqueada esperando el envío al guardar. Además, cada subida se corta
+ * sola tras 60 s sin avance (subirArchivo): así una señal lenta pero viva termina, y una muerta no
+ * deja al usuario esperando.
+ */
+const ESPERA_MAX_MS = 5 * 60_000;
 
 export function RegistrarVisita() {
   const { data: cat } = useCatalogosVisita();
@@ -267,26 +263,24 @@ export function RegistrarVisita() {
       const pdf = () =>
         generarFicha(
           forma.data,
-          fotosVisita
-            .filter(x => x.copia)
-            .map(x => ({ base64: x.copia!, observacion: x.observacion })),
+          fotosVisita.map(x => ({
+            base64: x.copia ?? '',
+            observacion: x.observacion,
+          })),
         );
       let id: number | null = null;
       let senalDebil = false;
       if (navigator.onLine) {
-        // Se espera el envío con la pantalla bloqueada, como máximo ESPERA_MAX_MS: si no terminó, se
-        // corta (señal débil). La visita ya está en el teléfono y se retoma sola desde donde quedó.
-        let vencido = false;
-        const reloj = setTimeout(() => {
-          vencido = true;
-          cancelarEnvio();
-        }, ESPERA_MAX_MS);
+        // Se espera todo el envío con la pantalla bloqueada (registro, copias y originales). Si se
+        // corta (60 s sin avance o ESPERA_MAX_MS en total), la visita ya está en el teléfono y se
+        // retoma sola, desde donde quedó, al volver la señal.
+        const reloj = setTimeout(cancelarEnvio, ESPERA_MAX_MS);
         const r = await enviarPendientes().catch(() => null);
         clearTimeout(reloj);
         id =
           r?.enviadas.find(e => e.visita_num === entrada.visita_num)?.id ??
           null;
-        senalDebil = vencido && !id;
+        senalDebil = !id;
       }
       setResultado({ visita_num: entrada.visita_num, id, pdf, senalDebil });
       avisar(
@@ -439,12 +433,37 @@ export function RegistrarVisita() {
 }
 
 /**
- * Pantalla bloqueante mientras se guarda y envía la visita, con el paso en curso. Se quita sola al
- * terminar o al vencer el tiempo máximo (ESPERA_MAX_MS).
+ * Pantalla bloqueante mientras se guarda y envía la visita: lista de pasos con el avance real. Se
+ * quita sola al terminar o al cortarse el envío (sin avance o tope ESPERA_MAX_MS).
  */
 function EnvioEnCurso() {
-  const [paso, setPaso] = useState('Guardando la inspección');
-  useEffect(() => alCambiarPaso(setPaso), []);
+  const [a, setA] = useState<AvanceEnvio | null>(null);
+  useEffect(() => alCambiarPaso(setA), []);
+  const orden = { registro: 1, copias: 2, originales: 3 } as const;
+  const actual = a ? orden[a.etapa] : 0;
+  const total = a?.total ?? 0;
+  const pasos: { texto: string; n: number }[] = [
+    { texto: 'Guardada en el teléfono', n: 0 },
+    { texto: 'Registrando', n: 1 },
+    ...(total
+      ? [
+          {
+            texto:
+              a?.etapa === 'copias'
+                ? `Subiendo copias ${a.actual} de ${total}`
+                : 'Subiendo copias',
+            n: 2,
+          },
+          {
+            texto:
+              a?.etapa === 'originales'
+                ? `Subiendo foto ${a.actual} de ${total} · ${Math.round(a.fraccion * 100)} %`
+                : 'Subiendo fotos originales',
+            n: 3,
+          },
+        ]
+      : []),
+  ];
   return createPortal(
     <div
       className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm"
@@ -453,19 +472,63 @@ function EnvioEnCurso() {
       aria-label="Enviando inspección"
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-xl"
+        className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
         role="status"
         aria-live="polite"
       >
-        <Loader2
-          className="mx-auto h-10 w-10 animate-spin text-marca-600"
-          aria-hidden
-        />
-        <p className="mt-4 text-lg font-bold text-slate-900">
+        <p className="text-center text-lg font-bold text-slate-900">
           Enviando inspección
         </p>
-        <p className="mt-1 text-sm text-slate-600">{paso}…</p>
-        <p className="mt-3 text-xs text-slate-500">
+        <ul className="mt-4 space-y-2.5">
+          {pasos.map(p => {
+            const hecho = p.n < actual || (p.n === 0 && a !== null);
+            const enCurso = p.n === actual || (p.n === 0 && a === null);
+            return (
+              <li
+                key={p.n}
+                className={`flex items-center gap-2.5 text-sm ${
+                  hecho
+                    ? 'text-slate-500'
+                    : enCurso
+                      ? 'font-semibold text-slate-900'
+                      : 'text-slate-400'
+                }`}
+              >
+                {hecho ? (
+                  <CheckCircle2
+                    className="h-5 w-5 shrink-0 text-emerald-500"
+                    aria-hidden
+                  />
+                ) : enCurso ? (
+                  <Loader2
+                    className="h-5 w-5 shrink-0 animate-spin text-marca-600"
+                    aria-hidden
+                  />
+                ) : (
+                  <span
+                    className="h-5 w-5 shrink-0 rounded-full border-2 border-slate-200"
+                    aria-hidden
+                  />
+                )}
+                {p.texto}
+              </li>
+            );
+          })}
+        </ul>
+        {a?.etapa === 'originales' && (
+          <div
+            className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100"
+            aria-hidden
+          >
+            <div
+              className="h-full bg-marca-500 transition-[width]"
+              style={{
+                width: `${(((a.actual - 1 + a.fraccion) / total) * 100).toFixed(1)}%`,
+              }}
+            />
+          </div>
+        )}
+        <p className="mt-4 text-center text-xs text-slate-500">
           No cierre la app. La inspección ya quedó guardada en el teléfono.
         </p>
       </div>
@@ -523,9 +586,9 @@ function Terminada({ r }: { r: Resultado }) {
         {!r.id && (
           <p className="mt-2 text-sm text-slate-600">
             {r.senalDebil
-              ? 'La señal es débil y no se pudo enviar ahora. '
+              ? 'La señal es débil y no se pudo terminar el envío. '
               : ''}
-            Quedó guardada en el teléfono y se enviará sola cuando haya señal.
+            Quedó guardada en el teléfono y se enviará sola al volver la señal.
           </p>
         )}
         <div className="mt-6 space-y-3">

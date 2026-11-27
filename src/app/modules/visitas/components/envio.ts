@@ -1,10 +1,10 @@
 /**
  * Envío de las visitas guardadas en el teléfono (excepción E1). Cada paso es repetible sin duplicar:
- * registrar (idempotente por número de visita), subir cada foto original (reemplaza), archivar el PDF.
+ * registrar (idempotente por número de visita), subir cada copia reducida y después cada original
+ * (reemplazan). El PDF no se sube: se genera al descargarlo (E3).
  * Solo al terminar todo se quita de la cola. Se envía por eventos (al guardar, al volver la señal, al
  * abrir la app o a pedido), nunca con consultas periódicas, y una sola vez a la vez (Web Locks).
  */
-import { visitaEsquema } from '@shared/visitas';
 import { useEffect, useState } from 'react';
 import { ErrorApi, mensajeError } from '@common/http/api';
 import { blobDeDataUrl } from '@common/utils/imagen';
@@ -12,7 +12,6 @@ import {
   registrarVisita,
   subirCopiaFoto,
   subirFoto,
-  subirPdf,
 } from '@modules/visitas/api';
 import {
   type Pendiente,
@@ -21,7 +20,6 @@ import {
   listarCola,
   quitarDeCola,
 } from './almacen';
-import { generarFicha } from './ficha-pdf';
 
 export interface ResultadoEnvio {
   enviadas: { visita_num: string; id: number }[];
@@ -31,59 +29,71 @@ export interface ResultadoEnvio {
   rechazadas: number;
 }
 
-/** Paso del envío en curso, para mostrarlo en la pantalla que espera (p. ej. «Subiendo foto 1 de 2»). */
-const oyentesPaso = new Set<(paso: string) => void>();
-const avisarPaso = (paso: string) => oyentesPaso.forEach(f => f(paso));
-export function alCambiarPaso(fn: (paso: string) => void) {
+/**
+ * Avance del envío en curso, para la pantalla que espera. Orden fijo: registro → copias reducidas →
+ * fotos originales. `actual` es la foto que se sube (1..total) y `fraccion` su avance (0 a 1).
+ */
+export interface AvanceEnvio {
+  etapa: 'registro' | 'copias' | 'originales';
+  actual: number;
+  total: number;
+  fraccion: number;
+}
+const oyentesPaso = new Set<(avance: AvanceEnvio) => void>();
+const avisarPaso = (a: AvanceEnvio) => oyentesPaso.forEach(f => f(a));
+export function alCambiarPaso(fn: (avance: AvanceEnvio) => void) {
   oyentesPaso.add(fn);
   return () => void oyentesPaso.delete(fn);
 }
 
+/** Error de red o de sesión: se detiene y se reintenta después; los demás no detienen el envío. */
+const esDeRed = (e: unknown) =>
+  e instanceof ErrorApi && (e.status === 0 || e.status === 401);
+
 async function enviarUna(p: Pendiente, signal: AbortSignal): Promise<number> {
+  const total = p.fotos.length;
   if (!p.id) {
-    avisarPaso('Registrando la inspección');
+    avisarPaso({ etapa: 'registro', actual: 0, total, fraccion: 0 });
     const r = await registrarVisita(p.visita, signal);
     p.id = r.visita.id;
     p.error = undefined;
     await guardarEnCola(p);
   }
-  for (let i = 0; i < p.fotos.length; i++) {
+  // 1) Copias reducidas (E2): son livianas y dejan la inspección completa en pantalla y en el PDF
+  // aunque los originales tarden. Si el servidor rechaza una, la pantalla la deriva del original.
+  for (let i = 0; i < total; i++) {
     const orden = i + 1;
-    if (p.fotos_subidas.includes(orden)) continue;
     const f = p.fotos[i]!;
-    avisarPaso(`Subiendo foto ${orden} de ${p.fotos.length}`);
-    await subirFoto(p.id, orden, f.original, f.observacion, signal);
-    p.fotos_subidas = [...p.fotos_subidas, orden];
-    await guardarEnCola(p);
-  }
-  // Copias reducidas para las pantallas (E2). Si el servidor rechaza una, la pantalla la genera del
-  // original: no se detiene el envío ni se reintenta; sin señal sí se reintenta después.
-  for (let i = 0; i < p.fotos.length; i++) {
-    const orden = i + 1;
-    const copia = p.fotos[i]!.copia;
-    if (!copia || (p.copias_subidas ?? []).includes(orden)) continue;
+    if (!f.copia || (p.copias_subidas ?? []).includes(orden)) continue;
+    avisarPaso({ etapa: 'copias', actual: orden, total, fraccion: 0 });
     try {
-      await subirCopiaFoto(p.id, orden, blobDeDataUrl(copia), signal);
+      await subirCopiaFoto(
+        p.id,
+        orden,
+        blobDeDataUrl(f.copia),
+        f.observacion,
+        signal,
+      );
     } catch (e) {
-      if (e instanceof ErrorApi && (e.status === 0 || e.status === 401))
-        throw e;
+      if (esDeRed(e)) throw e;
     }
     p.copias_subidas = [...(p.copias_subidas ?? []), orden];
     await guardarEnCola(p);
   }
-  if (!p.pdf_subido) {
-    avisarPaso('Generando y archivando el PDF');
-    if (signal.aborted) throw new ErrorApi(0, 'Envío cancelado');
-    const pdf = await generarFicha(
-      visitaEsquema.parse(p.visita),
-      p.fotos
-        .filter(f => f.copia)
-        .map(f => ({ base64: f.copia!, observacion: f.observacion })),
+  // 2) Fotos originales, una por una (reemplazan si se reintenta). Sin avance en 60 s, la subida se
+  // corta sola (subirArchivo) y queda pendiente en el teléfono.
+  for (let i = 0; i < total; i++) {
+    const orden = i + 1;
+    if (p.fotos_subidas.includes(orden)) continue;
+    const f = p.fotos[i]!;
+    avisarPaso({ etapa: 'originales', actual: orden, total, fraccion: 0 });
+    await subirFoto(p.id, orden, f.original, f.observacion, signal, fr =>
+      avisarPaso({ etapa: 'originales', actual: orden, total, fraccion: fr }),
     );
-    await subirPdf(p.id, pdf, signal);
-    p.pdf_subido = true;
+    p.fotos_subidas = [...p.fotos_subidas, orden];
     await guardarEnCola(p);
   }
+  // El PDF ya no se archiva: se genera al descargarlo, con los datos, la firma y las copias (E3).
   await quitarDeCola(p.visita_num);
   return p.id;
 }

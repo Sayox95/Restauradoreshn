@@ -49,15 +49,23 @@ en la nube**; el stack se queda en Cloudflare (Pages + Functions + D1 + R2).
 Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: dueño del proyecto, 2026-11-11.
 
 - **E1 · Captura sin conexión** — módulo visitas. Motivo: las inspecciones se hacen en zonas sin
-  cobertura. La visita, sus fotos y su PDF se guardan en el dispositivo (IndexedDB, esquema único en
+  cobertura. La visita y sus fotos (original y copia) se guardan en el dispositivo (IndexedDB, esquema único en
   `src/app/modules/visitas/components/almacen.ts`) y se envían por eventos al reconectar; envío
-  idempotente por `visita_num` (índice único) y un solo envío a la vez (Web Locks).
+  idempotente por `visita_num` (índice único) y un solo envío a la vez (Web Locks). Orden del envío:
+  registro → copias reducidas → fotos originales, una por una, cada paso anotado en la cola para
+  retomarlo donde quedó. Al guardar, la pantalla queda bloqueada mostrando el avance real hasta que
+  todo termina; se corta tras 60 s sin avance (`subirArchivo`) o 5 min en total, y entonces la
+  inspección queda en el teléfono y se envía sola por eventos.
 - **E2 · Fotos en resolución original** — módulo visitas. Motivo: las fotos son evidencia técnica (placas,
   lecturas). 1 obligatoria y hasta 3 más, máximo 25 MB cada una, subidas una por una a R2
   (`fotos/<visita>/<orden>.<ext>`) y registradas en `registros_fotos`. En pantalla se muestra la copia
   reducida (`<orden>-copia.jpg`, generada en el teléfono); el original se abre a pedido en el visor.
 - **E3 · PDF generado en la app** — ficha de visita. Motivo: no existe un formato oficial seriado. Se
-  genera con jsPDF, se archiva en R2 (`pdfs/<visita>.pdf`) y la base sigue siendo la fuente oficial.
+  genera con jsPDF **al descargarlo** (pantalla final, también sin señal, y botón «PDF» del detalle), con
+  los datos y la firma de la base y las copias de las fotos (sin copia, se deriva del original). No se
+  sube ni se archiva: la base es la fuente oficial y el PDF siempre coincide con ella. Diferencia
+  acordada (dueño del proyecto, 2026-11-27): las inspecciones anteriores sin firma en la base (HV-…)
+  entregan su PDF archivado en R2 (`pdfs/<visita>.pdf`), que no se borra.
 - **E4 · Mediciones numéricas cortas en una fila** — formulario de visita. El resto del formulario va en
   una sola columna; solo voltajes (AC, baterías, cargador), corrientes (IA, IB, IC, IN) y resistencias de
   aterrizaje van en una fila.

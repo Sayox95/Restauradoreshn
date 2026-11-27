@@ -1,7 +1,7 @@
 # Arquitectura
 
 Inspección de Restauradores sigue los **Lineamientos UTCD · Apps en la nube** con el stack en
-Cloudflare: Pages (app React) + Functions (API) + D1 (base) + R2 (fotos y PDF).
+Cloudflare: Pages (app React) + Functions (API) + D1 (base) + R2 (fotos y PDF archivados de antes).
 
 ## Estructura
 
@@ -57,8 +57,10 @@ tests/                      pruebas de la API con una D1 y un R2 en memoria
 ## Excepciones acordadas (ver CLAUDE.md)
 
 - **E1 · Captura sin conexión**: `src/app/modules/visitas/components/almacen.ts` (IndexedDB:
-  cola, borrador y catálogos) y `envio.ts` (envío por eventos, un solo envío a la vez con Web Locks).
+  cola, borrador y catálogos) y `envio.ts` (envío por eventos, un solo envío a la vez con Web Locks;
+  orden: registro → copias → originales, con avance en pantalla).
 - **E2 · Fotos originales**: 1 obligatoria y hasta 3 más, ≤ 25 MB, subidas una por una a
-  `fotos/<visita>/<orden>.<ext>`; copia reducida solo para la vista previa y el PDF.
-- **E3 · PDF generado en la app**: `components/ficha-pdf.ts` (jsPDF), archivado en `pdfs/<visita>.pdf`.
+  `fotos/<visita>/<orden>.<ext>`; copia reducida (`<orden>-copia.jpg`) para pantallas y PDF, sube primero.
+- **E3 · PDF generado en la app**: `components/ficha-pdf.ts` (jsPDF), generado al descargarlo
+  (`components/pdf-inspeccion.ts`); solo las anteriores sin firma en la base usan `pdfs/<visita>.pdf`.
 - **E4 · Mediciones en una fila**: `FilaMediciones` (voltajes, corrientes, resistencias); el resto en una columna.

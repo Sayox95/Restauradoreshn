@@ -8,7 +8,6 @@ import type { VisitaResumen } from '@shared/tipos';
 import {
   CloudOff,
   Download,
-  FileText,
   Image as Imagen,
   Loader2,
   Search,
@@ -49,11 +48,6 @@ const Archivos = ({ v }: { v: VisitaResumen }) => (
     <span className="inline-flex items-center gap-1" title="Fotos">
       <Imagen className="h-4 w-4" aria-hidden /> {v.num_fotos}
     </span>
-    {v.tiene_pdf ? (
-      <FileText className="h-4 w-4" aria-label="Con PDF" />
-    ) : (
-      <span className="w-4" aria-hidden />
-    )}
   </span>
 );
 

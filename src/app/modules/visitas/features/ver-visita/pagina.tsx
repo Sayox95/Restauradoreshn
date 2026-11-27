@@ -3,7 +3,7 @@
  * (components/ficha.ts): mismo orden y mismos bloques; en PC aprovechan el ancho con varias columnas.
  * La firma solo va en el PDF.
  */
-import { FileDown, ImageOff } from 'lucide-react';
+import { FileDown, ImageOff, Loader2 } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BadgeVisita, CajaError, Encabezado, Vacio } from '@components/ui';
@@ -14,7 +14,12 @@ import { TONO } from '@common/tonos';
 import { fecha, fechaHora } from '@common/utils/fechas';
 import type { FotoVisita } from '@shared/tipos';
 import type { Visita } from '@shared/visitas';
-import { urlFoto, urlFotoCopia, urlPdf } from '../../api';
+import { descargar } from '@common/utils/descargar';
+import { useAvisos } from '@components/toast';
+import { mensajeError } from '@common/http/api';
+import type { VisitaDetalle } from '@shared/tipos';
+import { urlFoto, urlFotoCopia } from '../../api';
+import { pdfDeInspeccion } from '../../components/pdf-inspeccion';
 import { useInspeccion } from '../../hooks/useInspecciones';
 import { BotonEliminar } from '../../components/eliminar';
 import {
@@ -238,6 +243,40 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
   { titulo: 'Motivo', celda: m => m.motivo ?? '—' },
 ];
 
+/** Genera el PDF al pedirlo (E3), con los datos, la firma y las copias de las fotos. */
+function BotonPdf({ d }: { d: VisitaDetalle }) {
+  const [generando, setGenerando] = useState(false);
+  const avisar = useAvisos();
+  const generar = async () => {
+    setGenerando(true);
+    try {
+      descargar(await pdfDeInspeccion(d), `${d.visita_num}.pdf`);
+    } catch (e) {
+      avisar(mensajeError(e), { tipo: 'error' });
+    } finally {
+      setGenerando(false);
+    }
+  };
+  return (
+    <button
+      type="button"
+      onClick={generar}
+      disabled={generando}
+      className="btn-secundario min-h-[40px] px-3 text-sm"
+    >
+      {generando ? (
+        <>
+          <Loader2 className="h-4 w-4 animate-spin" /> Generando PDF…
+        </>
+      ) : (
+        <>
+          <FileDown className="h-4 w-4" /> PDF
+        </>
+      )}
+    </button>
+  );
+}
+
 export function VerVisita() {
   const id = Number(useParams().id);
   const consulta = useInspeccion(id);
@@ -258,10 +297,13 @@ export function VerVisita() {
   const d = consulta.data;
   const v = d.datos;
   // El visor abre el ORIGINAL (a pedido, E2); la cuadrícula muestra la copia reducida.
+  // Si el original aún no llegó al servidor (envío cortado), el visor muestra solo la copia.
   const fotos = d.fotos.map(f => ({
-    src: urlFoto(d.id, f.orden, f.v),
+    src: f.original
+      ? urlFoto(d.id, f.orden, f.v)
+      : urlFotoCopia(d.id, f.orden, f.v),
     // La copia reducida (ya descargada para la cuadrícula) se ve al instante mientras carga el original.
-    previa: f.copia ? urlFotoCopia(d.id, f.orden, f.v) : null,
+    previa: f.copia && f.original ? urlFotoCopia(d.id, f.orden, f.v) : null,
     alt: f.observacion ?? `Foto ${f.orden}`,
     obs: f.observacion,
   }));
@@ -293,18 +335,7 @@ export function VerVisita() {
             )}
           </span>
         }
-        accion={
-          d.tiene_pdf ? (
-            <a
-              href={urlPdf(d.id)}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secundario min-h-[40px] px-3 text-sm"
-            >
-              <FileDown className="h-4 w-4" /> PDF
-            </a>
-          ) : undefined
-        }
+        accion={<BotonPdf d={d} />}
       />
 
       <dl className="tarjeta mb-4 grid grid-cols-3 divide-slate-100 sm:grid-cols-6">

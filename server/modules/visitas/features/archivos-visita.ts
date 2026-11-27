@@ -63,8 +63,7 @@ export async function subirFoto(
         `INSERT INTO registros_fotos (visita_num, orden, r2_key, observacion, content_type, size, created_at, subido_por)
          VALUES (?,?,?,?,?,?,?,?)
          ON CONFLICT(visita_num, orden) DO UPDATE SET r2_key = excluded.r2_key, observacion = excluded.observacion,
-           content_type = excluded.content_type, size = excluded.size, created_at = excluded.created_at, subido_por = excluded.subido_por,
-           copia_r2_key = NULL`,
+           content_type = excluded.content_type, size = excluded.size, created_at = excluded.created_at, subido_por = excluded.subido_por`,
       )
       .bind(
         folio,
@@ -87,15 +86,16 @@ export async function subirFoto(
       ctx.ahora,
     ),
   ]);
-  // Si la foto cambió de formato, la anterior queda con otro nombre: se retira de R2.
-  if (anterior && anterior.r2_key !== clave)
+  // Si la foto cambió de formato, la anterior queda con otro nombre: se retira de R2. (Sin original
+  // previo —solo había llegado su copia— no hay nada que retirar.)
+  if (anterior?.r2_key && anterior.r2_key !== clave)
     await ctx.env.ARCHIVOS.delete(anterior.r2_key);
   return { orden, bytes: buf.byteLength, mime };
 }
 
 /**
  * Guarda la copia reducida de una foto (E2): un JPEG de 1600 px como máximo que el teléfono generó al
- * capturar. La foto original debe estar subida; reenviar la copia la reemplaza.
+ * capturar. Sube antes que el original; reenviar la copia la reemplaza.
  */
 export async function subirCopiaFoto(
   ctx: Ctx,
@@ -105,12 +105,8 @@ export async function subirCopiaFoto(
   const orden = ordenValido(ordenTexto);
   const v = await visitaPropia(ctx, id);
   const folio = String(v.visita_num);
-  const foto = await ctx.env.DB.prepare(
-    'SELECT copia_r2_key FROM registros_fotos WHERE visita_num = ? AND orden = ?',
-  )
-    .bind(folio, orden)
-    .first();
-  if (!foto) throw new ApiError(409, 'Primero se sube la foto original.');
+  const observacion =
+    (ctx.url.searchParams.get('obs') ?? '').trim().slice(0, 500) || null;
   const buf = new Uint8Array(await ctx.req.arrayBuffer());
   if (buf.byteLength === 0 || buf.byteLength > MAX_COPIA_BYTES)
     throw new ApiError(
@@ -124,9 +120,14 @@ export async function subirCopiaFoto(
     httpMetadata: { contentType: 'image/jpeg' },
   });
   await ctx.env.DB.batch([
+    // La copia sube antes que el original (envío: registro → copias → originales): si la foto aún no
+    // tiene fila, se crea sin original (r2_key vacío) y el original la completa al llegar.
     ctx.env.DB.prepare(
-      'UPDATE registros_fotos SET copia_r2_key = ? WHERE visita_num = ? AND orden = ?',
-    ).bind(clave, folio, orden),
+      `INSERT INTO registros_fotos (visita_num, orden, r2_key, observacion, created_at, subido_por, copia_r2_key)
+       VALUES (?,?,'',?,?,?,?)
+       ON CONFLICT(visita_num, orden) DO UPDATE SET copia_r2_key = excluded.copia_r2_key,
+         observacion = COALESCE(excluded.observacion, registros_fotos.observacion)`,
+    ).bind(folio, orden, observacion, ctx.ahora, ctx.usuario.id, clave),
     sentenciaAuditoria(
       ctx.env,
       ctx.usuario.id,
@@ -185,7 +186,8 @@ export async function descargarFoto(
       size: number | null;
       created_at: string | null;
     }>();
-  if (!f) throw noEncontrado('La foto');
+  // Sin original todavía (solo llegó su copia): el original sigue en el teléfono del técnico.
+  if (!f?.r2_key) throw noEncontrado('La foto original');
   const version = `${f.r2_key}-${f.size ?? 0}-${f.created_at ?? ''}`;
   const igual = noModificada(ctx, version);
   if (igual) return igual;

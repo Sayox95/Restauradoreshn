@@ -203,7 +203,7 @@ export async function detalleVisita(
     .bind(id)
     .first<Record<string, unknown>>();
   const { results } = await ctx.env.DB.prepare(
-    "SELECT orden, observacion, content_type, size, r2_key, COALESCE(created_at, '') AS v, copia_r2_key IS NOT NULL AS copia FROM registros_fotos WHERE visita_num = ? ORDER BY orden",
+    "SELECT orden, observacion, content_type, size, r2_key, COALESCE(created_at, '') AS v, copia_r2_key IS NOT NULL AS copia, r2_key <> '' AS original FROM registros_fotos WHERE visita_num = ? ORDER BY orden",
   )
     .bind(f.visita_num)
     .all<Record<string, unknown>>();
@@ -214,6 +214,7 @@ export async function detalleVisita(
     size: Number(x.size ?? 0),
     v: `${x.size ?? 0}-${x.v}`,
     copia: !!x.copia,
+    original: !!x.original,
   }));
   return { ...resumen(f), datos: filaAVisita(datos ?? {}), fotos };
 }

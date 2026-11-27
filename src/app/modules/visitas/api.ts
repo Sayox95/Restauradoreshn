@@ -28,7 +28,7 @@ export const urlExportar = ({ page: _page, ...f }: Filtros = {}) =>
   `${BASE}/exportar${qs({ ...f })}`;
 export const urlFoto = (id: number, orden: number, v = '') =>
   `${BASE}/${id}/fotos/${orden}${v ? `?v=${encodeURIComponent(v)}` : ''}`;
-export const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
+const urlPdf = (id: number) => `${BASE}/${id}/pdf`;
 /** Copia reducida de una foto (la que se muestra en pantalla; E2). */
 export const urlFotoCopia = (id: number, orden: number, v = '') =>
   `${BASE}/${id}/fotos/${orden}/copia${v ? `?v=${encodeURIComponent(v)}` : ''}`;
@@ -38,16 +38,33 @@ export async function descargarFotoOriginal(id: number, orden: number, v = '') {
   if (!r.ok) throw new Error('No se pudo descargar la foto.');
   return r.blob();
 }
+/** Copia reducida como archivo (para el PDF generado al descargar; E3). */
+export async function descargarFotoCopia(id: number, orden: number, v = '') {
+  const r = await fetch(urlFotoCopia(id, orden, v), {
+    credentials: 'same-origin',
+  });
+  if (!r.ok) throw new Error('No se pudo descargar la foto.');
+  return r.blob();
+}
+/** PDF archivado de las inspecciones anteriores sin firma en la base (HV-…). */
+export async function descargarPdfArchivado(id: number) {
+  const r = await fetch(urlPdf(id), { credentials: 'same-origin' });
+  if (!r.ok) throw new Error('No se pudo descargar el PDF.');
+  return r.blob();
+}
+/** Copia reducida de una foto; sube antes que el original y lleva su observación. */
 export const subirCopiaFoto = (
   id: number,
   orden: number,
   copia: Blob,
+  observacion: string | null,
   signal?: AbortSignal,
 ) =>
-  subirArchivo(`${BASE}/${id}/fotos/${orden}/copia`, copia, {
-    tipo: 'image/jpeg',
-    signal,
-  });
+  subirArchivo(
+    `${BASE}/${id}/fotos/${orden}/copia${qs({ obs: observacion })}`,
+    copia,
+    { tipo: 'image/jpeg', signal },
+  );
 /** Elimina (oculta) una inspección con el motivo. */
 export const eliminarVisita = (id: number, motivo: string) =>
   post(`${BASE}/${id}/eliminar`, { motivo });
@@ -60,17 +77,19 @@ export const registrarVisita = (v: VisitaEntrada, signal?: AbortSignal) =>
     signal,
   });
 /** Sube una foto ORIGINAL, como archivo binario (excepción E2). */
+/** Foto original (E2); `onProgreso` informa el avance de la subida (0 a 1). */
 export const subirFoto = (
   id: number,
   orden: number,
   archivo: Blob,
   observacion: string | null,
   signal?: AbortSignal,
+  onProgreso?: (fraccion: number) => void,
 ) =>
   subirArchivo(
     `${BASE}/${id}/fotos/${orden}${qs({ obs: observacion })}`,
     archivo,
-    { signal },
+    { signal, onProgreso },
   );
 /** Archiva el PDF de la ficha (excepción E3). */
 export const subirPdf = (id: number, pdf: Blob, signal?: AbortSignal) =>

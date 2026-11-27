@@ -106,6 +106,8 @@ export interface FotoVisita {
   v: string;
   /** Hay copia reducida para mostrar en pantalla (E2); si no, la app la genera del original. */
   copia: boolean;
+  /** Ya llegó el original (si no, solo su copia: el original sigue en el teléfono del técnico). */
+  original: boolean;
 }
 
 export interface VisitaResumen {

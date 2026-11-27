@@ -379,24 +379,63 @@ describe('fotos originales y PDF (E2, E3)', () => {
     ).toBe(404);
   });
 
-  it('la copia reducida de cada foto se sube después del original y es la que se muestra (E2)', async () => {
+  it('la copia reducida sube antes que el original y es la que se muestra (E2)', async () => {
     const beto = await t.crearUsuario('beto', 'tecnico');
     const id = (await registrar(beto.cookie)).datos.visita.id;
     const copia = (binario: Uint8Array) =>
-      t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1/copia`, {
+      t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1/copia?obs=Placa`, {
         cookie: beto.cookie,
         binario,
       });
     const detalle = async () =>
       (await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie }))
         .datos.fotos;
-    // Sin el original todavía no se acepta.
-    expect((await copia(JPEG)).status).toBe(409);
+    const original = () =>
+      t.pedir('GET', `/api/v1/visitas/${id}/fotos/1`, { cookie: beto.cookie });
+    // Solo JPEG.
+    expect(
+      (await copia(new TextEncoder().encode('no es una imagen'))).status,
+    ).toBe(415);
+    // Primero la copia (envío: registro → copias → originales): la foto ya se ve, sin original.
+    expect((await copia(JPEG)).status).toBe(201);
+    expect(await detalle()).toMatchObject([
+      { orden: 1, copia: true, original: false, observacion: 'Placa' },
+    ]);
+    const r = await t.pedir('GET', `/api/v1/visitas/${id}/fotos/1/copia`, {
+      cookie: beto.cookie,
+    });
+    expect(r.status).toBe(200);
+    expect(r.headers.get('Content-Type')).toBe('image/jpeg');
+    expect((await original()).status).toBe(404);
+    // Llega el original: conserva la copia y la observación.
+    await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1?obs=Placa`, {
+      cookie: beto.cookie,
+      binario: JPEG,
+    });
+    expect(await detalle()).toMatchObject([
+      { orden: 1, copia: true, original: true, observacion: 'Placa' },
+    ]);
+    expect((await original()).status).toBe(200);
+    expect([...t.ARCHIVOS.objetos.keys()].sort()).toEqual([
+      'fotos/HV-20261101-080000/1-copia.jpg',
+      'fotos/HV-20261101-080000/1.jpg',
+    ]);
+    // Reintentos (copia u original otra vez) no duplican.
+    expect((await copia(JPEG)).status).toBe(201);
+    expect((await detalle()).length).toBe(1);
+  });
+
+  it('una foto de una versión anterior (solo original) no tiene copia', async () => {
+    const beto = await t.crearUsuario('beto', 'tecnico');
+    const id = (await registrar(beto.cookie)).datos.visita.id;
     await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, {
       cookie: beto.cookie,
       binario: JPEG,
     });
-    expect((await detalle())[0].copia).toBe(false);
+    expect(
+      (await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: beto.cookie }))
+        .datos.fotos,
+    ).toMatchObject([{ copia: false, original: true }]);
     expect(
       (
         await t.pedir('GET', `/api/v1/visitas/${id}/fotos/1/copia`, {
@@ -404,26 +443,6 @@ describe('fotos originales y PDF (E2, E3)', () => {
         })
       ).status,
     ).toBe(404);
-    // Solo JPEG.
-    expect(
-      (await copia(new TextEncoder().encode('no es una imagen'))).status,
-    ).toBe(415);
-    expect((await copia(JPEG)).status).toBe(201);
-    expect((await detalle())[0].copia).toBe(true);
-    const r = await t.pedir('GET', `/api/v1/visitas/${id}/fotos/1/copia`, {
-      cookie: beto.cookie,
-    });
-    expect(r.status).toBe(200);
-    expect(r.headers.get('Content-Type')).toBe('image/jpeg');
-    expect(t.ARCHIVOS.objetos.has('fotos/HV-20261101-080000/1-copia.jpg')).toBe(
-      true,
-    );
-    // Reemplazar el original deja sin copia hasta que se suba la nueva.
-    await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1`, {
-      cookie: beto.cookie,
-      binario: JPEG,
-    });
-    expect((await detalle())[0].copia).toBe(false);
   });
 
   it('valida el formato de la foto por su contenido', async () => {

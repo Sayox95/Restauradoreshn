@@ -41,6 +41,7 @@
   },
   "include": [
     "src",
-    "shared"
+    "shared",
+    "tests/datos.ts"
   ]
 }
