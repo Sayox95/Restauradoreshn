@@ -136,6 +136,11 @@ export const IDEMPOTENCIA = [
   `CREATE TABLE IF NOT EXISTS idempotencia ( usuario_id INTEGER NOT NULL REFERENCES usuarios(id), clave TEXT NOT NULL, ruta TEXT NOT NULL, estado INTEGER NOT NULL, respuesta TEXT NOT NULL, creado_en TEXT NOT NULL, PRIMARY KEY (usuario_id, clave) )`,
 ];
 
+export const EDITAR_INSPECCIONES = [
+  `ALTER TABLE visitas_registro ADD COLUMN editado_en TEXT`,
+  `ALTER TABLE visitas_registro ADD COLUMN editado_por INTEGER REFERENCES usuarios(id)`,
+];
+
 const existeTabla = (tabla: string) => async (env: Env) =>
   !!(await env.DB.prepare(
     "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
@@ -233,6 +238,11 @@ export const CAMBIOS: Cambio[] = [
     migracion: '0013_idempotencia.sql',
     sentencias: IDEMPOTENCIA,
     yaAplicado: existeTabla('idempotencia'),
+  },
+  {
+    migracion: '0014_editar_inspecciones.sql',
+    sentencias: EDITAR_INSPECCIONES,
+    yaAplicado: existeColumna('visitas_registro', 'editado_en'),
   },
 ];
 

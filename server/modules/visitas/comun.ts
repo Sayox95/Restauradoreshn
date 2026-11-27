@@ -198,7 +198,9 @@ export async function detalleVisita(
   const f = await cargarVisita(ctx, id);
   // Los datos van en una consulta aparte (menos de 100 columnas).
   const datos = await ctx.env.DB.prepare(
-    `SELECT ${COLUMNAS_DATOS.map(c => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
+    `SELECT ${COLUMNAS_DATOS.map(c => `r.${c}`).join(', ')}, v.capturado_en, v.firma_img, v.editado_en,
+       (SELECT nombre FROM usuarios WHERE id = v.editado_por) AS editado_por_nombre
+     FROM registros r LEFT JOIN visitas_registro v ON v.registro_id = r.id WHERE r.id = ?`,
   )
     .bind(id)
     .first<Record<string, unknown>>();
@@ -216,8 +218,22 @@ export async function detalleVisita(
     copia: !!x.copia,
     original: !!x.original,
   }));
-  return { ...resumen(f), datos: filaAVisita(datos ?? {}), fotos };
+  const editadoEn = (datos?.editado_en as string) ?? null;
+  return {
+    ...resumen(f),
+    datos: filaAVisita(datos ?? {}),
+    fotos,
+    editado_en: editadoEn,
+    editado_por: (datos?.editado_por_nombre as string) ?? null,
+    version: versionVisita(editadoEn, (f.registrado_en as string) ?? null),
+  };
 }
+
+/** Versión de lo guardado: cambia con cada edición (ver VisitaDetalle.version). */
+export const versionVisita = (
+  editadoEn: string | null,
+  registradoEn: string | null,
+) => editadoEn ?? registradoEn ?? 'original';
 
 /** Nombre seguro para las claves de R2 (mismo criterio que el sistema anterior). */
 export const nombreSeguro = (folio: string) =>

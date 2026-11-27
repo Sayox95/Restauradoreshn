@@ -1,5 +1,10 @@
 /** Llamadas HTTP del módulo Visitas (ruta base /api/v1/visitas). */
-import type { Pagina, VisitaDetalle, VisitaResumen } from '@shared/tipos';
+import type {
+  EdicionVisita,
+  Pagina,
+  VisitaDetalle,
+  VisitaResumen,
+} from '@shared/tipos';
 import type { VisitaEntrada } from '@shared/visitas';
 import { get, pedir, post, qs, subirArchivo } from '@common/http/api';
 
@@ -24,6 +29,23 @@ export const misVisitas = (f: Filtros = {}) =>
 export const listarVisitas = (f: Filtros = {}) =>
   get<ListaVisitas>(`${BASE}${qs({ ...f })}`);
 export const verVisita = (id: number) => get<VisitaDetalle>(`${BASE}/${id}`);
+/** Lo que se envía al editar (ver editarVisitaEsquema). */
+export interface EdicionEntrada {
+  datos: VisitaEntrada;
+  observaciones: { orden: number; observacion: string | null }[];
+  motivo: string;
+  version: string;
+}
+/** Guarda la edición (permiso Editar); responde con la inspección ya actualizada. */
+export const editarVisita = (id: number, e: EdicionEntrada, clave: string) =>
+  pedir<VisitaDetalle>(`${BASE}/${id}`, {
+    method: 'PUT',
+    json: e,
+    headers: { 'Idempotency-Key': clave },
+  });
+/** Ediciones de la inspección, la más reciente primero (permiso Editar). */
+export const historialVisita = (id: number) =>
+  get<EdicionVisita[]>(`${BASE}/${id}/historial`);
 export const urlExportar = ({ page: _page, ...f }: Filtros = {}) =>
   `${BASE}/exportar${qs({ ...f })}`;
 export const urlFoto = (id: number, orden: number, v = '') =>

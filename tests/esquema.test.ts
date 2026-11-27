@@ -72,6 +72,7 @@ describe('migraciones', () => {
       '0011_copia_foto.sql',
       '0012_evento_auditoria.sql',
       '0013_idempotencia.sql',
+      '0014_editar_inspecciones.sql',
     ]);
     expect((await columnas())!.n).toBe(100);
     // La visita anterior queda «registrada» y la ve quien puede consultar todas.
@@ -162,7 +163,7 @@ describe('migraciones', () => {
     const n = await t.DB.prepare(
       "SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'",
     ).first<{ n: number }>();
-    expect(n!.n).toBe(6);
+    expect(n!.n).toBe(7);
   });
 
   it('el cargo de texto de cada cuenta pasa al catálogo de cargos sin perderse', async () => {

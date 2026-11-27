@@ -17,6 +17,7 @@ export const EVENTOS: Record<string, string> = {
   'visita.subir_copia_foto': 'CopiaFotoInspeccionSubida',
   'visita.archivar_pdf': 'FichaInspeccionArchivada',
   'visita.eliminar': 'InspeccionEliminada',
+  'visita.editar': 'InspeccionEditada',
   'usuario.solicitar_cuenta': 'CuentaSolicitada',
   'usuario.crear': 'CuentaCreada',
   'usuario.editar': 'CuentaEditada',

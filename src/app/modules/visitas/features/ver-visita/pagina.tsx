@@ -3,9 +3,9 @@
  * (components/ficha.ts): mismo orden y mismos bloques; en PC aprovechan el ancho con varias columnas.
  * La firma solo va en el PDF.
  */
-import { FileDown, ImageOff, Loader2 } from 'lucide-react';
+import { ChevronDown, FileDown, ImageOff, Loader2, Pencil } from 'lucide-react';
 import { type ReactNode, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { BadgeVisita, CajaError, Encabezado, Vacio } from '@components/ui';
 import { type Columna, Tabla } from '@components/tabla';
 import { VisorFotos } from '@components/visor-fotos';
@@ -20,7 +20,12 @@ import { mensajeError } from '@common/http/api';
 import type { VisitaDetalle } from '@shared/tipos';
 import { urlFoto, urlFotoCopia } from '../../api';
 import { pdfDeInspeccion } from '../../components/pdf-inspeccion';
-import { useInspeccion } from '../../hooks/useInspecciones';
+import {
+  useHistorialInspeccion,
+  useInspeccion,
+} from '../../hooks/useInspecciones';
+import { ListaCambios } from '../../components/cambios';
+import { urlEditarVisita } from '../../urls';
 import { BotonEliminar } from '../../components/eliminar';
 import {
   type BloqueFicha,
@@ -244,6 +249,49 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
   { titulo: 'Motivo', celda: m => m.motivo ?? '—' },
 ];
 
+/** Historial de ediciones (permiso Editar): cerrado; se pide al servidor al abrirlo. */
+function Historial({ id }: { id: number }) {
+  const [abierto, setAbierto] = useState(false);
+  const h = useHistorialInspeccion(id, abierto);
+  return (
+    <section className="tarjeta mb-3 overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setAbierto(!abierto)}
+        aria-expanded={abierto}
+        className="flex min-h-[48px] w-full items-center gap-2 px-4 py-3 text-left text-sm font-bold uppercase tracking-wide text-marca-900 hover:bg-slate-50"
+      >
+        <span className="flex-1">
+          Historial de cambios{h.data ? ` (${h.data.length})` : ''}
+        </span>
+        <ChevronDown
+          className={`h-5 w-5 transition-transform ${abierto ? 'rotate-180' : ''}`}
+          aria-hidden
+        />
+      </button>
+      {abierto && (
+        <div className="space-y-4 border-t border-slate-200 p-4">
+          {h.isPending ? (
+            <Loader2 className="mx-auto h-5 w-5 animate-spin text-slate-400" />
+          ) : h.isError ? (
+            <CajaError error={h.error} reintentar={() => void h.refetch()} />
+          ) : (
+            h.data.map((e, i) => (
+              <div key={i}>
+                <p className="text-sm font-semibold text-slate-900">
+                  {fechaHora(e.fecha)} · {e.usuario ?? '—'}
+                </p>
+                <p className="mb-2 text-sm text-slate-600">«{e.motivo}»</p>
+                <ListaCambios cambios={e.cambios} />
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 /** Genera el PDF al pedirlo (E3), con los datos, la firma y las copias de las fotos. */
 function BotonPdf({ d }: { d: VisitaDetalle }) {
   const [generando, setGenerando] = useState(false);
@@ -332,6 +380,12 @@ export function VerVisita() {
               <span>
                 · registrada {fechaHora(d.registrado_en)}
                 {d.registrado_por ? ` por ${d.registrado_por}` : ''}
+              </span>
+            )}
+            {d.editado_en && (
+              <span className="basis-full">
+                Editada {fechaHora(d.editado_en)}
+                {d.editado_por ? ` por ${d.editado_por}` : ''}
               </span>
             )}
           </span>
@@ -442,6 +496,22 @@ export function VerVisita() {
         </div>
       </Tarjeta>
 
+      {hasAccess([PermisosVisitas.Editar]) && (
+        <>
+          {d.editado_en && <Historial id={d.id} />}
+          <div className="tarjeta mb-3 overflow-hidden">
+            <Link
+              to={urlEditarVisita(d.id)}
+              className="flex min-h-[56px] w-full items-center justify-center gap-2 px-4 py-3 hover:bg-slate-50"
+            >
+              <Pencil className="h-5 w-5 shrink-0 text-marca-600" aria-hidden />
+              <span className="font-medium text-marca-700">
+                Editar inspección
+              </span>
+            </Link>
+          </div>
+        </>
+      )}
       {hasAccess([PermisosVisitas.Eliminar]) && (
         <BotonEliminar id={d.id} folio={d.visita_num} />
       )}

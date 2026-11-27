@@ -3,3 +3,5 @@ export const urlNuevaVisita = '/visitas/nueva';
 /** «Inspecciones y registros»: las inspecciones que cada quien puede ver y lo pendiente de envío. */
 export const urlInspecciones = '/visitas';
 export const urlVisita = (id: number) => `/visitas/${id}`;
+/** Edición por secciones (permiso Editar). */
+export const urlEditarVisita = (id: number) => `/visitas/${id}/editar`;

@@ -7,9 +7,13 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import type { VisitaDetalle } from '@shared/tipos';
 import {
+  type EdicionEntrada,
   type Filtros,
+  editarVisita,
   eliminarVisita,
+  historialVisita,
   listarVisitas,
   misVisitas,
   verVisita,
@@ -40,3 +44,23 @@ export function useEliminarInspeccion() {
     await qc.invalidateQueries({ queryKey: ['visitas'] });
   };
 }
+
+/** Guarda una edición: el detalle queda con lo nuevo y las listas y el historial se refrescan. */
+export function useEditarInspeccion() {
+  const qc = useQueryClient();
+  return async (id: number, e: EdicionEntrada, clave: string) => {
+    const d: VisitaDetalle = await editarVisita(id, e, clave);
+    qc.setQueryData(['visita', id], d);
+    await qc.invalidateQueries({ queryKey: ['visitas'] });
+    await qc.invalidateQueries({ queryKey: ['visita-historial', id] });
+    return d;
+  };
+}
+
+/** Historial de ediciones (solo se pide con el permiso Editar y al abrirlo). */
+export const useHistorialInspeccion = (id: number, activo: boolean) =>
+  useQuery({
+    queryKey: ['visita-historial', id],
+    queryFn: () => historialVisita(id),
+    enabled: activo && Number.isInteger(id),
+  });

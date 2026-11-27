@@ -15,8 +15,8 @@ import { generarFicha } from './ficha-pdf';
 
 /** Lo que decide de dónde sale el PDF (sin red, para poder probarlo). */
 export const usaPdfArchivado = (
-  d: Pick<VisitaDetalle, 'tiene_pdf' | 'datos'>,
-) => d.tiene_pdf && !d.datos.firma_img;
+  d: Pick<VisitaDetalle, 'tiene_pdf' | 'datos' | 'editado_en'>,
+) => d.tiene_pdf && !d.datos.firma_img && !d.editado_en;
 
 const dataUrlDe = (b: Blob) =>
   new Promise<string>((ok, mal) => {
@@ -56,5 +56,10 @@ export async function pdfDeInspeccion(d: VisitaDetalle): Promise<Blob> {
       base64: await imagenDeFoto(d.id, f),
       observacion: f.observacion,
     });
-  return generarFicha(d.datos, fotos);
+  // Antigua sin firma en la base pero ya editada: el PDF archivado quedó viejo; su firma sigue en él.
+  return generarFicha(
+    d.datos,
+    fotos,
+    d.tiene_pdf && !d.datos.firma_img ? 'Firma en el PDF original' : undefined,
+  );
 }

@@ -1,5 +1,8 @@
 /** Endpoints del módulo Visitas (ruta base /api/v1/visitas). Cada uno declara su permiso. */
-import { eliminarVisitaEsquema } from '../../../shared/esquemas';
+import {
+  editarVisitaEsquema,
+  eliminarVisitaEsquema,
+} from '../../../shared/esquemas';
 import { visitaEsquema } from '../../../shared/visitas';
 import { idParam, leerJson, paginacion } from '../../plumbing/http';
 import { SOLO_SESION, r, ruta } from '../../plumbing/router';
@@ -14,6 +17,7 @@ import {
   subirFoto,
   subirPdf,
 } from './features/archivos-visita';
+import { editarVisita, historialVisita } from './features/editar-visita';
 import { eliminarVisita } from './features/eliminar-visita';
 import { exportarVisitas } from './features/exportar';
 import { listarVisitas } from './features/listar-visitas';
@@ -51,6 +55,27 @@ ruta(
   '/api/v1/visitas/:id',
   SOLO_SESION /* sin visitas_consultar, solo las que registró (filtroVisitas) */,
   async ctx => r(ctx, await detalleVisita(ctx, idParam(ctx.params.id))),
+);
+ruta(
+  'PUT',
+  '/api/v1/visitas/:id',
+  [PermisosVisitas.Editar],
+  async ctx =>
+    r(
+      ctx,
+      await editarVisita(
+        ctx,
+        idParam(ctx.params.id),
+        await leerJson(ctx.req, editarVisitaEsquema),
+      ),
+    ),
+  { idempotente: true },
+);
+ruta(
+  'GET',
+  '/api/v1/visitas/:id/historial',
+  [PermisosVisitas.Editar],
+  async ctx => r(ctx, await historialVisita(ctx, idParam(ctx.params.id))),
 );
 ruta(
   'POST',

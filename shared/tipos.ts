@@ -1,3 +1,4 @@
+import type { Cambio } from './edicion';
 import type { Equipo, EstadoVisita, Rol } from './constantes';
 import type { Visita } from './visitas';
 
@@ -132,4 +133,20 @@ export interface VisitaResumen {
 export interface VisitaDetalle extends VisitaResumen {
   datos: Visita;
   fotos: FotoVisita[];
+  /** Última edición (permiso Editar), si la hubo. */
+  editado_en: string | null;
+  editado_por: string | null;
+  /**
+   * Versión de lo guardado: se envía al editar y el servidor la compara, para no pisar los cambios de
+   * otra persona que editó mientras tanto.
+   */
+  version: string;
+}
+
+/** Una edición en el historial de la inspección (lo mismo que se vio al confirmarla). */
+export interface EdicionVisita {
+  fecha: string;
+  usuario: string | null;
+  motivo: string;
+  cambios: Cambio[];
 }

@@ -307,7 +307,7 @@ describe('permisos por módulo y acción (códigos del SSO)', () => {
     await t.crearUsuario('ana', 'admin');
     const n = async (sql: string) =>
       (await t.DB.prepare(sql).first<{ n: number }>())!.n;
-    expect(await n('SELECT COUNT(*) AS n FROM permisos')).toBe(6);
+    expect(await n('SELECT COUNT(*) AS n FROM permisos')).toBe(7);
     expect(
       await n(
         "SELECT COUNT(*) AS n FROM permisos WHERE codigo NOT LIKE 'utcd_restauradores_%'",
@@ -323,7 +323,7 @@ describe('permisos por módulo y acción (códigos del SSO)', () => {
       await n(
         "SELECT COUNT(*) AS n FROM rol_permisos WHERE rol_codigo = 'utcd_restauradores_administrador'",
       ),
-    ).toBe(6);
+    ).toBe(7);
   });
 });
 

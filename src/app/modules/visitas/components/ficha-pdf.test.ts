@@ -55,20 +55,29 @@ describe('ficha PDF generada al descargar (E3)', () => {
     expect(t).toContain('Foto 2');
   });
 
-  it('solo las inspecciones sin firma en la base usan su PDF archivado', () => {
+  it('solo las inspecciones sin firma en la base y sin editar usan su PDF archivado', () => {
     const datos = visita({ firma_img: FIRMA_PNG });
-    expect(usaPdfArchivado({ tiene_pdf: true, datos })).toBe(false);
-    expect(
-      usaPdfArchivado({
-        tiene_pdf: true,
-        datos: { ...datos, firma_img: null },
-      }),
-    ).toBe(true);
-    expect(
-      usaPdfArchivado({
-        tiene_pdf: false,
-        datos: { ...datos, firma_img: null },
-      }),
-    ).toBe(false);
+    const sinFirma = { ...datos, firma_img: null };
+    const caso = (
+      tiene_pdf: boolean,
+      d: typeof datos,
+      editado_en: string | null,
+    ) => usaPdfArchivado({ tiene_pdf, datos: d, editado_en });
+    expect(caso(true, datos, null)).toBe(false);
+    expect(caso(true, sinFirma, null)).toBe(true);
+    expect(caso(false, sinFirma, null)).toBe(false);
+    // Editada: el archivado quedó viejo, se genera de nuevo.
+    expect(caso(true, sinFirma, '2026-11-28T10:00:00Z')).toBe(false);
+  });
+
+  it('editada sin firma en la base: indica que la firma está en el PDF original', async () => {
+    const t = await textoDe(
+      await generarFicha(
+        visita({ firma_img: null }),
+        [],
+        'Firma en el PDF original',
+      ),
+    );
+    expect(t).toContain('Firma en el PDF original');
   });
 });

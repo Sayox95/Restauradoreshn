@@ -65,7 +65,8 @@ Códigos de la sección «Excepciones previstas» de los lineamientos. Aprobó: 
   los datos y la firma de la base y las copias de las fotos (sin copia, se deriva del original). No se
   sube ni se archiva: la base es la fuente oficial y el PDF siempre coincide con ella. Diferencia
   acordada (dueño del proyecto, 2026-11-27): las inspecciones anteriores sin firma en la base (HV-…)
-  entregan su PDF archivado en R2 (`pdfs/<visita>.pdf`), que no se borra.
+  entregan su PDF archivado en R2 (`pdfs/<visita>.pdf`), que no se borra; si se editan, el PDF se
+  genera de nuevo y en la firma dice «Firma en el PDF original».
 - **E4 · Mediciones numéricas cortas en una fila** — formulario de visita. El resto del formulario va en
   una sola columna; solo voltajes (AC, baterías, cargador), corrientes (IA, IB, IC, IN) y resistencias de
   aterrizaje van en una fila.
@@ -85,6 +86,17 @@ Se revisan con TI al migrar al marco de TI.
 - **Formulario de la inspección sin react-hook-form** (omite §11 solo en ese formulario): conserva su
   estado propio (borrador, validación por sección, sin señal) y valida con las mismas reglas compartidas
   que el servidor (`requisitosVisita`). Los demás formularios sí usan react-hook-form.
+
+## Edición de inspecciones
+
+- Permiso `visitas_editar` (solo Administrador). Pantalla aparte (`/visitas/:id/editar`), con conexión:
+  todo entra bloqueado y en resumen; el lápiz abre una sección a la vez con los mismos campos del
+  registro; «Aplicar» la valida y la bloquea («Modificada»); al final «Guardar cambios» muestra
+  antes → después, pide el motivo y guarda todo en una sola escritura.
+- No se editan el folio, quién y cuándo registró, la firma ni las fotos (solo su observación).
+- El servidor recalcula los cambios (`shared/edicion.ts`), exige completo solo lo de las secciones que
+  cambiaron (las antiguas pueden tener datos que hoy se piden) y rechaza con 409 si la inspección
+  cambió desde que se abrió (`version`). Historial en `auditoria` (motivo y cambios).
 
 ## Actualizaciones de la app
 

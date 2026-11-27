@@ -17,7 +17,9 @@ import {
 import { eventoDe } from '../../../plumbing/eventos';
 
 /** Datos de la visita → valores de cada columna de `registros`. */
-function valores(v: Visita): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
+export function valores(
+  v: Visita,
+): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
   const unoCero = (x: string | null) =>
     x === null ? null : x === 'SI' ? 1 : 0;
   return {
@@ -38,11 +40,13 @@ function valores(v: Visita): Record<(typeof COLUMNAS_DATOS)[number], unknown> {
  * registró la reenvía (reintento al reconectar), responde con la ya guardada; si el número es de
  * otra persona, 409. La escritura y su auditoría van en un solo batch.
  */
-export async function registrarVisita(ctx: Ctx, v: Visita) {
-  // Reglas de la hoja: las mismas del formulario. Lo que depende de catálogos que pueden cambiar
-  // mientras el técnico captura sin conexión (modelos, campos del tablero) lo valida la app.
+/**
+ * Requisitos de la hoja con las mismas reglas del formulario. Lo que depende de catálogos que pueden
+ * cambiar mientras el técnico captura sin conexión (modelos, campos del tablero) lo valida la app.
+ */
+export async function requisitosServidor(ctx: Ctx, v: Visita) {
   const cat = await catalogosVisita(ctx);
-  const requisitos = requisitosVisita(v, {
+  return requisitosVisita(v, {
     camposTablero: Object.keys(v.tablero_campos),
     hayOpciones: campo =>
       campo === 'tipo_recon'
@@ -52,7 +56,12 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
           : false,
     fotos: v.num_fotos ?? 0,
   });
-  const falta = faltantes(requisitos, true);
+}
+
+/** 422 con los campos que faltan (los marca la app). */
+export function rechazarIncompleta(
+  falta: { campo: string; etiqueta: string }[],
+) {
   if (falta.length)
     throw new ApiError(
       422,
@@ -64,6 +73,10 @@ export async function registrarVisita(ctx: Ctx, v: Visita) {
         faltantes: falta.map(x => x.campo),
       },
     );
+}
+
+export async function registrarVisita(ctx: Ctx, v: Visita) {
+  rechazarIncompleta(faltantes(await requisitosServidor(ctx, v), true));
 
   const db = ctx.env.DB;
   const existente = async () => {

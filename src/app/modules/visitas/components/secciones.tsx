@@ -42,6 +42,8 @@ export interface PropsSeccion {
   cat: CatalogosVisita | undefined;
   fotos: FotoLocal[];
   setFotos: (f: FotoLocal[]) => void;
+  /** Editando una inspección ya registrada: la firma queda fija. */
+  edicion?: boolean;
 }
 
 const MODEM_TIPO: Record<string, string> = {
@@ -1032,7 +1034,7 @@ export function Observaciones({ b, set }: PropsSeccion) {
 }
 
 // ── 9 · Personal y firma ───────────────────────────────────────────────────────────────────
-export function Personal({ b, set, faltan, cat }: PropsSeccion) {
+export function Personal({ b, set, faltan, cat, edicion }: PropsSeccion) {
   // El técnico #1 es quien inspecciona (fijo). Los demás se eligen de las cuentas de su nivel o menor
   // (las entrega el servidor en el catálogo de la inspección). El nombre del responsable se copia del
   // técnico #1 mientras no se escriba a mano.
@@ -1137,7 +1139,7 @@ export function Personal({ b, set, faltan, cat }: PropsSeccion) {
           etiqueta="Nombre del responsable"
           requerido
           falta={faltan.has('firma_responsable')}
-          ayuda="Se llena con el técnico #1."
+          ayuda={edicion ? undefined : 'Se llena con el técnico #1.'}
         >
           <Texto
             id="firma_responsable"
@@ -1147,20 +1149,47 @@ export function Personal({ b, set, faltan, cat }: PropsSeccion) {
             }
           />
         </Campo>
-        <Campo
-          id="firma_img"
-          etiqueta="Firma"
-          requerido
-          falta={faltan.has('firma_img')}
-        >
-          <Firma
-            valor={b.firma_img}
-            onCambio={v => set({ firma_img: v })}
+        {edicion ? (
+          <FirmaFija firma={b.firma_img} />
+        ) : (
+          <Campo
+            id="firma_img"
+            etiqueta="Firma"
+            requerido
             falta={faltan.has('firma_img')}
-          />
-        </Campo>
+          >
+            <Firma
+              valor={b.firma_img}
+              onCambio={v => set({ firma_img: v })}
+              falta={faltan.has('firma_img')}
+            />
+          </Campo>
+        )}
       </Bloque>
     </>
+  );
+}
+
+/** Firma ya registrada: no se edita (es la del responsable en campo). */
+export function FirmaFija({ firma }: { firma: string | null }) {
+  return (
+    <div>
+      <p className="etiqueta">Firma</p>
+      {firma ? (
+        <img
+          src={firma}
+          alt="Firma del responsable"
+          className="h-24 w-full max-w-xs rounded-xl border border-slate-200 bg-white object-contain"
+        />
+      ) : (
+        <p className="rounded-xl border border-dashed border-slate-300 px-3 py-4 text-center text-sm text-slate-500">
+          Firma en el PDF original
+        </p>
+      )}
+      <p className="mt-1 text-xs text-slate-500">
+        La firma original se conserva.
+      </p>
+    </div>
   );
 }
 

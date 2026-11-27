@@ -528,3 +528,178 @@ describe('contrato de la API (lineamientos §8)', () => {
     );
   });
 });
+
+describe('editar inspecciones (permiso Editar)', () => {
+  /** Registra con una foto y devuelve el id y lo que el detalle muestra. */
+  async function preparar() {
+    const admin = await t.crearUsuario('ana', 'admin');
+    const sup = await t.crearUsuario('sara', 'supervisor');
+    const tec = await t.crearUsuario('beto', 'tecnico');
+    const id = (await registrar(tec.cookie)).datos.visita.id as number;
+    await t.pedir('PUT', `/api/v1/visitas/${id}/fotos/1?obs=Placa`, {
+      cookie: tec.cookie,
+      binario: JPEG,
+    });
+    const detalle = async () =>
+      (await t.pedir('GET', `/api/v1/visitas/${id}`, { cookie: admin.cookie }))
+        .datos;
+    return { admin, sup, tec, id, detalle };
+  }
+  const editar = (cookie: string, id: number, cuerpo: object) =>
+    t.pedir('PUT', `/api/v1/visitas/${id}`, { cookie, cuerpo });
+
+  it('solo con el permiso; guarda los cambios, quién y cuándo, y el historial con el motivo', async () => {
+    const { admin, sup, tec, id, detalle } = await preparar();
+    const antes = await detalle();
+    expect(antes.editado_en).toBeNull();
+    const cuerpo = {
+      // El folio, la firma y las fotos no se editan aunque lleguen distintos.
+      datos: visitaCompleta({
+        visita_num: 'HV-20261101-090000',
+        medicion_ac: 121.5,
+        zona: 'Occidente',
+        firma_img: null,
+        num_fotos: 0,
+      }),
+      observaciones: [{ orden: 1, observacion: 'Placa del equipo' }],
+      motivo: 'Lectura mal digitada',
+      version: antes.version,
+    };
+    expect((await editar(sup.cookie, id, cuerpo)).status).toBe(403);
+    expect((await editar(tec.cookie, id, cuerpo)).status).toBe(403);
+    expect(
+      (await editar(admin.cookie, id, { ...cuerpo, motivo: ' ' })).status,
+    ).toBe(400);
+    t.avanzar(60_000);
+    const r = await editar(admin.cookie, id, cuerpo);
+    expect(r.status).toBe(200);
+    expect(r.datos).toMatchObject({
+      visita_num: 'HV-20261101-080000',
+      editado_por: 'Nombre ana',
+      editado_en: t.reloj.ahora,
+      fotos: [{ orden: 1, observacion: 'Placa del equipo' }],
+    });
+    expect(r.datos.version).not.toBe(antes.version);
+    expect(r.datos.datos).toMatchObject({
+      medicion_ac: 121.5,
+      zona: 'Occidente',
+      num_fotos: 1,
+    });
+    expect(r.datos.datos.firma_img).toBe(antes.datos.firma_img);
+    // Historial: lo mismo que se vio al confirmar.
+    const h = await t.pedir('GET', `/api/v1/visitas/${id}/historial`, {
+      cookie: admin.cookie,
+    });
+    expect(h.datos).toEqual([
+      {
+        fecha: t.reloj.ahora,
+        usuario: 'Nombre ana',
+        motivo: 'Lectura mal digitada',
+        cambios: [
+          {
+            campo: 'zona',
+            seccion: 0,
+            etiqueta: 'Zona',
+            antes: 'Noroccidente',
+            despues: 'Occidente',
+          },
+          {
+            campo: 'medicion_ac',
+            seccion: 3,
+            etiqueta: 'Medición AC',
+            antes: '120',
+            despues: '121.5',
+          },
+          {
+            campo: 'foto.1',
+            seccion: 6,
+            etiqueta: 'Observación de la foto 1',
+            antes: 'Placa',
+            despues: 'Placa del equipo',
+          },
+        ],
+      },
+    ]);
+    expect(
+      (
+        await t.pedir('GET', `/api/v1/visitas/${id}/historial`, {
+          cookie: sup.cookie,
+        })
+      ).status,
+    ).toBe(403);
+    const audit = await t.DB.prepare(
+      "SELECT evento FROM auditoria WHERE accion = 'editar' AND entidad = 'visita'",
+    ).first<{ evento: string }>();
+    expect(audit!.evento).toBe('InspeccionEditada');
+  });
+
+  it('no pisa la edición de otra persona, ni guarda si no hay cambios', async () => {
+    const { admin, id, detalle } = await preparar();
+    const v = await detalle();
+    const base = {
+      datos: visitaCompleta(),
+      observaciones: [],
+      motivo: 'Corrección',
+      version: v.version,
+    };
+    expect((await editar(admin.cookie, id, base)).status).toBe(400);
+    t.avanzar(60_000);
+    expect(
+      (
+        await editar(admin.cookie, id, {
+          ...base,
+          datos: visitaCompleta({ zona: 'Occidente' }),
+        })
+      ).status,
+    ).toBe(200);
+    // Con la versión de antes (otra pestaña abierta antes de la edición): 409.
+    expect(
+      (
+        await editar(admin.cookie, id, {
+          ...base,
+          datos: visitaCompleta({ zona: 'Centro' }),
+        })
+      ).status,
+    ).toBe(409);
+  });
+
+  it('exige completo solo lo de las secciones que cambiaron', async () => {
+    const { admin, id, detalle } = await preparar();
+    // Inspección antigua: le falta un dato que hoy se pide (Estado físico).
+    await t.DB.prepare('UPDATE registros SET gabinete = NULL WHERE id = ?')
+      .bind(id)
+      .run();
+    const v = await detalle();
+    const editarCon = (extra: object) =>
+      editar(admin.cookie, id, {
+        datos: { ...v.datos, ...extra },
+        observaciones: [],
+        motivo: 'Corrección',
+        version: v.version,
+      });
+    // Activar el módem 1 sin sus datos: falta en la sección que se editó.
+    const r = await editarCon({ has_modem1: 'SI' });
+    expect(r.status).toBe(400);
+    expect(r.datos[0].message).toMatch(/Tipo módem 1/);
+    expect(r.datos[0].faltantes).not.toContain('gabinete');
+    // Cambiar otra sección no obliga a completar Estado físico.
+    expect((await editarCon({ obs_generales: 'Revisado' })).status).toBe(200);
+  });
+
+  it('también edita inspecciones de la versión anterior (sin fila de registro)', async () => {
+    const { admin, id, detalle } = await preparar();
+    await t.DB.prepare('DELETE FROM visitas_registro WHERE registro_id = ?')
+      .bind(id)
+      .run();
+    const v = await detalle();
+    expect(v.version).toBe('original');
+    const r = await editar(admin.cookie, id, {
+      datos: { ...v.datos, obs_generales: 'Revisado' },
+      observaciones: [],
+      motivo: 'Corrección',
+      version: v.version,
+    });
+    expect(r.status).toBe(200);
+    expect(r.datos.editado_por).toBe('Nombre ana');
+  });
+});

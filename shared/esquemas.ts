@@ -7,6 +7,7 @@ import {
   usuarioDeCorreo,
 } from './constantes';
 import { type Permiso, TODOS_LOS_PERMISOS } from './permisos';
+import { visitaEsquema } from './visitas';
 
 const textoOpcional = (max: number) =>
   z
@@ -131,6 +132,30 @@ export const motivoEsquema = z.object({ motivo: textoOpcional(300) });
 /** Eliminar una inspección: el motivo es obligatorio (queda en el registro). */
 export const eliminarVisitaEsquema = z.object({
   motivo: z.string().trim().min(1, 'Escriba el motivo').max(300),
+});
+
+/**
+ * Edición de una inspección: los datos completos (la firma, el folio y la captura los conserva el
+ * servidor), la observación de cada foto, el motivo y la versión que se editó.
+ */
+export const editarVisitaEsquema = z.object({
+  datos: visitaEsquema,
+  observaciones: z
+    .array(
+      z.object({
+        orden: z.number().int().min(1).max(4),
+        observacion: z
+          .string()
+          .trim()
+          .max(500)
+          .nullable()
+          .transform(v => v || null),
+      }),
+    )
+    .max(4)
+    .default([]),
+  motivo: z.string().trim().min(1, 'Escriba el motivo').max(300),
+  version: z.string().max(40),
 });
 
 /** Solicitud de cuenta desde la pantalla de ingreso: solo correos del dominio institucional. */

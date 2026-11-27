@@ -3,8 +3,24 @@
  * los grupos de mediciones numéricas cortas van en una fila (FilaMediciones). Lo que viene del
  * catálogo se muestra bloqueado, en gris.
  */
-import type { ReactNode } from 'react';
+import { type ReactNode, createContext, useContext } from 'react';
 import { tonoRespuesta } from '@common/tonos';
+
+/**
+ * Al editar una inspección: valor guardado de cada campo que cambió («antes: …» debajo del campo).
+ * Fuera de la edición está vacío y no se muestra nada.
+ */
+export const ValoresAnteriores = createContext<Map<string, string>>(new Map());
+
+function Antes({ id }: { id: string }) {
+  const antes = useContext(ValoresAnteriores).get(id);
+  if (antes === undefined) return null;
+  return (
+    <p className="mt-1 text-xs text-marca-700">
+      antes: <span className="font-semibold">{antes}</span>
+    </p>
+  );
+}
 
 export function Bloque({
   titulo,
@@ -51,6 +67,7 @@ export function Campo({
         {requerido && <span className="text-rose-600"> *</span>}
       </label>
       {children}
+      <Antes id={id} />
       {ayuda && <p className="mt-1 text-xs text-slate-500">{ayuda}</p>}
       {falta && (
         <p className="mt-1 text-xs font-semibold text-rose-700">
@@ -230,6 +247,7 @@ export function FilaMediciones({
             value={texto(valores[c.id])}
             onChange={e => onCambio(c.id, e.target.value)}
           />
+          <Antes id={c.id} />
         </div>
       ))}
     </div>

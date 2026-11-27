@@ -188,3 +188,33 @@ export const requisitos = (
   const v = aVisita(aEntrada(b, fotos));
   return requisitosVisita(v, contexto(v, c, fotos));
 };
+
+/**
+ * Inspección guardada → borrador (para editarla con las mismas secciones del registro). Los números
+ * pasan a texto como si se hubieran escrito; el responsable queda «a mano» para que cambiar el
+ * personal no reescriba su nombre.
+ */
+export function borradorDeVisita(v: Visita): Borrador {
+  const b: Record<string, unknown> = {};
+  for (const [k, x] of Object.entries(v))
+    if (typeof x === 'string' || typeof x === 'number') b[k] = String(x);
+  return {
+    ...b,
+    visita_num: v.visita_num,
+    tablero_campos: { ...(v.tablero_campos ?? {}) },
+    materiales: (v.materiales ?? []).map(m => ({
+      codigo: m.codigo ?? '',
+      desc: m.desc ?? '',
+      unidad: m.unidad ?? '',
+      cant: m.cant === null || m.cant === undefined ? '' : String(m.cant),
+      motivo: m.motivo ?? '',
+    })),
+    personal: (v.personal ?? []).map(p => ({
+      usuario_id: p.usuario_id ?? null,
+      nombre: p.nombre ?? '',
+      cargo: p.cargo ?? '',
+    })),
+    firma_img: v.firma_img ?? null,
+    responsable_a_mano: true,
+  } as unknown as Borrador;
+}

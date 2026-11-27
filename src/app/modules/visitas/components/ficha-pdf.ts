@@ -49,6 +49,8 @@ async function logoBlanco(): Promise<string | null> {
 export async function generarFicha(
   v: Visita,
   fotosFicha: FotoFicha[],
+  /** Texto en el recuadro de la firma cuando no hay firma en los datos. */
+  sinFirma = 'Sin firma digital',
 ): Promise<Blob> {
   const { jsPDF } = await import('jspdf');
   const logoBase64 = await logoBlanco();
@@ -603,7 +605,7 @@ export async function generarFicha(
     }
   } else {
     setFont(7.6, 'italic', MUTED);
-    txt('Sin firma digital', firmaX + firmaW / 2, (fTop + fBot) / 2, {
+    txt(sinFirma, firmaX + firmaW / 2, (fTop + fBot) / 2, {
       align: 'center',
     });
   }

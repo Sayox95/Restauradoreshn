@@ -13,6 +13,11 @@ const ListarVisitas = lazy(() =>
     default: m.ListarVisitas,
   })),
 );
+const EditarVisita = lazy(() =>
+  import('./features/editar-visita/pagina').then(m => ({
+    default: m.EditarVisita,
+  })),
+);
 const VerVisita = lazy(() =>
   import('./features/ver-visita/pagina').then(m => ({ default: m.VerVisita })),
 );
@@ -43,6 +48,15 @@ export const rutasVisitas = [
     key="visitas-mias"
     path="visitas/mias"
     element={<Navigate to="/visitas" replace />}
+  />,
+  <Route
+    key="visitas-editar"
+    path="visitas/:id/editar"
+    element={
+      <AuthRoute access={[PermisosVisitas.Editar]}>
+        <EditarVisita />
+      </AuthRoute>
+    }
   />,
   // Lo propio: el servidor solo entrega la visita si es de quien la pide o si tiene Consultar.
   <Route key="visitas-ver" path="visitas/:id" element={<VerVisita />} />,
