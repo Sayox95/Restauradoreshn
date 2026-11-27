@@ -519,13 +519,8 @@ function Resumen({
           cambio={cambiados.has('materiales')}
           items={materiales.map(m => ({
             principal: m.desc ?? '—',
-            detalle: [
-              m.codigo && `Código ${m.codigo}`,
-              `${m.cant ?? '—'} ${m.unidad ?? ''}`.trim(),
-              m.motivo,
-            ]
-              .filter(Boolean)
-              .join(' · '),
+            detalle: m.motivo ?? '',
+            derecha: `${m.cant ?? '—'} ${m.unidad ?? ''}`.trim(),
           }))}
         />
       )}
@@ -571,7 +566,7 @@ function Lista({
 }: {
   titulo: string;
   cambio: boolean;
-  items: { principal: string; detalle: string }[];
+  items: { principal: string; detalle: string; derecha?: string }[];
 }) {
   return (
     <div className="mb-3">
@@ -587,11 +582,20 @@ function Lista({
         className={`divide-y divide-slate-100 rounded-xl border ${cambio ? 'border-amber-300 bg-amber-50/40' : 'border-slate-200'}`}
       >
         {items.map((x, k) => (
-          <li key={k} className="px-3 py-2">
-            <p className="text-sm font-semibold text-slate-900">
-              {x.principal}
-            </p>
-            {x.detalle && <p className="text-xs text-slate-500">{x.detalle}</p>}
+          <li key={k} className="flex items-start gap-3 px-3 py-2">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-slate-900">
+                {x.principal}
+              </p>
+              {x.detalle && (
+                <p className="text-xs text-slate-500">{x.detalle}</p>
+              )}
+            </div>
+            {x.derecha && (
+              <span className="whitespace-nowrap text-sm font-semibold text-slate-900">
+                {x.derecha}
+              </span>
+            )}
           </li>
         ))}
       </ul>
