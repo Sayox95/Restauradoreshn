@@ -161,14 +161,28 @@ function Editor({ d }: { d: VisitaDetalle }) {
     enfocar(`[data-seccion="${i}"]`);
   };
 
+  /**
+   * Cierra la sección abierta. Al pasar a resumen se encoge: la pantalla vuelve a su título (si no,
+   * quien bajó en una sección larga quedaría viendo las de más abajo).
+   */
+  const cerrar = () => {
+    const i = abierta;
+    setRespaldo(null);
+    setFaltan(new Set());
+    setAbierta(null);
+    requestAnimationFrame(() =>
+      document
+        .querySelector(`[data-seccion="${i}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  };
+
   const cancelar = () => {
     if (respaldo) {
       setB(respaldo.b);
       setObs(respaldo.obs);
     }
-    setRespaldo(null);
-    setFaltan(new Set());
-    setAbierta(null);
+    cerrar();
   };
 
   const aplicar = (i: number) => {
@@ -215,9 +229,7 @@ function Editor({ d }: { d: VisitaDetalle }) {
       enfocar(`[data-campo="${CSS.escape(f[0]!.campo)}"]`);
       return;
     }
-    setRespaldo(null);
-    setFaltan(new Set());
-    setAbierta(null);
+    cerrar();
   };
 
   const salir = async () => {
@@ -272,7 +284,7 @@ function Editor({ d }: { d: VisitaDetalle }) {
             <section
               key={nombre}
               data-seccion={i}
-              className={`tarjeta mb-3 scroll-mt-4 overflow-hidden ${abiertaAqui ? 'ring-2 ring-marca-400' : ''}`}
+              className={`tarjeta mb-3 scroll-mt-20 overflow-hidden ${abiertaAqui ? 'ring-2 ring-marca-400' : ''}`}
             >
               <div className="flex items-center gap-2 border-b border-slate-200 bg-slate-50 px-4 py-2">
                 <h2 className="min-w-0 flex-1 truncate text-sm font-bold uppercase tracking-wide text-marca-900">
