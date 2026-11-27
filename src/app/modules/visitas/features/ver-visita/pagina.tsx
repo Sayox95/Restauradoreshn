@@ -249,6 +249,27 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
   { titulo: 'Motivo', celda: m => m.motivo ?? '—' },
 ];
 
+/** Un renglón «Registrada / Editada  fecha · persona» del encabezado. */
+function Autoria({
+  hecho,
+  fecha,
+  quien,
+}: {
+  hecho: string;
+  fecha: string;
+  quien: string | null;
+}) {
+  return (
+    <>
+      <dt className="font-semibold text-slate-700">{hecho}</dt>
+      <dd>
+        {fechaHora(fecha)}
+        {quien ? ` · ${quien}` : ''}
+      </dd>
+    </>
+  );
+}
+
 /** Historial de ediciones (permiso Editar): cerrado; se pide al servidor al abrirlo. */
 function Historial({ id, total }: { id: number; total: number }) {
   const [abierto, setAbierto] = useState(false);
@@ -370,26 +391,34 @@ export function VerVisita() {
       <Encabezado
         volver
         titulo={`${EQUIPO_ETIQUETA[d.equipo] ?? d.equipo}${v.codigo_energis ? ` ${v.codigo_energis}` : ''}`}
-        subtitulo={
-          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <BadgeVisita estado={d.estado} />
-            <span className="font-mono text-xs">{d.visita_num}</span>
-            {d.registrado_en && (
-              <span>
-                · registrada {fechaHora(d.registrado_en)}
-                {d.registrado_por ? ` por ${d.registrado_por}` : ''}
-              </span>
-            )}
-            {d.editado_en && (
-              <span className="basis-full">
-                Editada {fechaHora(d.editado_en)}
-                {d.editado_por ? ` por ${d.editado_por}` : ''}
-              </span>
-            )}
-          </span>
-        }
         accion={<BotonPdf d={d} />}
       />
+      {/* Estado, folio y autoría a todo el ancho, alineados con los títulos de las secciones. */}
+      <div className="-mt-2 mb-4 px-4 text-sm text-slate-500">
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <BadgeVisita estado={d.estado} />
+          <span className="font-mono text-xs">{d.visita_num}</span>
+        </span>
+        {/* Quién y cuándo: registro y última edición (las anteriores, en el historial). */}
+        {(d.registrado_en || d.editado_en) && (
+          <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
+            {d.registrado_en && (
+              <Autoria
+                hecho="Registrada"
+                fecha={d.registrado_en}
+                quien={d.registrado_por}
+              />
+            )}
+            {d.editado_en && (
+              <Autoria
+                hecho="Editada"
+                fecha={d.editado_en}
+                quien={d.editado_por}
+              />
+            )}
+          </dl>
+        )}
+      </div>
 
       <dl className="tarjeta mb-4 grid grid-cols-3 divide-slate-100 sm:grid-cols-6">
         {rapidos.map(([t, valor]) => (
