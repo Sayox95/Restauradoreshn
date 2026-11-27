@@ -249,7 +249,7 @@ const COLUMNAS_MATERIALES: Columna<Material>[] = [
   { titulo: 'Motivo', celda: m => m.motivo ?? '—' },
 ];
 
-/** Un renglón «Registrada / Editada  fecha · persona» del encabezado. */
+/** Un renglón «Registro / Última edición  fecha · persona» del encabezado. */
 function Autoria({
   hecho,
   fecha,
@@ -404,14 +404,14 @@ export function VerVisita() {
           <dl className="mt-1.5 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5">
             {d.registrado_en && (
               <Autoria
-                hecho="Registrada"
+                hecho="Registro"
                 fecha={d.registrado_en}
                 quien={d.registrado_por}
               />
             )}
             {d.editado_en && (
               <Autoria
-                hecho="Editada"
+                hecho="Última edición"
                 fecha={d.editado_en}
                 quien={d.editado_por}
               />
