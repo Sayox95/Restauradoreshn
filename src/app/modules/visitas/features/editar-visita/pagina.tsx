@@ -24,6 +24,7 @@ import {
   visitaEsquema,
 } from '@shared/visitas';
 import {
+  Check,
   ChevronLeft,
   ImageOff,
   Loader2,
@@ -315,22 +316,6 @@ function Editor({ d }: { d: VisitaDetalle }) {
                         edicion
                       />
                     )}
-                    <div className="mt-4 flex gap-3 border-t border-slate-100 pt-4">
-                      <button
-                        type="button"
-                        className="btn-secundario flex-1"
-                        onClick={cancelar}
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-primario flex-1"
-                        onClick={() => aplicar(i)}
-                      >
-                        Aplicar
-                      </button>
-                    </div>
                   </>
                 ) : (
                   <Resumen
@@ -347,32 +332,63 @@ function Editor({ d }: { d: VisitaDetalle }) {
         })}
       </ValoresAnteriores.Provider>
 
-      {/* Barra fija: el guardado de todo va aquí (en modo edición no está la barra del menú). */}
+      {/* Barra fija que cambia con lo que se hace: con una sección abierta, sus botones (Cancelar /
+          Aplicar) siempre a la vista aunque la sección sea larga; sin sección abierta, guardar todo. */}
       <div className="sticky bottom-0 z-20 -mx-4 mt-4 border-t border-slate-200 bg-white/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur lg:mx-0 lg:rounded-t-2xl">
-        <p className="mb-2 text-center text-xs text-slate-500" role="status">
-          {abierta !== null
-            ? 'Aplique o cancele la sección abierta para guardar'
-            : modificadas.size
-              ? `${modificadas.size} ${modificadas.size === 1 ? 'sección modificada' : 'secciones modificadas'}`
-              : 'Sin cambios'}
-        </p>
-        <div className="flex gap-3">
-          <button
-            type="button"
-            className="btn-secundario flex-1"
-            onClick={salir}
-          >
-            Descartar
-          </button>
-          <button
-            type="button"
-            className="btn-primario flex-1 whitespace-nowrap px-3"
-            disabled={!cambios.length || abierta !== null}
-            onClick={() => setConfirmando(true)}
-          >
-            <Save className="h-5 w-5" /> Guardar cambios
-          </button>
-        </div>
+        {abierta !== null ? (
+          <>
+            <p
+              className="mb-2 truncate text-center text-xs font-semibold text-marca-800"
+              role="status"
+            >
+              Editando: {abierta + 1}. {SECCIONES[abierta]}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="btn-secundario flex-1"
+                onClick={cancelar}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primario flex-1"
+                onClick={() => aplicar(abierta)}
+              >
+                <Check className="h-5 w-5" /> Aplicar
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p
+              className="mb-2 text-center text-xs text-slate-500"
+              role="status"
+            >
+              {modificadas.size
+                ? `${modificadas.size} ${modificadas.size === 1 ? 'sección modificada' : 'secciones modificadas'}`
+                : 'Sin cambios'}
+            </p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="btn-secundario flex-1 px-3"
+                onClick={salir}
+              >
+                Descartar
+              </button>
+              <button
+                type="button"
+                className="btn-primario flex-1 whitespace-nowrap px-3"
+                disabled={!cambios.length}
+                onClick={() => setConfirmando(true)}
+              >
+                <Save className="h-5 w-5" /> Guardar cambios
+              </button>
+            </div>
+          </>
+        )}
       </div>
 
       {confirmando && (
