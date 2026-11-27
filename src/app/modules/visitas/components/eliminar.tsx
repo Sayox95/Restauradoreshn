@@ -21,12 +21,10 @@ export function BotonEliminar({ id, folio }: { id: number; folio: string }) {
       <div className="tarjeta overflow-hidden">
         <button
           onClick={() => setAbierta(true)}
-          className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
+          className="flex min-h-[56px] w-full items-center justify-center gap-2 px-4 py-3 hover:bg-slate-50"
         >
           <Trash2 className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
-          <span className="min-w-0 flex-1 font-medium text-rose-700">
-            Eliminar inspección
-          </span>
+          <span className="font-medium text-rose-700">Eliminar inspección</span>
         </button>
       </div>
       {abierta && (
