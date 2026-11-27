@@ -24,13 +24,8 @@ export function BotonEliminar({ id, folio }: { id: number; folio: string }) {
           className="flex min-h-[56px] w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"
         >
           <Trash2 className="h-5 w-5 shrink-0 text-rose-500" aria-hidden />
-          <span className="min-w-0 flex-1">
-            <span className="block font-medium text-rose-700">
-              Eliminar inspección
-            </span>
-            <span className="block text-xs text-slate-500">
-              Deja de verse en la app; queda guardada con el motivo.
-            </span>
+          <span className="min-w-0 flex-1 font-medium text-rose-700">
+            Eliminar inspección
           </span>
         </button>
       </div>
