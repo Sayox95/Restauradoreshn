@@ -3,13 +3,7 @@
  * la app (marca «Modificada», resumen antes de guardar) y el servidor (validación y auditoría), así el
  * resumen que ve la persona es el mismo que queda en el historial.
  */
-import {
-  type NombreSeccion,
-  SECCIONES,
-  type Visita,
-  resumenMateriales,
-  resumenPersonal,
-} from './visitas';
+import { type NombreSeccion, SECCIONES, type Visita } from './visitas';
 
 /** Campos que se pueden editar, con su sección y su nombre en pantalla. */
 export const CAMPOS_EDITABLES: Partial<
@@ -119,12 +113,84 @@ const texto = (v: unknown) => {
 };
 const mostrar = (t: string) => t || '—';
 
-/** Valor comparable de un campo (listas por su resumen legible, como en el CSV). */
-function valorDe(v: Visita, campo: keyof Visita): string {
-  if (campo === 'materiales') return resumenMateriales(v.materiales ?? []);
-  if (campo === 'personal') return resumenPersonal(v.personal ?? []);
-  return texto(v[campo]);
+/** Sin valor (lo que aparece al agregar o quitar un elemento de una lista). */
+export const SIN_VALOR = '—';
+
+/**
+ * Cambios de una lista (materiales, personal) elemento por elemento: quitado, agregado o con otro
+ * detalle (p. ej. la cantidad). Así el historial dice qué se quitó, no dos textos corridos.
+ */
+function cambiosLista<T>(
+  antes: T[],
+  despues: T[],
+  base: string,
+  seccion: number,
+  e: {
+    clave: (x: T) => string;
+    nombre: (x: T) => string;
+    detalle: (x: T) => string;
+    quitado: string;
+    agregado: string;
+  },
+): Cambio[] {
+  // Clave con su número de aparición: dos elementos iguales no se confunden.
+  const indexar = (l: T[]) => {
+    const vistos = new Map<string, number>();
+    return new Map(
+      l.map(x => {
+        const k = e.clave(x);
+        const n = (vistos.get(k) ?? 0) + 1;
+        vistos.set(k, n);
+        return [`${k}#${n}`, x] as const;
+      }),
+    );
+  };
+  const a = indexar(antes);
+  const d = indexar(despues);
+  const completo = (x: T) =>
+    [e.nombre(x), e.detalle(x)].filter(Boolean).join(' · ');
+  const lista: Cambio[] = [];
+  const cambio = (etiqueta: string, antes: string, despues: string) =>
+    lista.push({
+      campo: `${base}.${lista.length + 1}`,
+      seccion,
+      etiqueta,
+      antes: mostrar(antes),
+      despues: mostrar(despues),
+    });
+  for (const [k, x] of a) {
+    const y = d.get(k);
+    if (!y) cambio(e.quitado, completo(x), '');
+    else if (e.detalle(x) !== e.detalle(y))
+      cambio(e.nombre(x), e.detalle(x), e.detalle(y));
+  }
+  for (const [k, y] of d) if (!a.has(k)) cambio(e.agregado, '', completo(y));
+  return lista;
 }
+
+const cambiosMateriales = (a: Visita, d: Visita, seccion: number) =>
+  cambiosLista(a.materiales ?? [], d.materiales ?? [], 'materiales', seccion, {
+    clave: m => (texto(m.codigo) || texto(m.desc)).toUpperCase(),
+    nombre: m => texto(m.desc),
+    detalle: m =>
+      [`${texto(m.cant)} ${texto(m.unidad)}`.trim(), texto(m.motivo)]
+        .filter(Boolean)
+        .join(' · '),
+    quitado: 'Material quitado',
+    agregado: 'Material agregado',
+  });
+
+const cambiosPersonal = (a: Visita, d: Visita, seccion: number) =>
+  cambiosLista(a.personal ?? [], d.personal ?? [], 'personal', seccion, {
+    clave: p => (p.usuario_id ? `u${p.usuario_id}` : texto(p.nombre)),
+    nombre: p => texto(p.nombre),
+    detalle: p => texto(p.cargo),
+    quitado: 'Técnico quitado',
+    agregado: 'Técnico agregado',
+  });
+
+/** Valor comparable de un campo. */
+const valorDe = (v: Visita, campo: keyof Visita) => texto(v[campo]);
 
 /** Observación de cada foto por su orden. */
 export type ObservacionesFotos = Record<number, string | null>;
@@ -144,6 +210,14 @@ export function cambiosVisita(
   for (const [campo, [seccion, etiqueta]] of Object.entries(
     CAMPOS_EDITABLES,
   ) as [keyof Visita, [NombreSeccion, string]][]) {
+    if (campo === 'materiales') {
+      lista.push(...cambiosMateriales(antes, despues, S(seccion)));
+      continue;
+    }
+    if (campo === 'personal') {
+      lista.push(...cambiosPersonal(antes, despues, S(seccion)));
+      continue;
+    }
     const a = valorDe(antes, campo);
     const d = valorDe(despues, campo);
     if (a !== d)

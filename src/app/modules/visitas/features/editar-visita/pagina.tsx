@@ -31,6 +31,7 @@ import {
   Save,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { CajaError, Cargando, Vacio } from '@components/ui';
 import { useConfirmar } from '@components/confirm-dialog';
@@ -120,7 +121,8 @@ function Editor({ d }: { d: VisitaDetalle }) {
   );
   const modificadas = seccionesConCambios(cambios);
   const cambiados = useMemo(
-    () => new Set(cambios.map(c => c.campo)),
+    // También el nombre de la lista («materiales», «personal») cuando cambió alguno de sus elementos.
+    () => new Set(cambios.flatMap(c => [c.campo, c.campo.split('.')[0]!])),
     [cambios],
   );
   const anteriores = useMemo(
@@ -310,7 +312,8 @@ function Editor({ d }: { d: VisitaDetalle }) {
                     Modificada
                   </span>
                 )}
-                {!abiertaAqui && (
+                {/* Con una sección abierta, los lápices de las demás se ocultan hasta aplicar o cancelar. */}
+                {abierta === null && (
                   <button
                     type="button"
                     onClick={() => abrir(i)}
@@ -720,61 +723,87 @@ function Confirmar({
     lista: cambios.filter(c => c.seccion === i),
   })).filter(s => s.lista.length);
   return (
-    <Hoja
-      abierta
-      titulo="Confirmar cambios"
-      onCerrar={onCerrar}
-      pie={
-        <div className="space-y-2">
-          <ErrorServidor mensaje={error} />
-          <div className="flex gap-3">
-            <button
-              type="button"
-              className="btn-secundario flex-1"
-              onClick={onCerrar}
-            >
-              Revisar
-            </button>
-            <button
-              type="button"
-              className="btn-primario flex-1"
-              onClick={guardar}
-              disabled={form.formState.isSubmitting || !motivo.trim()}
-            >
-              {form.formState.isSubmitting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Save className="h-5 w-5" />
-              )}{' '}
-              Guardar
-            </button>
+    <>
+      {form.formState.isSubmitting && <GuardandoCambios />}
+      <Hoja
+        abierta
+        titulo="Confirmar cambios"
+        onCerrar={onCerrar}
+        pie={
+          <div className="space-y-2">
+            <ErrorServidor mensaje={error} />
+            <div className="flex gap-3">
+              <button
+                type="button"
+                className="btn-secundario flex-1"
+                onClick={onCerrar}
+              >
+                Revisar
+              </button>
+              <button
+                type="button"
+                className="btn-primario flex-1"
+                onClick={guardar}
+                disabled={form.formState.isSubmitting || !motivo.trim()}
+              >
+                <Save className="h-5 w-5" /> Guardar
+              </button>
+            </div>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          {porSeccion.map(s => (
+            <div key={s.nombre}>
+              <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-900">
+                {s.nombre}
+              </p>
+              <ListaCambios cambios={s.lista} />
+            </div>
+          ))}
+          <div>
+            <label className="etiqueta" htmlFor="motivo-edicion">
+              Motivo del cambio <span className="text-rose-600">*</span>
+            </label>
+            <textarea
+              id="motivo-edicion"
+              className="campo min-h-[88px]"
+              maxLength={300}
+              placeholder="P. ej. lectura mal digitada"
+              {...form.register('motivo')}
+            />
+            <ErrorCampo form={form} nombre="motivo" />
           </div>
         </div>
-      }
+      </Hoja>
+    </>
+  );
+}
+
+/** Pantalla bloqueante mientras se guardan los cambios (no se puede tocar nada ni repetir el envío). */
+function GuardandoCambios() {
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/60 px-6 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Guardando cambios"
     >
-      <div className="space-y-4">
-        {porSeccion.map(s => (
-          <div key={s.nombre}>
-            <p className="mb-1 text-xs font-bold uppercase tracking-wide text-marca-900">
-              {s.nombre}
-            </p>
-            <ListaCambios cambios={s.lista} />
-          </div>
-        ))}
-        <div>
-          <label className="etiqueta" htmlFor="motivo-edicion">
-            Motivo del cambio <span className="text-rose-600">*</span>
-          </label>
-          <textarea
-            id="motivo-edicion"
-            className="campo min-h-[88px]"
-            maxLength={300}
-            placeholder="P. ej. lectura mal digitada"
-            {...form.register('motivo')}
-          />
-          <ErrorCampo form={form} nombre="motivo" />
-        </div>
+      <div
+        className="w-full max-w-xs rounded-2xl bg-white p-6 text-center shadow-xl"
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2
+          className="mx-auto h-10 w-10 animate-spin text-marca-600"
+          aria-hidden
+        />
+        <p className="mt-4 text-lg font-bold text-slate-900">
+          Guardando cambios…
+        </p>
+        <p className="mt-1 text-sm text-slate-500">No cierre la app.</p>
       </div>
-    </Hoja>
+    </div>,
+    document.body,
   );
 }
