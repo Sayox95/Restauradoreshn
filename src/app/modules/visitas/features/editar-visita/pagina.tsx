@@ -132,7 +132,11 @@ function Editor({ d }: { d: VisitaDetalle }) {
   // Sin el menú inferior (la barra de guardar va fija abajo); con cambios, la versión nueva de la app
   // espera a que termine (nunca se recarga encima de lo editado).
   // Se entra desde el final del detalle: la edición empieza arriba.
-  useEffect(() => window.scrollTo(0, 0), []);
+  // Con llaves: lo que devuelve el efecto React lo toma como limpieza, y en navegadores recientes
+  // scrollTo devuelve una promesa («n is not a function» al salir de la pantalla).
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   useEffect(() => {
     fijarModoCaptura(true);
     return () => fijarModoCaptura(false);
